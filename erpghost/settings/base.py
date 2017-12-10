@@ -25,7 +25,7 @@ SECRET_KEY = '9@ytnq8mgd75*q#b+5525)tqq$hk6eia+j*ep&xgykl_#v3=4t'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["floating-ridge-70201.herokuapp.com", "erpghost-production.herokuapp.com"]
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition

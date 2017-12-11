@@ -1,0 +1,8 @@
+<h1>Artikel</h1>
+
+{% if object_list %}
+{%  for obj in object_list %}
+
+<p>{{obj}}</p>
+{% endfor %}
+{% endif %}

@@ -134,6 +134,8 @@ STATICFILES_DIRS = (
     os.path.join(BASE_DIR, 'static'),
 )
 
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 STATIC_URL = '/static/'
 CORS_REPLACE_HTTPS_REFERER      = True
 HOST_SCHEME                     = "https://"

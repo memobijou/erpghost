@@ -1,1 +1,7 @@
-alert("UMAYR");
+
+var callAlert = function(){
+
+	alert("abc");
+}
+
+

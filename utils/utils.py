@@ -1,4 +1,5 @@
 def get_queries_as_json(queryset):
+	print("abc")
 	if not queryset.exists():
 		return {}
 	Model = queryset[0].__class__

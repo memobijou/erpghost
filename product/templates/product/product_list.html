@@ -1,5 +1,17 @@
 {% extends 'base.html' %}
 
+{% block js %}
+{% load static %}
+<script>
+var products = "{{rows | safe}}";
+
+products = products.replace(/\'/g, "\"");
+products = JSON.parse(products);
+
+</script>
+<script src="{% static "main.js" %}"></script>
+{% endblock %}
+
 {% block navigation %}
 
 <h1>Artikel</h1>
@@ -8,11 +20,6 @@
 
 {% block content %}
 
-{% if object_list %}
-{%  for obj in object_list %}
 
-<p>{{obj}}</p>
-{% endfor %}
-{% endif %}
 
 {% endblock %}

@@ -1,4 +1,5 @@
-
+from django.utils.dateparse import parse_datetime
+import datetime
 
 def get_model_from_queryset(queryset):
 	Model = queryset[0].__class__
@@ -29,7 +30,19 @@ def get_queries_as_json(queryset):
 		row = {}
 		row[str(query)] = {}
 		rows.append(row)
-
 		for field in meta_fields:
-			row[str(query)][field.name] = getattr(query, field.name)
+			value = getattr(query, field.name)
+			print(type(value))
+			if isinstance(value, datetime.date):
+				print("aaaaaaaa")
+				date = value.strftime("%d.%m.%Y")
+				# time = value.strftime("%H:%M:%S")
+				# value = value.strftime("%d.%m.%Y")
+				value = date
+
+
+			else:
+				value = str(value)
+			row[str(query)][field.name] = value
+
 	return rows

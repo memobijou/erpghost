@@ -43,9 +43,9 @@ var create_header_from_array = function(fields, thead, exclude){
 
     for(var f in fields){
         if(exclude && exclude.includes(fields[f])) continue;
-        var td = document.createElement("td");
-        td.innerHTML = fields[f]; 
-        tr.appendChild(td);
+        var th = document.createElement("th");
+        th.innerHTML = fields[f]; 
+        tr.appendChild(th);
 
     }
 
@@ -144,7 +144,7 @@ function show_query_on_detail(row, detail_view, query){
 
 
 
-
+// DAMIT DIESE FUNKTION FUNKTIONIERT MÜSSEN queryset UND field_names IN JAVASCRIPT DEFINIERT SEIN
 function MasterDetailToListView(){
 
     var master_detail = generate_master_detail();
@@ -182,8 +182,34 @@ function MasterDetailToListView(){
         show_query_on_detail(master_row, detail, query)
     }
 
-    
+    return {"master": master, "detail": detail, "master_tbody": tbody, "master_thead": thead, "master_rows": master_rows}
 }
+
+
+
+
+function TableToListView(exclude=[]){
+
+        var table_components = generate_table();
+        var table = table_components.table;
+        table.style.backgroundColor = "white";
+
+        var tbody = table_components.tbody;
+        var thead = table_components.thead;
+        thead = create_header_from_array(field_names, thead, exclude);
+        table.className = "table table-bordered";
+
+
+        fill_ordinary_table(queryset, tbody, exclude);
+
+        var main_container = document.getElementById("main-container");
+        main_container.appendChild(table);
+
+        return {"table": table, "tbody": tbody, "thead": thead};
+
+}   
+
+
 
 var remove_all_childs_of_element = function(element){
     while(element.firstChild){

@@ -6,6 +6,8 @@ $(document).ready(function(e){
 
 var table_components = generate_table();
 var table = table_components.table;
+table.style.backgroundColor = "white";
+
 var tbody = table_components.tbody;
 var thead = table_components.thead;
 var exclude = ["id"];

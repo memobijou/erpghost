@@ -41,7 +41,7 @@ for(var p in queryset){
    
 
     (function(tr, query, detail){
-        tr.style = "cursor:pointer;";
+        tr.style.cursor = "pointer";
         tr.onclick = function(){
             remove_all_childs_of_element(detail);
             fill_master_detail(query, detail);

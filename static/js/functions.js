@@ -7,7 +7,7 @@ var generate_master_detail = function(){
     row.className = "row";
 
     master_div.className = "col-md-2";
-    detail_div.className = "col-md-9 col-md-offset-1";
+    detail_div.className = "col-md-9 col-md-offset-1 table-bordered";
 
     // master_div.style = "background-color:white;height:400px;";
     // detail_div.style = "background-color:white;height:400px;";

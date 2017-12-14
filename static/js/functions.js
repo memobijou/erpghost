@@ -133,9 +133,24 @@ return master_rows
 
 }
 
+var highlight_table_row = function(tr){
+    var parent = tr.parentElement;
+    var trs = parent.getElementsByTagName("tr");
+
+    for(var i = 0; i<trs.length; i++){
+        trs[i].className = trs[i].className.replace("active", "");
+    }
+
+    if(!tr.className.includes("active")){
+                tr.className = tr.className + " active";
+    }
+
+}
+
 
 function show_query_on_detail(row, detail_view, query){
         row.onclick = function(){
+            highlight_table_row(row);
             remove_all_childs_of_element(detail_view);
             fill_master_detail(query, detail_view);
 
@@ -167,7 +182,7 @@ function MasterDetailToListView(){
     table.style.width = "100%";
     table.style.left = 0;
     table.style.backgroundColor = "white";
-    table.className = "table table-bordered";
+    table.className = "table table-bordered table-hover";
 
     master.appendChild(table);
 
@@ -175,11 +190,19 @@ function MasterDetailToListView(){
     var master_rows = queryset_to_master(queryset, tbody);
 
     for(var m in master_rows){
+
         var master_row_components = master_rows[m];
         var master_row = master_row_components.row;
         var query = master_row_components.query;
 
         show_query_on_detail(master_row, detail, query)
+
+        if(m == 0){
+            fill_master_detail(query, detail);
+            highlight_table_row(master_row);
+
+        }
+
     }
 
     return {"master": master, "detail": detail, "master_tbody": tbody, "master_thead": thead, "master_rows": master_rows}

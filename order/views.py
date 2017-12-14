@@ -16,4 +16,5 @@ class OrderListView(ListView):
 
 		context["field_names"] = get_field_names(context["object_list"])
 		context["rows"] = get_queries_as_json(context["object_list"])
+		context["title"] = "Bestellung"
 		return context

@@ -73,7 +73,6 @@ var fill_master_detail = function(query, detail_div){
 }
 
 
-
 var fill_ordinary_table = function(queryset, tbody, exclude){
 
 
@@ -98,10 +97,93 @@ var fill_ordinary_table = function(queryset, tbody, exclude){
 
 }
 
+}
 
+
+var queryset_to_master = function(queryset, master_tbody){
+var master_rows = [];
+    
+for(var p in queryset){
+    var query = queryset[p];
+    var master_value = Object.keys(query)[0];
+
+    var tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+
+    var td = document.createElement("td");
+    var b = document.createElement("b");
+    b.innerHTML = master_value;
+    
+    td.appendChild(b);
+    tr.appendChild(td);
+    master_tbody.appendChild(tr); 
+
+    var detail_values = query[master_value];
+   
+    master_rows.push({"row": tr, "query": query });
+
+
+
+    // }
+    // alert(master_value + " : " + JSON.stringify(product_detail));
 
 }
 
+return master_rows
+
+}
+
+
+function show_query_on_detail(row, detail_view, query){
+        row.onclick = function(){
+            remove_all_childs_of_element(detail_view);
+            fill_master_detail(query, detail_view);
+
+        }
+}
+
+
+
+
+function MasterDetailToListView(){
+
+    var master_detail = generate_master_detail();
+    var master = master_detail.master;
+    var detail = master_detail.detail;
+    detail.style.padding = "25px";
+
+    var main_container = document.getElementById("main-container");
+    main_container.appendChild(master_detail.row);
+
+    var table_components = generate_table();
+
+    var table = table_components.table;
+    var tbody = table_components.tbody;
+    var thead = table_components.thead; 
+
+    thead = create_header_from_array(field_names, thead, ["id"]);
+
+    table.style.position = "absolute";
+    table.style.width = "100%";
+    table.style.left = 0;
+    table.style.backgroundColor = "white";
+    table.className = "table table-bordered";
+
+    master.appendChild(table);
+
+
+    var master_rows = queryset_to_master(queryset, tbody);
+
+    for(var m in master_rows){
+        var master_row_components = master_rows[m];
+        var master_row = master_row_components.row;
+        var query = master_row_components.query;
+
+        show_query_on_detail(master_row, detail, query)
+    }
+
+    
+}
 
 var remove_all_childs_of_element = function(element){
     while(element.firstChild){

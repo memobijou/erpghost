@@ -21,4 +21,5 @@ class ProductListView(ListView):
 		print(str(rows))
 		context["field_names"] = get_field_names(context["object_list"])
 		context["rows"] = rows
+		context["title"] = "Artikel"
 		return context

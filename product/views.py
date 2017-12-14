@@ -4,7 +4,7 @@ from .models import Product
 from django.http import JsonResponse
 from django.core import serializers
 import json
-from utils.utils import get_queries_as_json
+from utils.utils import get_queries_as_json, get_field_names
 # Create your views here.
 
 class ProductListView(ListView):
@@ -19,6 +19,6 @@ class ProductListView(ListView):
 
 		rows = get_queries_as_json(context["object_list"])
 		print(str(rows))
-		context["field_names"] = field_names
+		context["field_names"] = get_field_names(context["object_list"])
 		context["rows"] = rows
 		return context

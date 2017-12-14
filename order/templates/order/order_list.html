@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block js %}
+
+{% load static %}
+<script>
+
+var field_names = parse_json("{{field_names | safe}}");
+var queryset = parse_json("{{rows | safe}}");
+
+</script>
+<script src="{% static "order/main.js" %}"></script>
+
+{% endblock %}
+
+{% block content %}
+
+
+{% endblock %}

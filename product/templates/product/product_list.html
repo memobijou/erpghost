@@ -3,13 +3,12 @@
 {% block js %}
 {% load static %}
 <script>
-var products = "{{rows | safe}}";
 
-products = products.replace(/\'/g, "\"");
-products = JSON.parse(products);
+var queryset = parse_json("{{rows | safe}}");
+var field_names = parse_json("{{field_names | safe }}");
 
 </script>
-<script src="{% static "main.js" %}"></script>
+<script src="{% static "product/main.js" %}"></script>
 {% endblock %}
 
 {% block navigation %}

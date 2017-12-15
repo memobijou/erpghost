@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.core import serializers
 import json
 from utils.utils import get_queries_as_json, get_field_names
+from .serializers import ProductSerializer
+from rest_framework.generics import ListAPIView
 # Create your views here.
 
 class ProductListView(ListView):
@@ -23,3 +25,7 @@ class ProductListView(ListView):
 		context["rows"] = rows
 		context["title"] = "Artikel"
 		return context
+
+class ProductListAPIView(ListAPIView):
+	queryset = Product.objects.all()
+	serializer_class = ProductSerializer

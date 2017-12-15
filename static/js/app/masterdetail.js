@@ -55,12 +55,15 @@ var create_header_from_array = function(fields, thead, exclude){
 
 
 
-var fill_master_detail = function(query, detail_div){
-    var master_value = Object.keys(query)[0];
-    var detail = query[master_value];
+var fill_master_detail = function(query, detail_div, exclude){
+    var master_value = query.str;
+    var detail = query;
 
     for(var k in Object.keys(detail)){
          var column = Object.keys(detail)[k];
+         if(is_in_array(column, exclude)){
+          continue;
+        }
          var col_b = document.createElement("b");
          col_b.innerHTML = column + ": ";
          detail_div.appendChild(col_b);
@@ -73,39 +76,12 @@ var fill_master_detail = function(query, detail_div){
 }
 
 
-var fill_ordinary_table = function(queryset, tbody, exclude){
 
-
-    for(var q in queryset){
-
-        var master_value = Object.keys(queryset[q])[0];
-        var detail_values = queryset[q][master_value];
-
-        var tr = document.createElement("tr");
-        for(var d in detail_values){
-            var column = d;
-            if(exclude.includes(column)){ 
-                continue;
-            }
-
-            var value = detail_values[d];
-            var td = document.createElement("td");
-            td.innerHTML = value;
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-        }
-
-}
-
-}
-
-
-var queryset_to_master = function(queryset, master_tbody){
+var queryset_to_master = function(response, master_tbody){
 var master_rows = [];
-    
-for(var p in queryset){
-    var query = queryset[p];
-    var master_value = Object.keys(query)[0];
+for(var r in response){
+    var query = response[r];
+    var master_value = query.str;
 
     var tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -133,34 +109,29 @@ return master_rows
 
 }
 
-var highlight_table_row = function(tr){
-    var parent = tr.parentElement;
-    var trs = parent.getElementsByTagName("tr");
-
-    for(var i = 0; i<trs.length; i++){
-        trs[i].className = trs[i].className.replace("active", "");
-    }
-
-    if(!tr.className.includes("active")){
-                tr.className = tr.className + " active";
-    }
-
-}
 
 
-function show_query_on_detail(row, detail_view, query){
+
+function show_query_on_detail_click(row, detail_view, query, exclude){
+
         row.onclick = function(){
             highlight_table_row(row);
             remove_all_childs_of_element(detail_view);
-            fill_master_detail(query, detail_view);
+            fill_master_detail(query, detail_view, exclude);
 
         }
+
+
 }
 
-
+ 
 
 // DAMIT DIESE FUNKTION FUNKTIONIERT MÜSSEN queryset UND field_names IN JAVASCRIPT DEFINIERT SEIN
-function MasterDetailToListView(){
+function MasterDetailToListView(response, exclude=[]){
+
+
+    var field_names = get_field_names_from_json(response);
+
 
     var master_detail = generate_master_detail();
     var master = master_detail.master;
@@ -176,7 +147,7 @@ function MasterDetailToListView(){
     var tbody = table_components.tbody;
     var thead = table_components.thead; 
 
-    thead = create_header_from_array(field_names, thead, ["id"]);
+    thead = create_header_from_array(field_names, thead, ["id", "str"]);
 
     table.style.position = "absolute";
     table.style.width = "100%";
@@ -187,18 +158,16 @@ function MasterDetailToListView(){
     master.appendChild(table);
 
 
-    var master_rows = queryset_to_master(queryset, tbody);
-
+    var master_rows = queryset_to_master(response, tbody);
     for(var m in master_rows){
 
         var master_row_components = master_rows[m];
         var master_row = master_row_components.row;
         var query = master_row_components.query;
-
-        show_query_on_detail(master_row, detail, query)
+        show_query_on_detail_click(master_row, detail, query, exclude)
 
         if(m == 0){
-            fill_master_detail(query, detail);
+            fill_master_detail(query, detail, exclude);
             highlight_table_row(master_row);
 
         }
@@ -211,31 +180,4 @@ function MasterDetailToListView(){
 
 
 
-function TableToListView(exclude=[]){
 
-        var table_components = generate_table();
-        var table = table_components.table;
-        table.style.backgroundColor = "white";
-
-        var tbody = table_components.tbody;
-        var thead = table_components.thead;
-        thead = create_header_from_array(field_names, thead, exclude);
-        table.className = "table table-bordered";
-
-
-        fill_ordinary_table(queryset, tbody, exclude);
-
-        var main_container = document.getElementById("main-container");
-        main_container.appendChild(table);
-
-        return {"table": table, "tbody": tbody, "thead": thead};
-
-}   
-
-
-
-var remove_all_childs_of_element = function(element){
-    while(element.firstChild){
-        element.removeChild(element.firstChild);
-    }
-}

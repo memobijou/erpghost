@@ -1,5 +1,5 @@
 require(["tables"],function(){
-	jQuery(document).ready(function(){
+	$(document).ready(function(){
 				get_("/order/api", TableToListView, [["id", "str"]]);
 
 

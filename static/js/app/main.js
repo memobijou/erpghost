@@ -9,27 +9,17 @@ requirejs.config({
       // "functions": "../app/functions",
     },
     "shim": {
+        "jquery": {
+            exports: '$', 
+
+        },
         "bootstrap": ["jquery"],
         "masterdetail": ["bootstrap" ,"functions"],
         "tables": ["bootstrap" ,"functions"],
 
+
     }
 });
-
-
-// define(["functions", "bootstrap"],function(functions) {
-//   return {
-//     test_func: function() {
-//       // $ = jQuery  
-//       jQuery(document).ready(function(){
-//         alert("Ich bin jQuery");
-
-//       });
-//       alert("Asooo so geht das!");
-//     }
-//   }
-// });
-
 
 
 define([

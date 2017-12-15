@@ -1,6 +1,3 @@
-// requirejs(["app/main"]);
-
-
 requirejs.config({
     "paths": {
       "jquery": "../vendor/jquery",
@@ -10,7 +7,7 @@ requirejs.config({
     },
     "shim": {
         "jquery": {
-            exports: '$', 
+            exports: "$", 
 
         },
         "bootstrap": ["jquery"],
@@ -20,6 +17,9 @@ requirejs.config({
 
     }
 });
+
+
+
 
 
 define([

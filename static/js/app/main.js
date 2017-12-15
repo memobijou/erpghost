@@ -25,23 +25,15 @@ requirejs.config({
 define([
     // "../vendor/jquery",
     // "../vendor/bootstrap.min",
-    "jquery",
+    // "jquery",
     // "functions",
     // "masterdetail",
     // "tables",
-    "bootstrap",
+    // "bootstrap",
 
-], function($, functions)
+], function()
 {
-    $(function()
-    {
-
-        //do stuff
-        // test_func();
-
-
-
-    });
+ 
 });
 
 

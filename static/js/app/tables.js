@@ -1,4 +1,3 @@
-
 var generate_table = function(){
     var table = document.createElement("table");
     var thead = document.createElement("thead");
@@ -12,8 +11,8 @@ var generate_table = function(){
 var fill_table = function(queryset, tbody, exclude){
     for(var q in queryset){
 
-        var master_value = Object.keys(queryset[q])[0];
-        var detail_values = queryset[q][master_value];
+        var master_value = queryset[q].str;
+        var detail_values = queryset[q];
 
         var tr = document.createElement("tr");
         for(var d in detail_values){
@@ -34,7 +33,9 @@ var fill_table = function(queryset, tbody, exclude){
 
 
 
-function TableToListView(exclude=[]){
+function TableToListView(response ,exclude=[]){
+
+        var field_names = get_field_names_from_json(response);
 
         var table_components = generate_table();
         var table = table_components.table;
@@ -46,7 +47,7 @@ function TableToListView(exclude=[]){
         table.className = "table table-bordered";
 
 
-        fill_table(queryset, tbody, exclude);
+        fill_table(response, tbody, exclude);
 
         var main_container = document.getElementById("main-container");
         main_container.appendChild(table);

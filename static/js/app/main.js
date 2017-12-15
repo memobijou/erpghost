@@ -11,6 +11,8 @@ requirejs.config({
     "shim": {
         "bootstrap": ["jquery"],
         "masterdetail": ["bootstrap" ,"functions"],
+        "tables": ["bootstrap" ,"functions"],
+
     }
 });
 

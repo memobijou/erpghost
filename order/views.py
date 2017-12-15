@@ -2,6 +2,8 @@ from django.shortcuts import render
 from django.views.generic import ListView
 from .models import Order
 from utils.utils import get_field_names, get_queries_as_json
+from .serializers import OrderSerializer
+from rest_framework.generics import ListAPIView
 
 # Create your views here.
 
@@ -18,3 +20,7 @@ class OrderListView(ListView):
 		context["rows"] = get_queries_as_json(context["object_list"])
 		context["title"] = "Bestellung"
 		return context
+
+class OrderListAPIView(ListAPIView):
+	queryset = Order.objects.all()
+	serializer_class = OrderSerializer

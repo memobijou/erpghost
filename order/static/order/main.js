@@ -1,8 +1,9 @@
-$(document).ready(function(e){
+require(["tables"],function(){
+	$(document).ready(function(){
+				get_("/order/api", TableToListView, [["id", "str"]]);
 
-// alert(field_names);
-// alert(field_names);
-var exclude = ["id"];
-TableToListView(exclude);
 
+});
+
+    // MasterDetailToListView(queryset, fields_name);
 });

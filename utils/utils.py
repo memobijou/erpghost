@@ -49,9 +49,27 @@ def get_queries_as_json(queryset):
 	return rows
 
 def handle_pagination(queryset, request, results_per_page):
-		current_page = request.GET.get("page")
-		if(not current_page):
-			current_page = 1
-		paginator = Paginator(queryset, results_per_page)
-		current_object_list = paginator.page(current_page)
-		return {"queryset": current_object_list, "pages_range": range(1, paginator.num_pages+1), "current_page": current_page}
+	current_page = request.GET.get("page")
+	if(not current_page):
+		current_page = 1
+	paginator = Paginator(queryset, results_per_page)
+	current_object_list = paginator.page(current_page)
+	return {"queryset": current_object_list, "pages_range": range(1, paginator.num_pages+1), "current_page": current_page}
+
+def set_paginated_queryset_onview(queryset, request, results_per_page, context):
+
+	context["object_list_as_json"] = get_queries_as_json(context["object_list"])
+	context["object_list_as_json"] = handle_pagination(context["object_list_as_json"], request, results_per_page)["queryset"]
+	context["object_list_as_json"] = [r  for r in context["object_list_as_json"]]
+
+	pagination_components = handle_pagination(context["object_list"], request, results_per_page)
+	
+	context["object_list"] = pagination_components["queryset"]
+	context["pages_range"] = pagination_components["pages_range"]
+	context["current_page"] = pagination_components["current_page"]
+
+def set_field_names_onview(queryset, exclude, context):
+	if not exclude:
+		exclude = []
+	context["field_names"] = get_field_names(context["object_list"], exclude)
+

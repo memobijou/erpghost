@@ -1,4 +1,5 @@
 {% load utils %}
+<div class="col-md-12">
 <table class="table table-bordered" style="background-color:white;">
 	<thead>
 		<tr>
@@ -9,7 +10,7 @@
 	</thead>
 
 	<tbody>
-			{% for object in rows_as_json %}
+			{% for object in object_list_as_json %}
 				<tr>
 					{% for field in field_names%}
 					  <td> {{object|getattr:field}} </td>
@@ -30,3 +31,4 @@ app.controller('ctrl', 	function($scope){
 });
 
 </script>
+</div>

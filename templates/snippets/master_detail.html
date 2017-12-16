@@ -1,4 +1,4 @@
-<div ng-app="masterDetail" ng-controller="ctrl" ng-init="detail_query={{rows_as_json.0}}">
+<div ng-app="masterDetail" ng-controller="ctrl" ng-init="detail_query={{object_list_as_json.0}}">
 
 	<div class="col-md-2">
 	<table class="table table-bordered" style="background-color:white;">	
@@ -12,7 +12,7 @@
 
 		<tbody>
 			{% for obj in object_list %}
-				<tr  ng-click="clickFunction('{{obj.id}}' ,{{rows_as_json}})">
+				<tr  ng-click="clickFunction('{{obj.id}}' ,{{object_list_as_json}})">
 					<td class="{% if object_list.first == obj%}{% endif %}" style="cursor:pointer;" ng-class="{active : {{obj.id}} == detail_query.id}">
 						{{obj}}
 					</td>

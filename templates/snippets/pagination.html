@@ -1,0 +1,31 @@
+<div class="col-md-12">
+	<div>
+		<ul class="pagination" style="cursor:pointer;">
+				<li>
+					<a {% if object_list.has_previous %}
+				 			href="?page={{current_page|add:"-1"}}"
+				       {%else%}
+			   				style="color:black;"
+			    	   {% endif %}>
+			   		   Zur&uuml;ck 
+					</a>
+				</li>
+			
+				{% for p in pages_range %}
+					<li {% if p|slugify == current_page|slugify %}class=active {% endif %}>
+						<a href="?page={{p}}">{{p}}</a>
+					</li>
+				{% endfor %}
+				
+				<li>
+					<a {% if object_list.has_next %}
+							href="?page={{current_page|add:"1"}}"
+					   {%else%}
+					   		style="color:black;"
+					   {% endif %}>
+					   	Weiter 
+					</a>
+				</li>
+		</ul>
+	</div>
+</div>

@@ -13,6 +13,8 @@
 
 {% block content %}
 
+{% include "snippets/pagination.html"  with current_page=current_page pages_range=pages_range%}
+
 {% include "snippets/master_detail.html" with object_list=object_list field_names=field_names rows_as_json=rows %}
 
 {% endblock %}

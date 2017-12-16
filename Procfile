@@ -1,1 +1,1 @@
-web: gunicorn erpghost.wsgi
+web: gunicorn erpghost.wsgi -b 0.0.0.0:$PORT

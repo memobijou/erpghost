@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'product',
     'order',
+    'lib',
     'rest_framework',
 ]
 

@@ -1,0 +1,52 @@
+{% load utils %}
+
+<script>
+
+</script>
+<div ng-app="masterDetail" ng-controller="ctrl" ng-init="detail_query={{rows_as_json.0}}">
+
+	<div class="col-md-2">
+	<table class="table table-bordered" style="background-color:white;">	
+		<thead>
+			<tr>
+				{% for field in field_names %}
+					<th>{{field}}</th>
+				{% endfor %}
+			</tr>	
+		</thead>
+
+		<tbody>
+			{% for obj in object_list %}
+				<tr  ng-click="clickFunction('{{obj.id}}' ,{{rows_as_json}})">
+					<td class="{% if object_list.first == obj%}{% endif %}" style="cursor:pointer;" ng-class="{active : {{obj.id}} == detail_query.id}">
+						{{obj}}
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	</div>
+
+	<div class="col-md-9">
+		<div class="table-bordered" style="background-color:white;height:300px;padding:25px;">
+			{% verbatim %}	
+			<p ng-repeat="(key, val) in detail_query">
+				 <b>{{ key }}: </b> {{val}}
+			 <p/>
+			{% endverbatim %}
+		</div>
+	</div>
+	<input type="hidden" ng-model="querylist" value="abc"/>
+</div>
+<script>
+var app = angular.module('masterDetail', []);
+app.controller('ctrl', function($scope){
+	$scope.clickFunction = function(id,querylist){
+		// alert(id  + " : " + JSON.stringify(querylist));
+		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
+			$scope.detail_query = match_result;
+		}
+
+	}
+);
+</script>

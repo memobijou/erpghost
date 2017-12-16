@@ -16,12 +16,10 @@ class ProductListView(ListView):
 
 	def get_context_data(self, *args, **kwargs):
 		context = super(ProductListView, self).get_context_data(*args, **kwargs);
-		
 		field_names = []
-
 		rows = get_queries_as_json(context["object_list"])
 		print(str(rows))
-		context["field_names"] = get_field_names(context["object_list"])
+		context["field_names"] = get_field_names(context["object_list"], ["id"])
 		context["rows"] = rows
 		context["title"] = "Artikel"
 		return context

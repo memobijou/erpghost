@@ -22,5 +22,7 @@
 
 {% block content %}
 
+{% include "snippets/master_detail.html" with object_list=object_list field_names=field_names rows_as_json=rows %}
+
 
 {% endblock %}

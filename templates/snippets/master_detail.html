@@ -1,6 +1,3 @@
-<script>
-
-</script>
 <div ng-app="masterDetail" ng-controller="ctrl" ng-init="detail_query={{rows_as_json.0}}">
 
 	<div class="col-md-2">
@@ -36,15 +33,17 @@
 	</div>
 	<input type="hidden" ng-model="querylist" value="abc"/>
 </div>
-<script>
-var app = angular.module('masterDetail', []);
-app.controller('ctrl', function($scope){
-	$scope.clickFunction = function(id,querylist){
-		// alert(id  + " : " + JSON.stringify(querylist));
-		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
-			$scope.detail_query = match_result;
-		}
 
-	}
-);
+
+<script>
+	var app = angular.module('masterDetail', []);
+	app.controller('ctrl', function($scope){
+		$scope.clickFunction = function(id,querylist){
+			// alert(id  + " : " + JSON.stringify(querylist));
+			for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
+				$scope.detail_query = match_result;
+			}
+
+		}
+	);
 </script>

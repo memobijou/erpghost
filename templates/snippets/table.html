@@ -1,0 +1,31 @@
+<table class="table table-bordered" style="background-color:white;">
+	<thead>
+		<tr>
+			{% for field in field_names %}
+				<th>{{field}}</th>
+			{% endfor %}
+		</tr>
+	</thead>
+
+	<tbody>
+			{% for object in rows_as_json %}
+				<tr>
+					{% for field in field_names%}
+					  <td> {{object}} {{field}} </td>
+					{% endfor %}
+				</tr>
+			{% endfor %}
+	</tbody>
+
+</table>
+
+<script>
+
+var app = angular.module("table", []);
+app.controller('ctrl', 	function($scope){
+
+
+
+});
+
+</script>

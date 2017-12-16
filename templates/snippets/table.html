@@ -1,3 +1,4 @@
+{% load utils %}
 <table class="table table-bordered" style="background-color:white;">
 	<thead>
 		<tr>
@@ -11,7 +12,7 @@
 			{% for object in rows_as_json %}
 				<tr>
 					{% for field in field_names%}
-					  <td> {{object}} {{field}} </td>
+					  <td> {{object|getattr:field}} </td>
 					{% endfor %}
 				</tr>
 			{% endfor %}

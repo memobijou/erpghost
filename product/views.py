@@ -21,7 +21,7 @@ class ProductListView(ListView):
 		field_names = []
 		context["field_names"] = get_field_names(context["object_list"], ["id"])
 
-		results_per_page = 7
+		results_per_page = 15
 
 		context["rows"] = get_queries_as_json(context["object_list"])
 		context["rows"] = handle_pagination(context["rows"], self.request, results_per_page)["queryset"]

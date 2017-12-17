@@ -4,7 +4,11 @@
 		<ul class="pagination" style="cursor:pointer;">
 				<li>
 					<a {% if object_list.has_previous %}
-				 			href="?page={{current_page|add:"-1"}}"
+
+						{% with request.GET|get_q as q %}
+							href="?page={{current_page|add:"-1"}}&{{q|remove_param_from_q:"page="}}"
+						{% endwith %}
+
 				       {%else%}
 			   				style="color:black;"
 			    	   {% endif %}>
@@ -22,7 +26,9 @@
 				
 				<li>
 					<a {% if object_list.has_next %}
-							href="?page={{current_page|add:"1"}}"
+						{% with request.GET|get_q as q %}
+							href="?page={{current_page|add:"1"}}&{{q|remove_param_from_q:"page="}}"
+						{% endwith %}							
 					   {%else%}
 					   		style="color:black;"
 					   {% endif %}>

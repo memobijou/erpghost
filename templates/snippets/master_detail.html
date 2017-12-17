@@ -1,5 +1,5 @@
-<div ng-app="masterDetail" ng-controller="ctrl" ng-init="detail_query={{object_list_as_json.0}}">
-
+{% if object_list %}
+<div ng-controller="masterdetail_ctrl">
 	<div class="col-md-2">
 	<table class="table table-bordered" style="background-color:white;">	
 		<thead>
@@ -32,18 +32,25 @@
 		</div>
 	</div>
 	<input type="hidden" ng-model="querylist" value="abc"/>
-</div>
 
 
 <script>
-	var app = angular.module('masterDetail', []);
-	app.controller('ctrl', function($scope){
-		$scope.clickFunction = function(id,querylist){
-			// alert(id  + " : " + JSON.stringify(querylist));
-			for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
-				$scope.detail_query = match_result;
-			}
+	// var app = angular.module('masterDetail', []);
+	// app.controller('ctrl', function($scope){
+	// 	$scope.clickFunction = function(id,querylist){
+	// 		// alert(id  + " : " + JSON.stringify(querylist));
+	// 		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
+	// 			$scope.detail_query = match_result;
+	// 		}
 
-		}
-	);
+	// 	}
+	// );
 </script>
+</div>
+{% else %}
+<div class="col-md-12" >
+<div class="table-bordered" style="background-color:white;height:200px;text-align: center;">
+	<h1 style="">Keine Ergebnisse</h1>
+</div>
+</div>
+{% endif %}

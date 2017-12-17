@@ -1,3 +1,4 @@
+{% load utils %}
 <div class="col-md-12">
 	<div>
 		<ul class="pagination" style="cursor:pointer;">
@@ -13,7 +14,9 @@
 			
 				{% for p in pages_range %}
 					<li {% if p|slugify == current_page|slugify %}class=active {% endif %}>
-						<a href="?page={{p}}">{{p}}</a>
+						{% with request.GET|get_q as q %}
+							<a href="?page={{p}}&{{q|remove_param_from_q:"page="}}">{{p}}</a>
+						{% endwith %}
 					</li>
 				{% endfor %}
 				

@@ -1,0 +1,19 @@
+{% load utils %}
+<div>
+<div class="col-md-12">
+<form id="filter_form" action="." class="form-inline">
+{% for field in field_names %}
+	<div class="form-group">
+		<input type="text" 
+		{% if request.GET %}
+			value="{{request.GET|get_from_GET:field}}"
+		{% endif %} 
+		placeholder="{{field}}" name="{{field}}" class="form-control">
+		</input>
+	</div>
+{% endfor %}
+<button type="submit" class="btn btn-primary">Filter</button>
+</form>
+
+</div>
+</div>

@@ -119,6 +119,8 @@ def build_query_condition(dict_, Model):
 	condition = Q()
 	for k, v in dict_.items():
 		field_datatype = get_datatype_model_field(Model, k)
+		if not v:
+			continue
 		if field_datatype == "DateField":
 			date_list = v.split("/")
 			day, month, year = int(date_list[2]), int(date_list[1]), int(date_list[0])

@@ -115,6 +115,18 @@ def set_field_names_onview(queryset, exclude, context, ModelClass):
 	context["field_names"] = field_names
 
 
+def get_date_from_string(date_string, format):
+	date_list = date_string.split("/")
+	if format == "ddmmyy":
+		day, month, year = int(date_list[2]), int(date_list[1]), int(date_list[0])
+		try:
+			date_ = date(day, month, year)
+			return date_
+		except ValueError:
+			return
+
+
+
 def build_query_condition(dict_, Model):
 	condition = Q()
 	for k, v in dict_.items():
@@ -122,13 +134,9 @@ def build_query_condition(dict_, Model):
 		if not v:
 			continue
 		if field_datatype == "DateField":
-			date_list = v.split("/")
-			day, month, year = int(date_list[2]), int(date_list[1]), int(date_list[0])
-			try:
-				date_ = date(day, month, year)
-			except ValueError:
+			date_ = get_date_from_string(v, "ddmmyy")
+			if not date_:
 				continue
-
 			Q_kwargs = {k: date_}
 		else:
 			key_condition =k + "__icontains"

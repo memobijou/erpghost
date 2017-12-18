@@ -5,6 +5,16 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 
 
+class BaseValidationError(ValueError):
+	pass
+
+class InvalidDateError(BaseValidationError):
+	pass
+
+def validate_date_ddmmyy(day, month, year):
+	if month > 12:
+		raise InvalidDateError("Oh no wrong month")
+
 def get_model_from_queryset(queryset):
 	if len(queryset) > 0:
 		Model = queryset[0].__class__
@@ -78,7 +88,6 @@ def set_paginated_queryset_onview(queryset, request, results_per_page, context):
 
 def q_to_dict(q):
 	dict_ = dict(zip(q.keys(), q.values()))
-	print("storch: " + str(dict_))	
 	return dict_
 
 def get_datatype_model_field(Model, field_name):
@@ -112,7 +121,13 @@ def build_query_condition(dict_, Model):
 		field_datatype = get_datatype_model_field(Model, k)
 		if field_datatype == "DateField":
 			date_list = v.split("/")
-			Q_kwargs = {k: date(int(date_list[2]), int(date_list[1]), int(date_list[0]))}
+			day, month, year = int(date_list[2]), int(date_list[1]), int(date_list[0])
+			try:
+				date_ = date(day, month, year)
+			except ValueError:
+				continue
+
+			Q_kwargs = {k: date_}
 		else:
 			key_condition =k + "__icontains"
 			Q_kwargs = {key_condition: v}

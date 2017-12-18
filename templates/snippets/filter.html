@@ -11,7 +11,7 @@
 		{% endif %} 
 		placeholder="{{field}}" name="{{field}}" 
 		{% if field_datatypes|getattr:field == "DateField" %}
-			class="form-control datepicker"
+			class="form-control datepicker" readonly style="background-color:white;"
 		{% else %}
 			class="form-control" 
 		{% endif %}

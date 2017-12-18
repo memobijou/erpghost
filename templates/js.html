@@ -9,6 +9,16 @@
 
 <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.4/angular.min.js"></script>
 
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="/resources/demos/style.css">
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<script>
+$( function() {
+$( ".datepicker" ).datepicker({
+            dateFormat: 'dd/mm/yy',});
+} );
+</script>
+
 <script src="{% static "js/app/functions.js" %}"></script>
 <script src="{% static "js/app/masterdetail.js" %}"></script>
 <script src="{% static "js/app/tables.js" %}"></script>

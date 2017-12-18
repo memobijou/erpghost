@@ -1,14 +1,21 @@
 {% load utils %}
+
 <div>
 <div class="col-md-12">
 <form id="filter_form" action="." class="form-inline">
 {% for field in field_names %}
 	<div class="form-group">
-		<input type="text" 
+		<input type="text"
 		{% if request.GET %}
 			value="{{request.GET|get_from_GET:field}}"
 		{% endif %} 
-		placeholder="{{field}}" name="{{field}}" class="form-control">
+		placeholder="{{field}}" name="{{field}}" 
+		{% if field_datatypes|getattr:field == "DateField" %}
+			class="form-control datepicker"
+		{% else %}
+			class="form-control" 
+		{% endif %}
+		>
 		</input>
 	</div>
 {% endfor %}

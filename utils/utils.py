@@ -1,5 +1,6 @@
 from django.utils.dateparse import parse_datetime
 import datetime
+from datetime import date
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 
@@ -74,6 +75,19 @@ def set_paginated_queryset_onview(queryset, request, results_per_page, context):
 		context["pages_range"] = pagination_components["pages_range"]
 		context["current_page"] = pagination_components["current_page"]
 
+
+def q_to_dict(q):
+	dict_ = dict(zip(q.keys(), q.values()))
+	print("storch: " + str(dict_))	
+	return dict_
+
+def get_datatype_model_field(Model, field_name):
+	fields = Model._meta.get_fields()
+	for f in fields:
+		if f.name == field_name:
+			return f.get_internal_type()
+
+
 def set_field_names_onview(queryset, exclude, context, ModelClass):
 	if not exclude:
 		exclude = []
@@ -84,21 +98,26 @@ def set_field_names_onview(queryset, exclude, context, ModelClass):
 	field_names = get_field_names(Model, exclude)
 	if field_names == []:
 		ModelClass
+
+	field_datatypes = {}
+	for field in field_names:
+		field_datatypes[field] = get_datatype_model_field(ModelClass, field)
+	context["field_datatypes"] = field_datatypes
 	context["field_names"] = field_names
 
-def q_to_dict(q):
-	dict_ = dict(zip(q.keys(), q.values()))
-	print("storch: " + str(dict_))	
-	return dict_
 
-def build_query_condition(dict_):
+def build_query_condition(dict_, Model):
 	condition = Q()
 	for k, v in dict_.items():
-		key_condition =k + "__icontains"
-		Q_kwargs = {key_condition: v}
+		field_datatype = get_datatype_model_field(Model, k)
+		if field_datatype == "DateField":
+			date_list = v.split("/")
+			Q_kwargs = {k: date(int(date_list[2]), int(date_list[1]), int(date_list[0]))}
+		else:
+			key_condition =k + "__icontains"
+			Q_kwargs = {key_condition: v}
 		condition &= Q(**Q_kwargs)
 	return condition
-	print("AA: " + str(condition))
 
 def filter_queryset_from_request(request, ModelClass):
 	querystring = request.GET
@@ -113,7 +132,6 @@ def filter_queryset_from_request(request, ModelClass):
 	if "page" in filter_dict:
 		print("######################")
 		filter_dict = {key: val for key, val in filter_dict.items() if key != "page"}
-	print("blabla: " + str(filter_dict))
-	query_condition = build_query_condition(filter_dict)
+	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
 	return result

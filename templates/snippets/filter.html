@@ -31,6 +31,7 @@
 </div>
 <div class="form-group">
 {% for field in field_names %}
+	{% if option_fields %}
 		{% for option_row in option_fields %}
 
 			{% if option_row|getattr:field %}
@@ -48,12 +49,24 @@
 				{% endif %}
 				>
 				</input>
-
 			{% endif %}
 		{% endfor %}
-
+	{% else %}
+		<input type="text"
+				{% if request.GET %}
+					value="{{request.GET|get_from_GET:field}}"
+				{% endif %} 
+				placeholder="{{field}}" name="{{field}}" 
+				{% if field_datatypes|getattr:field == "DateField" %}
+					class="form-control datepicker" readonly style="background-color:white;"
+				{% else %}
+					class="form-control" 
+				{% endif %}
+				>
+				</input>
+	{% endif %}
 {% endfor %}
-	<button type="submit" class="btn btn-primary">Filter</button>
+	<button type="submit" class="btn btn-default">Filter</button>
 </div>
 
 </form>
@@ -74,7 +87,7 @@ for(var i = 0; i<elements.length; i++){
 for(var i = 0; i<calendars.length; i++){
 	var calendar = calendars[i];
 	calendar.onchange = function(){
-		filter_btn.submit();
+		filter_btn.submit(); 
 	}
 }
 

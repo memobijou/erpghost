@@ -5,7 +5,7 @@
 <script src="{% static "product/main.js" %}"></script>
 {% endblock %}
 
-{% block navigation %}
+{% block whereami %}
 
 	<h1>{{title}}</h1>
 
@@ -17,6 +17,7 @@
 
 <div ng-app="ng_listview" ng-init="detail_query={{object_list_as_json.0}}">
 
+	{% include "snippets/navigation.html" %}
 
 	{% include "snippets/filter.html" %}
 

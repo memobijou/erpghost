@@ -4,47 +4,53 @@
 <form id="filter_form" action="." class="form-inline">
 <div class"checkbox-inline">
 	{% for field in field_names %}
-		{% if option_fields|getattr:field %}
-			{% for option in option_fields|getattr:field %}
-			<div class="checkbox">
-				<label>
-					<input type="checkbox"  name="{{field}}" value="{{option}}"
-								{% if request.GET|get_from_GET:field  == option%}
-									checked
-								{% else %}
-									{% for list_option in request.GET|get_from_GET:field %}
-										{% if list_option == option %}
-											checked
-										{% endif %}
-									{% endfor %}
-								{% endif %} class="fire_submit">
-					</input>
-					<b> {{option}}</b>
-				</label>
-			</div>
-			{% endfor %}
+		{% for option_row in option_fields %}
+			{% if option_row|getattr:field %}
+				{% for option in option_row|getattr:field %}
+				<div class="checkbox">
+					<label>
+						<input type="checkbox"  name="{{field}}" value="{{option}}"
+									{% if request.GET|get_from_GET:field  == option%}
+										checked
+									{% else %}
+										{% for list_option in request.GET|get_from_GET:field %}
+											{% if list_option == option %}
+												checked
+											{% endif %}
+										{% endfor %}
+									{% endif %} class="fire_submit">
+						</input>
+						<b> {{option}}</b>
+					</label>
+				</div>
+				{% endfor %}
 		{% endif %}
+	{% endfor %}
+
 	{% endfor %}
 </div>
 <div class="form-group">
 {% for field in field_names %}
-		{% if option_fields|getattr:field %}
+		{% for option_row in option_fields %}
 
-		{% else %}
-			<input type="text"
-			{% if request.GET %}
-				value="{{request.GET|get_from_GET:field}}"
-			{% endif %} 
-			placeholder="{{field}}" name="{{field}}" 
-			{% if field_datatypes|getattr:field == "DateField" %}
-				class="form-control datepicker" readonly style="background-color:white;"
+			{% if option_row|getattr:field %}
+
 			{% else %}
-				class="form-control" 
-			{% endif %}
-			>
-			</input>
+				<input type="text"
+				{% if request.GET %}
+					value="{{request.GET|get_from_GET:field}}"
+				{% endif %} 
+				placeholder="{{field}}" name="{{field}}" 
+				{% if field_datatypes|getattr:field == "DateField" %}
+					class="form-control datepicker" readonly style="background-color:white;"
+				{% else %}
+					class="form-control" 
+				{% endif %}
+				>
+				</input>
 
-		{% endif %}
+			{% endif %}
+		{% endfor %}
 
 {% endfor %}
 	<button type="submit" class="btn btn-primary">Filter</button>

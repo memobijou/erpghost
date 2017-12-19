@@ -26,7 +26,7 @@ class OrderListView(ListView):
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
-		context["option_fields"] = {"status": ["WARENEINGANG", "WARENAUSGANG"]}
+		context["option_fields"] = [{"status": ["WARENEINGANG", "WARENAUSGANG"]}]
 
 		return context
 

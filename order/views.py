@@ -25,6 +25,9 @@ class OrderListView(ListView):
 		set_field_names_onview(context["object_list"], ["id"], context, Order)
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
+
+		context["option_fields"] = {"status": ["WARENEINGANG", "WARENAUSGANG"]}
+
 		return context
 
 class OrderListAPIView(ListAPIView):

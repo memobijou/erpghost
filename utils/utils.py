@@ -3,6 +3,7 @@ import datetime
 from datetime import date
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
+import json
 
 
 class BaseValidationError(ValueError):
@@ -45,7 +46,7 @@ def get_queries_as_json(queryset):
 		rows.append(row)
 		for field in meta_fields:
 			value = getattr(query, field.name)
-			print(type(value))
+			# print(type(value))
 			if isinstance(value, datetime.date):
 				date = value.strftime("%d.%m.%Y")
 				# time = value.strftime("%H:%M:%S")
@@ -87,7 +88,12 @@ def set_paginated_queryset_onview(queryset, request, results_per_page, context):
 
 
 def q_to_dict(q):
+	# dict_ = dict(zip(q.keys(), q.values()))
 	dict_ = dict(zip(q.keys(), q.values()))
+	# print("ta: " + str(json.dumps(q)))
+	dict_ = {k: q.getlist(k) if len(q.getlist(k))>1 else v for k, v in q.items()}
+	print("bla: " + str(q.urlencode())) #  falls das mal net klappt dann mit q.urlencode zu dictionary umwandeln
+	print("bla 2 :" + str(dict(q.lists())))
 	return dict_
 
 def get_datatype_model_field(Model, field_name):
@@ -139,9 +145,23 @@ def build_query_condition(dict_, Model):
 				continue
 			Q_kwargs = {k: date_}
 		else:
-			key_condition =k + "__icontains"
-			Q_kwargs = {key_condition: v}
-		condition &= Q(**Q_kwargs)
+			print("DUNKY: " + str(type(v)))
+			if isinstance(v, list):
+				sub_Q = Q()
+				for el in v:
+					key_condition = k + "__icontains"
+					sub_kwargs = {k: el}
+					sub_Q |= Q(**sub_kwargs)
+				Q_kwargs = None
+				print("BUTTLE:   " + str(sub_Q))
+			else:
+				key_condition =k + "__icontains"
+				Q_kwargs = {key_condition: v}
+		if Q_kwargs:
+			condition &= Q(**Q_kwargs)
+		else:
+			condition &= sub_Q
+	print("BONG: " + str(condition))
 	return condition
 
 def filter_queryset_from_request(request, ModelClass):
@@ -153,10 +173,11 @@ def filter_queryset_from_request(request, ModelClass):
 
 	filter_dict = q_to_dict(querystring)
 	# filter_dict = {key: value for key, value in filter_dict.items() if key is not "page"}
-	print(str(filter_dict))
+	print("wff: "  + str(filter_dict))
 	if "page" in filter_dict:
 		print("######################")
 		filter_dict = {key: val for key, val in filter_dict.items() if key != "page"}
+	print(str(filter_dict))
 	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
 	return result

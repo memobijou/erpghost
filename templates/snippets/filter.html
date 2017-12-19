@@ -7,22 +7,7 @@
 		{% for option_row in option_fields %}
 			{% if option_row|getattr:field %}
 				{% for option in option_row|getattr:field %}
-				<div class="checkbox">
-					<label>
-						<input type="checkbox"  name="{{field}}" value="{{option}}"
-									{% if request.GET|get_from_GET:field  == option%}
-										checked
-									{% else %}
-										{% for list_option in request.GET|get_from_GET:field %}
-											{% if list_option == option %}
-												checked
-											{% endif %}
-										{% endfor %}
-									{% endif %} class="fire_submit">
-						</input>
-						<b> {{option}}</b>
-					</label>
-				</div>
+					{% include "snippets/filter/checkbox.html" %}
 				{% endfor %}
 		{% endif %}
 	{% endfor %}
@@ -37,33 +22,12 @@
 			{% if option_row|getattr:field %}
 
 			{% else %}
-				<input type="text"
-				{% if request.GET %}
-					value="{{request.GET|get_from_GET:field}}"
-				{% endif %} 
-				placeholder="{{field}}" name="{{field}}" 
-				{% if field_datatypes|getattr:field == "DateField" %}
-					class="form-control datepicker" readonly style="background-color:white;"
-				{% else %}
-					class="form-control" 
-				{% endif %}
-				>
-				</input>
+				{% include "snippets/filter/input.html" %}
+
 			{% endif %}
 		{% endfor %}
 	{% else %}
-		<input type="text"
-				{% if request.GET %}
-					value="{{request.GET|get_from_GET:field}}"
-				{% endif %} 
-				placeholder="{{field}}" name="{{field}}" 
-				{% if field_datatypes|getattr:field == "DateField" %}
-					class="form-control datepicker" readonly style="background-color:white;"
-				{% else %}
-					class="form-control" 
-				{% endif %}
-				>
-				</input>
+		{% include "snippets/filter/input.html" %}
 	{% endif %}
 {% endfor %}
 	<button type="submit" class="btn btn-default">Filter</button>

@@ -11,7 +11,7 @@ from django.forms import modelform_factory
 
 class OrderCreateView(CreateView):
 	template_name = "order/form.html"
-	form_class = modelform_factory(Order, exclude=('id',))
+	form_class = modelform_factory(Order, exclude=('id', 'products'))
 
 	def get_context_data(self, *args, **kwargs):
 		context = super(OrderCreateView, self).get_context_data(*args, **kwargs)

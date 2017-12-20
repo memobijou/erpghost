@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% load utils %}
+{% block content %}
+
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+	{% for field in field_names %}
+		<p><b>{{field}}: </b> {{object_as_json|getattr:field}} </p> 
+	{% endfor %}
+<button class="btn btn-success">SCAN<button>
+</div>
+
+
+{% endblock %}

@@ -13,18 +13,6 @@
 {% endblock %}
 
 
- <script>
-
-
-
-// require(["functions"],function(){
-//     test_func();
-// });
-
-
-
-</script>
-
   <style>
     /* Remove the navbar's default margin-bottom and rounded borders */ 
     .navbar {
@@ -46,20 +34,13 @@
 
 {% include 'snippets/menu.html' %}
 
+{% include 'snippets/whereami.html' %}
 
-<div class="page-header" style="background-color:#252f3d;color:white;">
-  <div class="container text-center">
-	{% block whereami %}
-
-
-	{% endblock %}
-  </div>
-</div>
   
 <div class="container" id="main-container">
-	{% block content %}
-
-	{% endblock %}
+  {% block content %}
+    
+  {% endblock %}
 </div>
 
 <footer class="container-fluid text-center">

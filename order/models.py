@@ -1,6 +1,8 @@
 from django.db import models
 import datetime
 from django.utils import timezone
+from django.core.urlresolvers import reverse
+
 # Create your models here.
 
 class Order(models.Model):
@@ -12,3 +14,6 @@ class Order(models.Model):
 
 	def __str__(self):
 		return self.ordernumber
+
+	def get_absolute_url(self):
+		return reverse("order:detail", kwargs={"pk": self.id})

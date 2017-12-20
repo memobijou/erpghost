@@ -18,9 +18,13 @@ def validate_date_ddmmyy(day, month, year):
 
 def get_model_from_queryset(queryset):
 	if len(queryset) > 0:
-		Model = queryset[0].__class__
+		Model = get_model_from_query(queryset[0])
 	else:
 		return None
+	return Model
+
+def get_model_from_query(query):
+	Model = query.__class__
 	return Model
 
 def get_field_names(Model, exclude):
@@ -42,23 +46,30 @@ def get_queries_as_json(queryset):
 	meta_fields = get_meta_field_names(Model)
 	rows = []
 	for query in queryset:
-		row = {}
+		row = get_query_as_json(query)
 		rows.append(row)
-		for field in meta_fields:
-			value = getattr(query, field.name)
-			# print(type(value))
-			if isinstance(value, datetime.date):
-				date = value.strftime("%d.%m.%Y")
-				# time = value.strftime("%H:%M:%S")
-				# value = value.strftime("%d.%m.%Y")
-				value = date
+		# for field in meta_fields:
+		# 	# value = getattr(query, field.name)
+		# 	# # print(type(value))
+		# 	# if isinstance(value, datetime.date):
+		# 	# 	date = value.strftime("%d.%m.%Y")
+		# 	# 	# time = value.strftime("%H:%M:%S")
+		# 	# 	# value = value.strftime("%d.%m.%Y")
+		# 	# 	value = date
 
 
-			else:
-				value = str(value)
-			row[field.name] = value
-
+		# 	# else:
+		# 	# 	value = str(value)
+		# 	# row[field.name] = value
+		# 	row = get_query_as_json(query)
 	return rows
+
+def get_query_as_json(query):
+	Model = get_model_from_query(query)
+	fields = get_field_names(Model, [])
+	_dict = {field: getattr(query, field) if not isinstance(getattr(query, field), datetime.date)\
+			 else getattr(query, field).strftime("%d.%m.%Y") for field in fields}
+	return _dict
 
 def handle_pagination(queryset, request, results_per_page):
 	if len(queryset) == 0:
@@ -103,11 +114,13 @@ def get_datatype_model_field(Model, field_name):
 			return f.get_internal_type()
 
 
-def set_field_names_onview(queryset, exclude, context, ModelClass):
+def set_field_names_onview(qset_or_q, exclude, context, ModelClass):
 	if not exclude:
 		exclude = []
-
-	Model = get_model_from_queryset(queryset)
+	if not hasattr(qset_or_q, "__len__"):
+		Model = get_model_from_query(qset_or_q)
+	else:
+		Model = get_model_from_queryset(qset_or_q)
 	if not Model:
 		Model = ModelClass
 	field_names = get_field_names(Model, exclude)

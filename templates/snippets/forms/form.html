@@ -1,0 +1,13 @@
+<form method="POST"> {% csrf_token %}
+	<div class="table-bordered" style="padding:25px;background-color:white;">
+
+		{% for hidden in form..hidden_fields %}
+				{{hidden}}
+		{% endfor %}	
+		{% for visible in form.visible_fields %}
+				<p><b>{{visible.label}}: </b>{{visible}}</p>
+		{% endfor %}	
+
+		<button class="btn btn-primary">Speichern</button>
+	</div>
+</form>

@@ -32,7 +32,8 @@ def get_field_names(Model, exclude):
 	fields = []
 	for field in meta_fields:
 		if field.name not in exclude:
-			fields.append(field.name)
+			if not field.is_relation and field.related_model is None:
+				fields.append(field.name)
 	return fields
 
 def get_meta_field_names(Model):
@@ -67,6 +68,7 @@ def get_queries_as_json(queryset):
 def get_query_as_json(query):
 	Model = get_model_from_query(query)
 	fields = get_field_names(Model, [])
+
 	_dict = {field: getattr(query, field) if not isinstance(getattr(query, field), datetime.date)\
 			 else getattr(query, field).strftime("%d.%m.%Y") for field in fields}
 	return _dict

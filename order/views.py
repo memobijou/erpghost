@@ -50,7 +50,7 @@ class OrderListView(ListView):
 		# context["field_names"] = get_field_names(context["object_list"], ["id"])
 		# context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
-		set_field_names_onview(context["object_list"], ["id"], context, Order)
+		set_field_names_onview(context["object_list"], ["id", "products"], context, Order)
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 

@@ -1,17 +1,19 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView
 from .models import Order
+from .forms import OrderForm
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview,\
 filter_queryset_from_request, get_query_as_json
 from .serializers import OrderSerializer
 from rest_framework.generics import ListAPIView
 from django.forms import modelform_factory
+from django import forms
 
 # Create your views here.
 
 class OrderCreateView(CreateView):
 	template_name = "order/form.html"
-	form_class = modelform_factory(Order, exclude=('id', 'products'))
+	form_class = OrderForm
 
 	def get_context_data(self, *args, **kwargs):
 		context = super(OrderCreateView, self).get_context_data(*args, **kwargs)

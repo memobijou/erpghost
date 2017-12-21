@@ -29,8 +29,13 @@ register.filter('get_from_GET', get_from_GET)
 
 def get_q(request_GET):
 	q = ""
-	for k, v in request_GET.items():
-		q = q + k + "=" + v + "&"
+	dict_ = {k: request_GET.getlist(k) if len(request_GET.getlist(k)) > 1 else v for k,v in request_GET.items() }
+	for k, v in dict_.items():
+		if len(v) < 1:
+			q = q + k + "=" + v + "&"
+		else:
+			for item in v:
+				q = q + k + "=" + item + "&"
 	q = q[:-1]
 	return q
 register.filter('get_q', get_q)

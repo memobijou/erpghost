@@ -22,6 +22,11 @@
 			{{f.id}}
 			{{f.text}}
 			{% for visible in f.visible_fields %}
+				   
+				    {% for error in visible.errors %}
+						<div style="color:red">{{error}}</div>
+ 				    {% endfor %}
+
 					{% if visible.label == "Product" %}
 						{% include "./product_match.html" %}
 					{% else %}

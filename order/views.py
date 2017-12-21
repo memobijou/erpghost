@@ -37,7 +37,11 @@ class OrderCreateView(CreateView):
 
 		if formset.is_valid():
 			formset.save()
-			return HttpResponseRedirect(self.get_success_url())
+		else:
+			return render(self.request, self.template_name, context)
+
+		return HttpResponseRedirect(self.get_success_url())
+
 
 class OrderDetailView(DetailView):
 	

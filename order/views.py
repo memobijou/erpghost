@@ -1,12 +1,12 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView
-from .models import Order
+from .models import Order, ProductOrder
 from .forms import OrderForm
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview,\
-filter_queryset_from_request, get_query_as_json
+filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
 from .serializers import OrderSerializer
 from rest_framework.generics import ListAPIView
-from django.forms import modelform_factory
+from django.forms import modelform_factory, inlineformset_factory
 from django import forms
 
 # Create your views here.
@@ -18,11 +18,26 @@ class OrderCreateView(CreateView):
 	def get_context_data(self, *args, **kwargs):
 		context = super(OrderCreateView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Bestellung anlegen"
+
+		formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3, exclude=["id"])
+
+		if self.request.POST:
+			formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
+		else:
+			formset = formset_class(instance=self.object)
+
+		context["formset"] = formset
 		return context
 
 	def form_valid(self, form, *args, **kwargs):
 		self.object = form.save()
-		return HttpResponseRedirect(self.get_success_url())
+
+		context = self.get_context_data(*args, **kwargs)
+		formset = context["formset"]
+
+		if formset.is_valid():
+			formset.save()
+			return HttpResponseRedirect(self.get_success_url())
 
 class OrderDetailView(DetailView):
 	
@@ -33,10 +48,7 @@ class OrderDetailView(DetailView):
 	def get_context_data(self, *args, **kwargs):
 		context = super(OrderDetailView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Bestellung " + context["object"].ordernumber
-		set_field_names_onview(context["object"], ["id"], context, Order)
-		context["object_as_json"] = get_query_as_json(context["object"])
-
-
+		set_object_ondetailview(context, Order, ["id"], [], {"products": ["id"]})
 		return context
 
 class OrderListView(ListView):

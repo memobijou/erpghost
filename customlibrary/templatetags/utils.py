@@ -8,6 +8,11 @@ def getattribute(value, args):
 		return value[args]
 register.filter('getattr', getattribute)
 
+def get_from_model(value, args):
+	# print("aaaa: : " + str(value) + " : " + str(args))
+	return getattr(value, args)
+register.filter('get_from_model', get_from_model)
+
 def find_value_in_list(list_, value):
 	for item in list_:
 		if item == value:
@@ -15,10 +20,8 @@ def find_value_in_list(list_, value):
 
 def get_from_GET(value, args):
 	value = {k: value.getlist(k) if len(value.getlist(k)) > 1 else v for k, v in value.items()}
-	print("PRAAA: " + str(value) + " : " + args)
 	dict_ =  value.get(args)
 
-	print("DAFFFFFF:    " + str(value) + " : " + args)
 	if not dict_:
 		return ""
 	return dict_

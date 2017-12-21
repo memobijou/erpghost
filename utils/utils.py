@@ -4,6 +4,7 @@ from datetime import date
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Q
 import json
+from django.db import models
 
 
 class BaseValidationError(ValueError):
@@ -27,6 +28,7 @@ def get_model_from_query(query):
 	Model = query.__class__
 	return Model
 
+
 def get_field_names(Model, exclude):
 	meta_fields = Model._meta.get_fields()
 	fields = []
@@ -35,6 +37,16 @@ def get_field_names(Model, exclude):
 			if not field.is_relation and field.related_model is None:
 				fields.append(field.name)
 	return fields
+
+def get_related_names(Model, exclude):
+	meta_fields = Model._meta.get_fields()
+	related_fields = []
+	for field in meta_fields:
+		if field.name not in exclude:
+			if field.is_relation and field.related_model and isinstance(field, models.ManyToManyField):
+				related_fields.append(field.name)
+	return related_fields
+
 
 def get_meta_field_names(Model):
 	meta_fields = Model._meta.get_fields()
@@ -71,6 +83,21 @@ def get_query_as_json(query):
 
 	_dict = {field: getattr(query, field) if not isinstance(getattr(query, field), datetime.date)\
 			 else getattr(query, field).strftime("%d.%m.%Y") for field in fields}
+	return _dict
+
+def get_related_as_json(query, exclude):
+	Model = get_model_from_query(query)
+	related_fields = get_related_names(Model, exclude)
+	_dict = {k: (getattr(query, k)).all() for k in related_fields if (getattr(query, k)).all().exists()}
+	print(str(_dict))
+	return _dict
+
+
+def get_relation_fields(query, exclude,  exclude_relation_fields):
+	Model = get_model_from_query(query)
+	related_fields = get_related_names(Model, exclude)
+	_dict = {k: get_field_names(get_model_from_queryset((getattr(query, k)).all()), exclude_relation_fields[k])\
+			 for k in related_fields if (getattr(query, k)).all().exists()}
 	return _dict
 
 def handle_pagination(queryset, request, results_per_page):
@@ -196,3 +223,11 @@ def filter_queryset_from_request(request, ModelClass):
 	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
 	return result
+
+
+def set_object_ondetailview(context, Model, exclude_fields, exclude_relations, exclude_relation_fields):
+	set_field_names_onview(context["object"], exclude_fields, context, Model)
+	context["object_as_json"] = get_query_as_json(context["object"])
+
+	context["related_as_json"] = get_related_as_json(context["object"], exclude_relations)
+	context["relation_field_names"] = get_relation_fields(context["object"], exclude_relations, exclude_relation_fields)

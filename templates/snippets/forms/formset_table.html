@@ -1,0 +1,37 @@
+{% include "snippets/js/ng_matchproduct.html" %}
+
+
+<div ng-app="ng_matchproduct" ng-controller="match_ctrl">
+
+<table class="table table-bordered">
+
+{% if formset %}
+	{{formset.management_form}}
+	{% for hidden in formset.hidden_fields %}
+		{{hidden}}
+	{% endfor %}
+	<tr>
+		{% if formset.0 %}
+			{% for visible in formset.0.visible_fields %}
+				<th>{{visible.label}}</th>
+			{% endfor %}
+		{% endif %}
+	</tr>
+	{% for f in formset %}
+		<tr>
+			{{f.id}}
+			{{f.text}}
+			{% for visible in f.visible_fields %}
+					{% if visible.label == "Product" %}
+						{% include "./product_match.html" %}
+					{% else %}
+						<td>{{visible}}</td>
+					{% endif %}
+			{% endfor %}
+		</tr>
+
+	{% endfor %}
+{% endif %}
+</table>
+
+</div>

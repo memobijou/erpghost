@@ -6,6 +6,28 @@
 	{% for field in field_names %}
 		<p><b>{{field}}: </b> {{object_as_json|getattr:field}} </p> 
 	{% endfor %}
+
+	{% for relation_name, relation in related_as_json.items %}
+	<h1>{{relation_name}}</h1>
+	<table class="table table-bordered">
+		<thead>
+				{% for field in relation_field_names|getattr:relation_name %} 
+					<th> {{field}} </th>
+				{% endfor %}
+		</thead>
+		<tbody>
+			{% for row in relation %}
+				
+					<tr>
+						{% for field in relation_field_names|getattr:relation_name %} 
+							<td> {{row|get_from_model:field}} </td>
+						{% endfor %}
+					</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+	{% endfor %}
+
 <button class="btn btn-success">SCAN<button>
 </div>
 

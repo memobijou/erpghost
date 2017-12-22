@@ -17,11 +17,13 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from product.views import ProductListView
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from utils.api import match_product
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^product/', include("product.urls", namespace="product")),
     url(r'^order/', include("order.urls", namespace="order")),
+    url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

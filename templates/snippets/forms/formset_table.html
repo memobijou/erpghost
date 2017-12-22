@@ -1,7 +1,6 @@
 {% include "snippets/js/ng_matchproduct.html" %}
 
 
-<div ng-app="ng_matchproduct" ng-controller="match_ctrl">
 
 <table class="table table-bordered">
 
@@ -18,25 +17,26 @@
 		{% endif %}
 	</tr>
 	{% for f in formset %}
+		{% with current_count=forloop.counter0 %}
+
 		<tr>
 			{{f.id}}
 			{{f.text}}
 			{% for visible in f.visible_fields %}
-				   
 				    {% for error in visible.errors %}
 						<div style="color:red">{{error}}</div>
  				    {% endfor %}
 
-					{% if visible.label == "Product" %}
+					{% if visible.label == product_match %}
 						{% include "./product_match.html" %}
 					{% else %}
+
 						<td>{{visible}}</td>
 					{% endif %}
 			{% endfor %}
 		</tr>
-
+		{% endwith %}
 	{% endfor %}
 {% endif %}
 </table>
 
-</div>

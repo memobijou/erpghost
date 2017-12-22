@@ -1,15 +1,29 @@
-<form method="POST"> {% csrf_token %}
+<form method="POST" id="main_form"> {% csrf_token %}
 	<div class="table-bordered" style="padding:25px;background-color:white;">
 
-		{% for hidden in form..hidden_fields %}
+		{% for hidden in form.hidden_fields %}
 				{{hidden}}
 		{% endfor %}	
+
 		{% for visible in form.visible_fields %}
+			    {% for error in visible.errors %}
+					<div style="color:red">{{error}}</div>
+			    {% endfor %}
+				
 				<p><b>{{visible.label}}: </b>{{visible}}</p>
 		{% endfor %}	
 
 		{% include "./formset_table.html" %}
 		
-		<button class="btn btn-primary">Speichern</button>
+		<button class="btn btn-primary" ng-submit="submit()" id="submit_btn">Speichern</button>
 	</div>
 </form>
+
+<script>
+	var submit_btn = document.getElementById("submit_btn");
+	var main_form = document.getElementById("main_form")
+
+	submit_btn.onclick = function(){
+		main_form.submit();
+	};
+</script>

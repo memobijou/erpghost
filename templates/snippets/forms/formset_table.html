@@ -1,42 +1,193 @@
 {% include "snippets/js/ng_matchproduct.html" %}
+{% load utils %}
 
-
-
-<table class="table table-bordered">
 
 {% if formset %}
-	{{formset.management_form}}
-	{% for hidden in formset.hidden_fields %}
-		{{hidden}}
-	{% endfor %}
-	<tr>
-		{% if formset.0 %}
-			{% for visible in formset.0.visible_fields %}
-				<th>{{visible.label}}</th>
-			{% endfor %}
-		{% endif %}
-	</tr>
+
 	{% for f in formset %}
+
 		{% with current_count=forloop.counter0 %}
+
+			{% if current_count == 0 %}
+				{% for manage_field in formset.management_form %}
+				<input id="{{manage_field.auto_id}}" name="{{manage_field.html_name}}" value="{{manage_field.value}}"
+					{% if 'TOTAL_FORMS' in manage_field.auto_id %}
+						class="TOTAL_FORMS"
+					{% endif %} autocomplete="off" type="hidden"/>
+				{% endfor %}
+				{% for hidden in formset.hidden_fields %}
+					{{hidden}}
+				{% endfor %}
+
+				<span class="glyphicon glyphicon-plus" ng-click="addRow(
+					{% for manage_field in formset.management_form %}
+						{% if 'TOTAL_FORMS' in manage_field.auto_id %}
+							'{{manage_field.auto_id}}'
+						{% endif %} 
+					{% endfor %}
+				)" style="cursor:pointer;" value="+"></span>
+				<br/>
+				<br/>
+
+				<table class="table table-bordered">
+
+				<thead>
+					<tr>
+						{% for visible in formset.0.visible_fields %}
+							<th>{{visible.label}}</th>
+						{% endfor %}
+					</tr>
+				</thead>
+				<tbody>
+
+			{% endif %}
+
 
 		<tr>
 			{{f.id}}
 			{{f.text}}
 			{% for visible in f.visible_fields %}
-				    {% for error in visible.errors %}
-						<div style="color:red">{{error}}</div>
- 				    {% endfor %}
+			    {% for error in visible.errors %}
+	    			<td style="display:none;" class="is_error_td {{matching_}}">
+						<div style="color:red" class="error_message">{{error}}</div>
+				</td>
+			    {% endfor %}
+			   	<div ng-init=
+			   	"{% if matching_ == visible.field.queryset.0|to_class_name %}
+			   	store_row('{{current_count}}','{{visible.auto_id}}', '{{visible.html_name}}',
+				''
+				)
+				{% else %}
+				store_row('{{current_count}}','{{visible.auto_id}}', '{{visible.html_name}}',
+				{{visible.field.choices|get_choices}}
+				)
+				{% endif %}">
 
-					{% if visible.label == product_match %}
-						{% include "./product_match.html" %}
-					{% else %}
 
-						<td>{{visible}}</td>
-					{% endif %}
+			    {% if product_match == visible.label %}
+
+			    {% else %}
+
+<!-- 
+				<div ng-init="store_row('{{current_count}}','{{visible.auto_id}}', '{{visible.html_name}}',
+				{{visible.field.choices|get_choices}}, '{{visible.label}}'
+				)">
+				</div> -->
+				{% endif %}
+<!-- 
+				{% if visible.label == product_match %}
+					{% include "./product_match.html" %}
+				{% else %}
+
+					<td>{{visible}}</td>
+				{% endif %} -->
+
+
 			{% endfor %}
 		</tr>
+
 		{% endwith %}
 	{% endfor %}
+
+
+	<tr ng-repeat="row in table">
+	    <td ng-repeat="col in row">	    	
+ 	    	 {% verbatim %}
+
+    			<div ng-if="col.is_match_field">
+    				<input ng-if="col"  ng-change="match_product(col)" 
+    				ng-model='col.visible_value' class="{{col.class}}">
+					<input ng-if="col" type="hidden" id="{{col.id}}" name="{{col.name}}" 
+					value="{{col.hidden_value}}">
+    			</div>
+
+    			<div ng-if="!col.is_match_field">
+		    		<input ng-if="!col.choices" id="{{col.id}}" name="{{col.name}}">
+  			    </div>
+
+
+    			
+  	       	 {% endverbatim %}
+
+ 	    	 {% verbatim %}
+		    	 <select ng-if="col.choices" id="{{col.id}}" name="{{col.name}}">
+		    	 	<option value="">-----</option>
+		    	 	<option ng-repeat="(id, choice) in col.choices" value="{{id}}">{{choice}}</option>
+		    	 </select>
+ 	       	 {% endverbatim %}
+	    	
+
+
+	    </td>   
+	</tr>
+	
+
+	<tr ng-repeat="field in tablerows track by $id(field)">
+		<td ng-model="tablerows[$index]">
+			<input ng-keyup="match_product($event, product{{current_count}}, 'product{{current_count}}_val')" 
+			ng-model="product{{current_count}}">
+			
+			<input type="hidden" {% verbatim %}id="{{field}}"{% endverbatim %} name="{{visible.html_name}}" ng-model="product{{current_count}}_val" 
+			>
+		</td>
+		<td>
+			<span ng-click="removeChoice($index)" class="glyphicon glyphicon-trash" type="button" style="color:red;cursor:pointer;"></span>
+		</td>
+	</tr>
+
+	</tbody>
 {% endif %}
+
+
 </table>
+
+<script>
+$(document).ready(function(){
+
+
+	var error_cols = document.getElementsByClassName("is_error_td {{matching_}}");
+	var tmp = [];	
+	var parent = null;
+	if(error_cols.length > 0){
+		for(var i = 0; i<error_cols.length; i++){
+			parent = error_cols[i].parentElement.parentElement.parentElement;
+			var error_msg = error_cols[i].getElementsByClassName("error_message")[0];
+			// alert(error_msg
+				// );
+			if(error_msg){
+				tmp.push(error_cols[i]);
+			}
+		}
+		// alert(parent);
+		// alert(tmp.length);
+		error_cols = tmp;
+		// alert(error_cols.length);
+
+		var all_tr_len = parent.getElementsByTagName("tr").length;
+
+		// alert(parent.getElementsByTagName("td").length);
+
+		for(var i = 0; i<parent.getElementsByTagName("td").length; i++){
+			var td = parent.getElementsByTagName("td")[i];
+			if(td.className != "is_error_td {{matching_}}"){
+				for(var j = 0; j<error_cols.length; j++){
+					var error_col = error_cols[j];
+					var to_move_row = parseInt(error_col.parentNode.rowIndex)+parseInt(all_tr_len/2);
+					// alert(to_move_row)
+					if(error_col.cellIndex == td.cellIndex && td.parentNode.rowIndex == to_move_row ){
+						// alert(error_col.cellIndex + " : " + td.cellIndex);
+						td.appendChild(error_col.getElementsByTagName("div")[0]);
+
+					}
+				}
+			}
+		}
+	}
+
+});
+
+</script>
+
+
+
 

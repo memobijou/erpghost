@@ -1,3 +1,5 @@
+<div ng-app="ng_matchproduct" ng-controller="match_ctrl as m_ctrl">
+
 <form method="POST" id="main_form"> {% csrf_token %}
 	<div class="table-bordered" style="padding:25px;background-color:white;">
 
@@ -15,9 +17,10 @@
 
 		{% include "./formset_table.html" %}
 		
-		<button class="btn btn-primary" ng-submit="submit()" id="submit_btn">Speichern</button>
+		<button class="btn btn-primary" ng-submit="submit()"  id="submit_btn" ng-disabled="has_exception">Speichern</button>
 	</div>
 </form>
+</div>
 
 <script>
 	var submit_btn = document.getElementById("submit_btn");

@@ -60,3 +60,19 @@ def remove_param_from_q(q, remove_value):
 	return new_q
 register.filter('remove_param_from_q', remove_param_from_q)
 
+
+def get_choices(choices):
+	dict_ = {}
+	for id, choice in choices:
+		if id:
+			dict_[id] = choice
+	if bool(dict_):
+		return dict_
+
+	
+register.filter('get_choices', get_choices)
+
+@register.filter
+def to_class_name(value):
+    return value.__class__.__name__
+

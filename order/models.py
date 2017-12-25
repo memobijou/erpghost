@@ -25,3 +25,6 @@ class ProductOrder(models.Model):
     amount = models.IntegerField(null=False, blank=False, default=0)
 
     confirmed = models.NullBooleanField()
+
+    def __str__(self):
+    	return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)

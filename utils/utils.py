@@ -48,6 +48,19 @@ def get_related_names(Model, exclude):
 	return related_fields
 
 
+def get_model_references(Model, exclude):
+	meta_fields = Model._meta.get_fields()
+	related_fields = []
+	for field in meta_fields:
+		if field.name not in exclude:
+			if field.get_internal_type() == "ForeignKey" or field.get_internal_type() == "ManyToManyField":
+				related_fields.append({"name": field.name, "is_set": True})
+			elif(field.is_relation == True and field.related_model): 
+				related_fields.append({"name": field.name, "is_set": False})
+
+	return related_fields
+
+
 def get_meta_field_names(Model):
 	meta_fields = Model._meta.get_fields()
 	return meta_fields
@@ -77,12 +90,52 @@ def get_queries_as_json(queryset):
 		# 	row = get_query_as_json(query)
 	return rows
 
+def get_related_queries(query):
+	Model = get_model_from_query(query)
+	references = get_model_references(Model, [])
+	result = []
+	for reference in references:
+		if hasattr(query, reference["name"])  and reference["is_set"] == False:
+			reference_query = getattr(query, (reference["name"]))
+			if hasattr(reference_query, "all"):
+				reference_query = reference_query.all()
+			result.append({reference["name"]: reference_query})
+		else:
+			if reference["is_set"] == True and hasattr(query, reference["name"] + "_set"):
+				reference_query = getattr(query, (reference["name"] + "_set"))
+				reference_query = reference_query.all()
+				result.append({reference["name"]: reference_query})
+	return result
+
+
+def parse_query_to_json(query, fields):
+	_dict = {field: getattr(query, field) if not isinstance(getattr(query, field), datetime.date)\
+		 else getattr(query, field).strftime("%d.%m.%Y") for field in fields}
+	return _dict
+
 def get_query_as_json(query):
 	Model = get_model_from_query(query)
 	fields = get_field_names(Model, [])
+	related_queries = get_related_queries(query)
+	_dict = parse_query_to_json(query, fields)
 
-	_dict = {field: getattr(query, field) if not isinstance(getattr(query, field), datetime.date)\
-			 else getattr(query, field).strftime("%d.%m.%Y") for field in fields}
+	for related_query in related_queries:
+		key = next(iter(related_query.keys()))
+		val = related_query[key]
+		if hasattr(val, "__len__"):
+			val_queries = []
+			for obj in val:
+				obj_model = get_model_from_query(obj)
+				obj_fields = get_field_names(obj_model, [])
+				obj_dict = parse_query_to_json(obj, obj_fields)
+				val_queries.append(obj_dict)
+			_dict[key] = val_queries
+		else:
+			val_model = get_model_from_query(val)
+			val_fields = get_field_names(val_model, [])	
+			val_dict = parse_query_to_json(val, val_fields)
+			_dict[key] = val_dict
+	print("HALLO ICH BIN HIER: " + str(_dict))
 	return _dict
 
 def get_related_as_json(query, exclude):

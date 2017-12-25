@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'mission',
     'customlibrary',
+    'warehouse',
+    'masterdata',
 ]
 
 MIDDLEWARE = [

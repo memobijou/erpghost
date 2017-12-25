@@ -23,6 +23,7 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^product/', include("product.urls", namespace="product")),
     url(r'^order/', include("order.urls", namespace="order")),
+    url(r'^warehouse/', include("warehouse.urls", namespace="warehouse")),
     url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
 ]
 

@@ -28,7 +28,7 @@ class ProductListView(ListView):
 		context = super(ProductListView, self).get_context_data(*args, **kwargs);
 		context["title"] = "Artikel"
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Product,\
-	    exclude_fields=["id"], exclude_filter_fields=['id'])
+	    exclude_fields=['id'], exclude_filter_fields=['id'])
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 		

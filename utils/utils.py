@@ -87,26 +87,37 @@ def get_vol_from_columns(Model_Product,Model_Column):
 			#columns_array.append({"col",column_data})
 	return columns_array
 
-def get_field_names(Model, exclude=None, allow_related=None):
-	print(str(allow_related))
+def get_field_names(Model, exclude=None):
 	if exclude == None:
 		exclude = []
 	meta_fields = Model._meta.get_fields()
 	fields = []
 	for field in meta_fields:
 		if field.name not in exclude:
-			print("DECIDE: "+ str(allow_related))
+			print("DECIDE: "+ str(Model) + " : "  + str(exclude))
 			if not field.is_relation and field.related_model is None:
 				fields.append(field.name)
-			elif (field.is_relation or field.related_model) and allow_related == True:
-				fields.append(field.name)
-
-
 	return fields
 
+def get_relation_names(Model, exclude=None, allow_related=None):
+	print(str(allow_related))
+	if exclude == None:
+		exclude = []
+	meta_fields = Model._meta.get_fields()
+	relations = []
+	for relation in meta_fields:
+		if relation.name not in exclude:
+			print("DECIDE: "+ str(Model) + " : "  + str(exclude))
+			if (relation.is_relation or relation.related_model) and allow_related == True:
+				relations.append(relation.name)
+	return relations
+
+
+
 def get_property_names(Model,exclude):
-	property_names = Model._meta._property_names
-	return property_names
+	if hasattr(Model, "_meta"):
+		property_names = Model._meta._property_names
+		return property_names
 
 def get_related_names(Model, exclude):
 	meta_fields = Model._meta.get_fields()
@@ -170,6 +181,7 @@ def get_related_queries(query):
 
 
 def parse_query_to_json(query, fields):
+	print("AHHHHHHHHHHHHHHHHHHHH: " + str(query))
 	function_field_values = get_property_values(query)
 	parsed_query = {}
 	for field in fields:
@@ -188,6 +200,7 @@ def get_query_as_json(query):
 	fields = get_field_names(Model, [])
 	related_queries = get_related_queries(query)
 	_dict = parse_query_to_json(query, fields)
+	print("DOWNLOAD: " + str(related_queries))
 	for related_query in related_queries:
 		key = next(iter(related_query.keys()))
 		val = related_query[key]
@@ -199,14 +212,18 @@ def get_query_as_json(query):
 				obj_dict = parse_query_to_json(obj, obj_fields)
 				val_queries.append(obj_dict)
 			_dict[key] = val_queries
-		else:
+		elif hasattr(val, "_meta"):
 			val_model = get_model_from_query(val)
+			print("BLAUUUU: " + str(val_model))
+			print("AUGE: " + str(key) + " : " + str(val))
 			val_fields = get_field_names(val_model, [])
-			if not val_fields:
-				_dict[key] = val
-			else:
-				val_dict = parse_query_to_json(val, val_fields)
-				_dict[key] = val_dict
+			val_dict = parse_query_to_json(val, val_fields)
+			_dict[key] = val_dict
+		else:
+			_dict[key] = val
+
+
+
 	print("HALLO ICH BIN HIER: " + str(_dict))
 	return _dict
 
@@ -272,10 +289,14 @@ def get_datatype_model_field(Model, field_name):
 def set_field_names_onview(queryset=None, context=None, ModelClass=None, exclude_fields=None, exclude_filter_fields=None,\
 						   template_tagname="field_names", allow_related=None):
 	print(str(allow_related))
-	field_names = get_field_names(ModelClass, exclude_fields, allow_related=allow_related)
-	print("KLUFF: " + str(field_names))
+	field_names = get_field_names(ModelClass, exclude_fields)
+	relation_names = get_relation_names(ModelClass, exclude_fields, allow_related)
+	field_names =  relation_names + field_names
 	context[template_tagname] = field_names
-	filter_fields = get_field_names(ModelClass, exclude_filter_fields, allow_related=allow_related)
+	filter_fields = get_field_names(ModelClass, exclude_filter_fields)
+	relation_names = get_relation_names(ModelClass, exclude_fields, allow_related)
+	field_names =  relation_names + field_names
+
 	context["filter_fields"] = filter_fields
 	field_datatypes = {}
 	for field in filter_fields:

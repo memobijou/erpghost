@@ -68,11 +68,33 @@ def get_choices(choices):
 			dict_[id] = choice
 	if bool(dict_):
 		return dict_
-
 	
 register.filter('get_choices', get_choices)
+
+
+def get_field_type(field):
+	return field.__class__.__name__
+
+register.filter('get_field_type', get_field_type)
+
 
 @register.filter
 def to_class_name(value):
     return value.__class__.__name__
+
+
+def to_json(query_dict):
+	meta = query_dict[0].__class__._meta
+	model = meta.model_name
+	field_names = meta.get_fields()
+	print("FIELD NAMES: " + str(field_names))
+
+	for item in query_dict:
+		print("ITEM: " + str(item.product))
+	result = [{field.name: getattr(q, field.name) for field in field_names} for q in query_dict]
+	print(str(result))
+	print("TEST : " + str(result[0]["product"].id))
+	return result
+
+register.filter('to_json', to_json)
 

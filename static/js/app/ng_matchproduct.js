@@ -13,8 +13,10 @@ app.controller('match_ctrl', function($scope, $http){
 		$scope.has_exception = false;
 
 
-		$scope.store_row = function(count, id, name, choices, Model){
+		$scope.store_row = function(count, id, name, choices, field_value, match_choices, field_type, error_msg){
+
 			var table = $scope.table;
+
 			if(count in table){
 			}else{
 				table[count] = [];
@@ -25,13 +27,21 @@ app.controller('match_ctrl', function($scope, $http){
 			dict_["name"] = name;
 			dict_["choices"] = choices;
 			dict_["class"] = "";
-
+			dict_["errors"] = error_msg;
 			if(choices == ""){  // choices ist bei product_match leerer string
 				dict_["is_match_field"] = true;
-				dict_["hidden_value"] = "";
-				dict_["visible_value"] = "";
+				dict_["hidden_value"] = ((field_value == "None") ? null : field_value);
+				if(match_choices){
+					dict_["visible_value"] = match_choices[field_value];
+				}else{
+					dict_["visible_value"] = "";					
+				}
 			}else{
-
+				if(field_type){
+					// alert(field_type);
+					dict_["field_type"] = field_type
+				}
+				dict_["field_value"] = ((field_value == "None") ? null : field_value);
 			}
 
 			table[count].push(dict_);
@@ -54,11 +64,12 @@ app.controller('match_ctrl', function($scope, $http){
 	    		var col = new_row[c];
 	    		col.id = col.id.replace(last_count, new_count);
 	    		col.name = col.name.replace(last_count, new_count);
-	    		if(col.is_match_field){
-		    		col.visible_value = "";
-		    		col.hidden_value = "";
-	    		}
+	    		col.visible_value = "";
+	    		col.hidden_value = "";
 	    		col.class = "";
+	    		if(col.field_value){
+	    			col.field_value = "";
+	    		}
 	    	}
 
     	    table[new_count] = new_row;

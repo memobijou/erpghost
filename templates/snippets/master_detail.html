@@ -1,6 +1,7 @@
+{% load utils %}
 {% if object_list %}
 <div ng-controller="masterdetail_ctrl">
-	<div class="col-md-2">
+	<div class="col-md-4">
 	<table class="table table-bordered" style="background-color:white;">	
 		<thead>
 			<tr>
@@ -12,20 +13,31 @@
 
 		<tbody>
 			{% for obj in object_list %}
-				<tr  ng-click="clickFunction('{{obj.id}}' ,{{object_list_as_json}})">
-					<td class="{% if object_list.first == obj%}{% endif %}" style="cursor:pointer;" ng-class="{active : {{obj.id}} == detail_query.id}">
-						{{obj}}
+				<tr ng-click="clickFunction('{{obj.id}}' ,{{object_list_as_json}})"  style="cursor:pointer;"
+				     ng-class="{active : {{obj.id}} == detail_query.id}" >
+					{% for field in field_names %}
+					<td >
+						{{obj|get_from_model:field}} 
 					</td>
+					{% endfor %}
 				</tr>
 			{% endfor %}
 		</tbody>
 	</table>
 	</div>
 
-	<div class="col-md-10">
+	<div class="col-md-8">
 		<div class="table-bordered" style="background-color:white;height:595px;padding:25px;">
+
+
 			{% verbatim %}	
-			<p ng-repeat="(key, val) in detail_query">
+			<div style="float:right;" ng-cloak>
+				<a href="{{detail_query.id}}">Ansicht</a>
+			</br>
+				<a href="{{detail_query.id}}/edit">Bearbeiten</a>
+
+			</div>
+			<p ng-repeat="(key, val) in detail_query" ng-cloak>	
 				 <b>{{ key }}: </b> {{val}}
 			 <p/>
 			{% endverbatim %}

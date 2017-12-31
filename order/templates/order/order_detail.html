@@ -3,6 +3,9 @@
 {% block content %}
 
 <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+
+	<a style="float:right;" href="{% url 'order:update' pk=object.id%}">Bearbeiten</a>
+
 	{% for field in field_names %}
 		<p><b>{{field}}: </b> {{object_as_json|getattr:field}} </p> 
 	{% endfor %}
@@ -28,8 +31,14 @@
 	</table>
 	{% endfor %}
 
-<button class="btn btn-success">SCAN<button>
+	<a href="{% url 'order:scan' pk=object.id%}" class="btn btn-success" id="scan_btn">SCAN<a>
+
 </div>
 
 
+
+
 {% endblock %}
+
+
+

@@ -29,13 +29,21 @@ def get_model_from_query(query):
 	return Model
 
 
-def get_field_names(Model, exclude):
+def get_field_names(Model, exclude=None, allow_related=None):
+	print(str(allow_related))
+	if exclude == None:
+		exclude = []
 	meta_fields = Model._meta.get_fields()
 	fields = []
 	for field in meta_fields:
 		if field.name not in exclude:
+			print("DECIDE: "+ str(allow_related))
 			if not field.is_relation and field.related_model is None:
 				fields.append(field.name)
+			elif (field.is_relation or field.related_model) and allow_related == True:
+				fields.append(field.name)
+
+
 	return fields
 
 def get_related_names(Model, exclude):
@@ -196,24 +204,19 @@ def get_datatype_model_field(Model, field_name):
 			return f.get_internal_type()
 
 
-def set_field_names_onview(qset_or_q, exclude, context, ModelClass):
-	if not exclude:
-		exclude = []
-	if not hasattr(qset_or_q, "__len__"):
-		Model = get_model_from_query(qset_or_q)
-	else:
-		Model = get_model_from_queryset(qset_or_q)
-	if not Model:
-		Model = ModelClass
-	field_names = get_field_names(Model, exclude)
-	if field_names == []:
-		ModelClass
-
+def set_field_names_onview(queryset=None, context=None, ModelClass=None, exclude_fields=None, exclude_filter_fields=None,\
+						   template_tagname="field_names", allow_related=None):
+	print(str(allow_related))
+	field_names = get_field_names(ModelClass, exclude_fields, allow_related=allow_related)
+	print("KLUFF: " + str(field_names))
+	context[template_tagname] = field_names
+	filter_fields = get_field_names(ModelClass, exclude_filter_fields, allow_related=allow_related)
+	context["filter_fields"] = filter_fields
 	field_datatypes = {}
-	for field in field_names:
+	for field in filter_fields:
 		field_datatypes[field] = get_datatype_model_field(ModelClass, field)
 	context["field_datatypes"] = field_datatypes
-	context["field_names"] = field_names
+
 
 
 def get_date_from_string(date_string, format):
@@ -278,8 +281,8 @@ def filter_queryset_from_request(request, ModelClass):
 	return result
 
 
-def set_object_ondetailview(context, Model, exclude_fields, exclude_relations, exclude_relation_fields):
-	set_field_names_onview(context["object"], exclude_fields, context, Model)
+def set_object_ondetailview(context=None, ModelClass=None, exclude_fields=None, exclude_relations=None, exclude_relation_fields=None):
+	set_field_names_onview(queryset=context["object"], exclude_fields=exclude_fields, context=context, ModelClass=ModelClass)
 	context["object_as_json"] = get_query_as_json(context["object"])
 
 	context["related_as_json"] = get_related_as_json(context["object"], exclude_relations)

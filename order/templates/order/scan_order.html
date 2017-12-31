@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load utils %}
+
+{% block content %}
+{% include "snippets/js/ng_scanorder.html" %}
+
+<div ng-app="ng_scanorder" ng-controller="main_ctrl">
+
+<div ng-init="init_function(
+	{% verbatim%} [ {% endverbatim %}
+	
+	{% for product_order in product_orders|to_json %}
+		
+		{% verbatim%} { {% endverbatim %}
+
+		{% for k, v in product_order.items %}
+			{{k}}: 
+			{% if v == None %}
+				null
+			{% else %}
+				{% if k == 'product' %}
+					{% verbatim %} { {% endverbatim %}
+						ean: {{v.ean}}
+					{% verbatim %} } {% endverbatim %}
+				{% elif k == 'order' %}
+				{% verbatim %} { {% endverbatim %}
+					ordernumber: {{v.ordernumber}}
+				{% verbatim %} } {% endverbatim %}
+				{% else%}
+					{{v}}
+				{% endif %},
+			{% endif %}
+		{% endfor %}
+
+		{% verbatim%} }, {% endverbatim %}
+	
+	{% endfor %}
+	
+	{% verbatim%} ] {% endverbatim %}
+)"></div>
+
+	<div class="row" style="background-color:white;padding:25px;"> 
+	<div class="row">
+		<div class="col-md-6">
+			{% for field in field_names %}
+		 		<p><b>{{field}}: </b>{{object|get_from_model:field}}</p>
+		 	{% endfor %}
+		</div>
+
+		<div class="col-md-6">
+			<div class="row">
+		                <input ng-model="product_match.input" placeholder="EAN/SKU" id="product_match" class="form-control"
+		                ng-change="checkProduct()">
+			</div>
+
+		</div>
+
+	</div>
+
+	<div class="row">
+
+		<div class = "col-md-6">
+
+			<table class="table table-responsive table-bordered">
+				<thead>
+					<tr>
+					{% for field in product_order_field_names %}
+						<th>{{field}}</th>
+					{% endfor %}
+					</tr>
+
+				</thead>
+
+				<tbody>
+					{% for product_order in product_orders %}
+					<tr>
+						{% for field in product_order_field_names %}
+						<td>
+							{{product_order|get_from_model:field}}
+						</td>
+						{% endfor %}
+
+					</tr>
+					{% endfor %}
+				</tbody>
+
+			</table>
+		</div>
+
+		<div class="col-md-6">
+			<div ng-if="product_match.match == false && product_match.input != ''">
+				<h1>Produkt {% verbatim %}{{product_match.input}}{% endverbatim %} nicht in Bestellung vorhanden</h1>
+			</div>
+
+			<div ng-if="product_match.match == null && product_match.input != ''">
+				<h1 class="text-danger">Eine EAN ist 13-Stellig</h1>
+			</div>
+			<div ng-hide="product_match.match == null || product_match.match == false || product_match.input == ''">
+				<table class="table table-responsive table-bordered">
+					<thead>
+
+					</thead>
+					<tbody>
+							<tr ng-repeat="(key, val) in confirm_product">
+								<td><b ng-bind="key"></b>: <span ng-bind="val"></span></td>
+							</tr>
+							<tr>
+								<td>
+									<div class="row">
+										<div class="col-md-6">
+											<button class="btn btn-lg btn-success" style="width:100%;">Ja</button>
+										</div>
+
+										<div class="col-md-6">
+											<button class="btn btn-lg btn-danger" style="width:100%;">Nein</button>
+
+										</div>
+									</div>
+								</td>
+							</tr>
+
+
+					</tbody>
+				</table>
+			</div>
+
+		</div>
+	</div>
+	</div>
+</div>
+
+<script>
+	var product_match_input = document.getElementById("product_match");
+	product_match_input.focus();
+	window.onclick = function(){
+			product_match_input.focus();
+	}
+
+</script>
+
+
+{% endblock %}

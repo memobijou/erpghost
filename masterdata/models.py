@@ -9,4 +9,8 @@ class Masterdata(models.Model):
 	product = models.OneToOneField(Product,blank=True,null=True,related_name="masterdata")
 
 	def __str__(self):
-		return (str(self.height)) 
+		return (str(self.height))
+
+	@property
+	def calc_volume(self):
+		return self.height*self.width*self.length

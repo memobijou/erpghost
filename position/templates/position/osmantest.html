@@ -1,0 +1,31 @@
+{% load utils %}
+<!-- <h1>{{object_list}}</h1> -->
+
+
+{% for dict in object_list %}
+    {% for key,value in dict.items %}
+   	 	<li>{{ key }}</li>
+<!--    	 	 <li>{{ value}}</li> 
+ -->   	 	{% for x in value %}
+ 		{% for k, v in x.items %}
+
+ 			<p>{{k}} : {{v}}</p>
+
+		{% if 'GesamtPositionen' == k %}
+		 <h1>{{v}}</h1>
+		 {% for p in v %}
+		 	<p>       {{p}}</p>
+		 {% endfor %}
+		{% endif %}
+ 		{% endfor %}
+<!-- 		<li><b>{{ x }}</b></li>
+ -->		{% if GesamtPositionen == x %}
+		 Just now! 
+		{% endif %}
+   	 	{% endfor %}
+    {% endfor %}
+{% endfor %}
+
+set_a = {"1", "2", "3"}
+set_a[1] = True
+

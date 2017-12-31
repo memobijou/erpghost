@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from django.views.generic import ListView
-from product.models import Product
+from .models import Product
+from order.models import ProductOrder
 from django.http import JsonResponse
 from django.core import serializers
 import json
 from utils.utils import get_queries_as_json, set_field_names_onview,\
-handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request
-from .serializers import ProductSerializer
+handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request,\
+get_and_condition_from_q
+from .serializers import ProductSerializer,IncomeSerializer
 from rest_framework.generics import ListAPIView
 import django_filters.rest_framework
 from django.db.models import Q
@@ -26,11 +28,29 @@ class ProductListView(ListView):
 		context = super(ProductListView, self).get_context_data(*args, **kwargs);
 		context["title"] = "Artikel"
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Product,\
-	    exclude_fields=["id"], exclude_filter_fields=['id'])
+	    exclude_fields=['id'], exclude_filter_fields=['id'])
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 		
 		return context
+
+
+
+		
+class IncomeListView(ListAPIView):
+	queryset = ProductOrder.objects.all()
+	serializer_class = IncomeSerializer
+
+	def get_queryset(self):
+
+		condition = get_and_condition_from_q(self.request)
+
+		
+
+		queryset = ProductOrder.objects.filter(condition)
+        
+		return queryset
+
 
 # class ProductListAPIView(generics.ListAPIView):
 # 	queryset = Product.objects.all()
@@ -51,3 +71,7 @@ class ProductListAPIView(generics.ListAPIView):
             queryset = queryset.filter(id=myid)
         
         return queryset
+
+
+
+        

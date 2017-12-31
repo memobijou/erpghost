@@ -5,6 +5,7 @@ register = template.Library()
 def getattribute(value, args):
 	# print("aaaa: : " + str(value) + " : " + str(args))
 	if args in value:
+		print("kommentar*******" + str(value[args]))
 		return value[args]
 register.filter('getattr', getattribute)
 

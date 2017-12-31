@@ -44,6 +44,15 @@ INSTALLED_APPS = [
     'customlibrary',
     'warehouse',
     'masterdata',
+    'sku',
+    'position',
+    'column',
+    'invoice',
+    'client',
+    'supplier',
+    'contact',
+    'adress',
+
 ]
 
 MIDDLEWARE = [

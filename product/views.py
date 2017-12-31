@@ -1,12 +1,14 @@
 from django.shortcuts import render
 from django.views.generic import ListView
 from .models import Product
+from order.models import ProductOrder
 from django.http import JsonResponse
 from django.core import serializers
 import json
 from utils.utils import get_queries_as_json, set_field_names_onview,\
-handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request
-from .serializers import ProductSerializer
+handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request,\
+get_and_condition_from_q
+from .serializers import ProductSerializer,IncomeSerializer
 from rest_framework.generics import ListAPIView
 import django_filters.rest_framework
 from django.db.models import Q
@@ -32,6 +34,24 @@ class ProductListView(ListView):
 		
 		return context
 
+
+
+		
+class IncomeListView(ListAPIView):
+	queryset = ProductOrder.objects.all()
+	serializer_class = IncomeSerializer
+
+	def get_queryset(self):
+
+		condition = get_and_condition_from_q(self.request)
+
+		
+
+		queryset = ProductOrder.objects.filter(condition)
+        
+		return queryset
+
+
 # class ProductListAPIView(generics.ListAPIView):
 # 	queryset = Product.objects.all()
 # 	serializer_class = ProductSerializer
@@ -51,3 +71,7 @@ class ProductListAPIView(generics.ListAPIView):
             queryset = queryset.filter(id=myid)
         
         return queryset
+
+
+
+        

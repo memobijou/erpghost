@@ -17,6 +17,7 @@ class OrderCreateView(CreateView):
 
 	def get_context_data(self, *args, **kwargs):
 		context = super(OrderCreateView, self).get_context_data(*args, **kwargs)
+		print("**context***" + str(context))
 		context["title"] = "Bestellung anlegen"
 		context["matching_"] = "Product" # Hier Modelname übergbenen
 		formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3, exclude=["id"])

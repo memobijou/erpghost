@@ -25,7 +25,8 @@ Pygments==2.2.0
 pytest==3.3.1
 pytest-cov==2.5.1
 pytest-django==3.1.2
--e git+git://github.com/mverteuil/pytest-ipdb.git
+-e git+git://github.com/mverteuil/pytest-ipdb.git#egg=pytest-ipdb==0.1
+python-dateutil==2.6.1
 pytz==2017.3
 selenium==3.8.0
 simplegeneric==0.8.1

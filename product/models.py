@@ -2,6 +2,7 @@ from django.db import models
 from position.models import Position
 
 class Product(models.Model):
+
 	ean = models.CharField(blank=True, null=False, max_length=13)
 	positions = models.ManyToManyField(Position,through="PositionProduct")
 

@@ -3,7 +3,7 @@
 <div class="col-md-12">
 <form id="filter_form" action="." class="form-inline">
 <div class"checkbox-inline">
-	{% for field in field_names %}
+	{% for field in filter_fields %}
 		{% for option_row in option_fields %}
 			{% if option_row|getattr:field %}
 				{% for option in option_row|getattr:field %}
@@ -15,7 +15,7 @@
 	{% endfor %}
 </div>
 <div class="form-group">
-{% for field in field_names %}
+{% for field in filter_fields %}
 	{% if option_fields %}
 		{% for option_row in option_fields %}
 

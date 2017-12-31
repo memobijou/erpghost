@@ -1,5 +1,6 @@
 from django import forms
-from .models import Order
+from .models import Order, ProductOrder
+from django.forms import modelform_factory, inlineformset_factory
 
 
 class OrderForm(forms.ModelForm):
@@ -7,8 +8,11 @@ class OrderForm(forms.ModelForm):
 
 	class Meta:
 		model = Order
-		exclude = ['id', 'products']
+		fields = ['ordernumber', 'delivery_date', 'status']
 		widgets={'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 # inline_order = modelform_factory(Order, exclude=('id', 'products'),\
 # 				 widgets={'delivery_date': forms.DateInput(attrs={"class": "datepicker"})})
+
+
+ProductOrderFormsetInline = inlineformset_factory(Order, ProductOrder, can_delete=True, extra=0, exclude=["id"])

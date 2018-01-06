@@ -8,23 +8,63 @@ from django.test import Client
 from django.contrib import auth
 from order.forms import OrderForm, ProductOrderFormsetInline
 from order.models import Order
+from django.utils import timezone
+import pytz
 
 
 class TestScanOrderTemplateView:
 
-	@pytest.fixture(autouse=True)
-	def setup(self):
-		self.order_object = mixer.blend("order.Order")
+	# @pytest.fixture(autouse=True)
+	# def setup(self):
+	# 	self.order_object = mixer.blend("order.Order")
 
 	def test_scan_order_get(self):
+		order_object = mixer.blend("order.Order")
+
 		client = Client()
-		response = client.get("/order/" + str(self.order_object.pk) + "/scan", follow=True)
+		response = client.get("/order/" + str(order_object.pk) + "/scan", follow=True)
 		assert response.status_code == 200, "Status Code should be 200"
 
 	def test_scan_order_view(self):
+		order_object = mixer.blend("order.Order")
+
 		request = RequestFactory().get("/")
-		response = ScanOrderTemplateView.as_view()(request, pk=self.order_object.pk)
+		response = ScanOrderTemplateView.as_view()(request, pk=order_object.pk)
 		assert response.status_code == 200, "should return 200 Status"
+
+
+	def test_scan_order_view_POST_change_confirmed_from_none_to_true(self):
+		product = mixer.blend("product.Product")
+		order_object = mixer.blend("order.Order", products=product)
+
+		data = {"confirmed": 1, "product_id":product.pk}
+		request = RequestFactory().post("/", data=data)
+		response = ScanOrderTemplateView.as_view()(request, pk=order_object.pk)
+		assert response.status_code == 302, "should redirect to GET page so should be 302 status"
+		order_object.refresh_from_db()
+		updated_product_order = order_object.productorder_set.all()[0]
+		assert updated_product_order.confirmed == 1, "Should be confirmed with value 1"
+
+
+	def test_post_product_on_order_with_request_to_url(self):
+		order_object = mixer.blend("order.Order", confirmed=None, delivery_date=timezone.now()	)
+
+		before_value = order_object.confirmed
+		order_object.confirmed = True
+		order_object.save()
+		order_object.refresh_from_db()
+		after_value = order_object.confirmed
+
+		assert before_value != after_value, "Should not be the same as before after updated"
+
+		data = {}
+		client = Client()
+		response = client.get("/order/" + str(order_object.pk) + "/scan/", follow=True)
+		assert response.status_code == 200, "Status Code of scan order after update should be 200"
+
+		data = {"confirmed": True}
+		response = client.post("/order/" + str(order_object.pk) + "/scan/", data,  follow=True)
+		assert response.status_code == 200, "Status Code of scan order after update should be 200"
 
 
 

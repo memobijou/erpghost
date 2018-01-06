@@ -4,8 +4,8 @@ from .models import Position
 from django.http import JsonResponse
 import json
 from utils.utils import get_queries_as_json, set_field_names_onview,\
-handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request,get_model_references,get_vol_from_columns,parse_query_to_json,\
-render_to_pdf
+handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request,get_model_references,\
+get_vol_from_columns,parse_query_to_json
 from rest_framework.generics import ListAPIView
 import django_filters.rest_framework
 from django.db.models import Q
@@ -50,17 +50,3 @@ class PositionListView(ListView):
 		print("KHALASSS: " + str(context["object_list_as_json"] ))
 		return context
 
-class GeneratePDF(View):
-	def get(self, request,*args, **kwargs):
-		context = {"name":"OSMANAAAAAA"}
-		pdf = render_to_pdf("position/invoice.html",context)
-		if pdf:
-			response = HttpResponse(pdf, content_type='application/pdf')
-			filename = "Invoice_%s.pdf" %("asdfasdfasd")
-			content = "Inline;filename=%s" % (filename)
-			# downlaod = request.GET.get("download")
-			# if downlaod:
-			# 	content = "attachment;filename='%s'" %(filename)
-			response["Content-Disposition"] = content
-			return response
-		return HttpResponse("Not Found")

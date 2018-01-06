@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}
+	Neues Inventar
+{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="." enctype="multipart/form-data">{% csrf_token %}
+
+{{form.as_p}}
+
+
+<button class="btn btn-primary" id="btn_upload">Upload</button>
+</form>
+
+<!-- 
+<button class="btn btn-primary" id="btn_upload">Upload</button> -->
+
+{% endblock %}

@@ -19,6 +19,7 @@ from product.views import ProductListView
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from utils.api import match_product
 from django.contrib.auth.views import LoginView
+from main.views import main_view
 
 
 urlpatterns = [
@@ -31,6 +32,9 @@ urlpatterns = [
     url(r'^column/', include("column.urls", namespace="column")),
     url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
     url(r'^login/$', LoginView.as_view(), name="login"),
+    url(r'^$', main_view, name="root"),
+    url(r'^stock/', include("stock.urls", namespace="stock")),
+
 ]
 
 urlpatterns += staticfiles_urlpatterns()

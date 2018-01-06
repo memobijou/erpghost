@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, FormView
 from order.models import Order, ProductOrder
 from order.forms import OrderForm, ProductOrderFormsetInline
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview,\
@@ -13,8 +13,10 @@ from django.contrib.auth.models import AnonymousUser
 
 # Create your views here.
 
-class ScanOrderTemplateView(TemplateView):
+
+class ScanOrderTemplateView(UpdateView):
 	template_name = "order/scan_order.html"
+	form_class = modelform_factory(ProductOrder, fields=("confirmed", ))
 
 	def get_object(self, *args, **kwargs):
 		object = Order.objects.get(pk=self.kwargs.get("pk"))
@@ -28,13 +30,105 @@ class ScanOrderTemplateView(TemplateView):
 
 		context["product_orders"] = product_orders
 
-		set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
-	    exclude_fields=["id"], exclude_filter_fields=["id"])
+		if product_orders.count() > 0:
 
-		set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
-	    exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
-	    				allow_related=True)
+			set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
+		    exclude_fields=["id"], exclude_filter_fields=["id"])
+
+			set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
+		    exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
+		    				allow_related=True)
+		else:
+			context["product_orders"] = None
+
 		return context
+
+	def form_valid(self, form, *args, **kwargs):
+		object = form.save()
+
+		context = self.get_context_data(*args, **kwargs)
+		
+		confirmed_bool = self.request.POST.get("confirmed")
+		product_id = self.request.POST.get("product_id")
+
+		for product_order in object.productorder_set.all():
+			print("FFFFFF: " + str(product_order.pk) + " : " + str(product_id))
+
+			if str(product_order.pk) == str(product_id):
+				print("PPPPPP: " + str(product_order.pk) + " : " + str(product_id))
+
+				product_order.confirmed = confirmed_bool
+				product_order.save()
+				print("WHAAT: " + str(product_order))
+
+
+		print("BRAND NEW: " + str(confirmed_bool) + " : " + str(product_id))
+		print("****************************CONFIRMED: " + str(self.request.POST.get("confirmed")))
+		return HttpResponseRedirect("")
+
+
+
+
+# def ScanOrderTemplateView(request, *args, **kwargs):
+# 	if request.method == "POST":
+
+
+# 	context = {}
+
+# 	object = Order.objects.get(pk=kwargs.get("pk"))
+
+# 	context["object"] = object
+
+# 	product_orders = context["object"].productorder_set.all()
+
+# 	context["product_orders"] = product_orders
+
+
+# 	if product_orders.count() > 0:
+# 		set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
+# 		exclude_fields=["id"], exclude_filter_fields=["id"])
+
+# 		set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
+# 		exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
+# 					allow_related=True)
+# 	else:
+# 		context["product_orders"] = None
+
+
+# 	return render(request, "order/scan_order.html", context )
+
+
+# class ScanOrderTemplateView(TemplateView):
+# 	template_name = "order/scan_order.html"
+# 	def get_object(self, *args, **kwargs):
+# 		object = Order.objects.get(pk=self.kwargs.get("pk"))
+# 		return object
+
+# 	def get_context_data(self, *args, **kwargs):
+# 		context = super(ScanOrderTemplateView, self).get_context_data(*args, **kwargs)
+# 		context["object"] = self.get_object(*args, **kwargs)
+
+# 		product_orders = context["object"].productorder_set.all()
+
+# 		context["product_orders"] = product_orders
+
+# 		print("*********************: " + str(product_orders.count()))
+
+# 		if product_orders.count() > 0:
+
+# 			set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
+# 		    exclude_fields=["id"], exclude_filter_fields=["id"])
+
+# 			set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
+# 		    exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
+# 		    				allow_related=True)
+# 		else:
+# 			context["product_orders"] = None
+
+# 		return context
+
+# 	def post(self, request, *args, **kwargs):
+# 		return HttpResponseRedirect(self.success_url)
 
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):

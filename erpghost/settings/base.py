@@ -52,6 +52,9 @@ INSTALLED_APPS = [
     'supplier',
     'contact',
     'adress',
+    'main',
+    'stock',
+    'import_export',
 ]
 
 

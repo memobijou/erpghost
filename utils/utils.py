@@ -9,17 +9,6 @@ from io import BytesIO
 from django.http import HttpResponse
 from django.template.loader import get_template
 
-from xhtml2pdf import pisa
-
-def render_to_pdf(template_src, context_dict={}):
-	template = get_template(template_src)
-	html  = template.render(context_dict)
-	result = BytesIO()
-	pdf = pisa.pisaDocument(BytesIO(html.encode("ISO-8859-1")), result)
-	if not pdf.err:
-		return HttpResponse(result.getvalue(), content_type='application/pdf')
-	return None
-
 
 class BaseValidationError(ValueError):
 	pass
@@ -148,7 +137,7 @@ def get_meta_field_names(Model):
 	return meta_fields
 
 def get_queries_as_json(queryset):
-	if not queryset.exists():
+	if queryset and not queryset.exists():
 		return {}
 	Model = get_model_from_queryset(queryset)
 	meta_fields = get_meta_field_names(Model)
@@ -253,7 +242,7 @@ def handle_pagination(queryset, request, results_per_page):
 	return {"queryset": current_object_list, "pages_range": range(1, paginator.num_pages+1), "current_page": current_page}
 
 def set_paginated_queryset_onview(queryset, request, results_per_page, context):
-
+	
 	context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
 	if context["object_list_as_json"]:
@@ -364,6 +353,7 @@ def filter_queryset_from_request(request, ModelClass):
 	print(str(filter_dict))
 	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
+	print("AAAANNNNNN: " + str(result))
 	return result
 
 

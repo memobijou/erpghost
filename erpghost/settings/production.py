@@ -52,8 +52,12 @@ INSTALLED_APPS = [
     'supplier',
     'contact',
     'adress',
+    'main',
+    'stock',
+    'import_export',
 ]
 
+IMPORT_EXPORT_USE_TRANSACTIONS = True
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',

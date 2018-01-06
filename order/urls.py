@@ -8,6 +8,4 @@ urlpatterns = [
 	url(r'^create/$', OrderCreateView.as_view(), name="create"),
 	url(r'^(?P<pk>\d+)/edit/$', OrderUpdateView.as_view(), name="update"),
 	url(r'^(?P<pk>\d+)/scan/$', ScanOrderTemplateView.as_view(), name="scan"),
-
-
 ]   

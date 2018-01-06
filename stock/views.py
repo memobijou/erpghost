@@ -80,7 +80,7 @@ class StockCreateView(CreateView):
 
 			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1]).exists() == True:
 				return_ = super(StockCreateView, self).form_valid(form)
-			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():

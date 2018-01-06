@@ -83,20 +83,20 @@ def get_field_names(Model, exclude=None):
 	fields = []
 	for field in meta_fields:
 		if field.name not in exclude:
-			print("DECIDE: "+ str(Model) + " : "  + str(exclude))
+			# print("DECIDE: "+ str(Model) + " : "  + str(exclude))
 			if not field.is_relation and field.related_model is None:
 				fields.append(field.name)
 	return fields
 
 def get_relation_names(Model, exclude=None, allow_related=None):
-	print(str(allow_related))
+	# print(str(allow_related))
 	if exclude == None:
 		exclude = []
 	meta_fields = Model._meta.get_fields()
 	relations = []
 	for relation in meta_fields:
 		if relation.name not in exclude:
-			print("DECIDE: "+ str(Model) + " : "  + str(exclude))
+			# print("DECIDE: "+ str(Model) + " : "  + str(exclude))
 			if (relation.is_relation or relation.related_model) and allow_related == True:
 				relations.append(relation.name)
 	return relations
@@ -170,7 +170,7 @@ def get_related_queries(query):
 
 
 def parse_query_to_json(query, fields):
-	print("AHHHHHHHHHHHHHHHHHHHH: " + str(query))
+	# print("AHHHHHHHHHHHHHHHHHHHH: " + str(query))
 	function_field_values = get_property_values(query)
 	parsed_query = {}
 	for field in fields:
@@ -189,7 +189,7 @@ def get_query_as_json(query):
 	fields = get_field_names(Model, [])
 	related_queries = get_related_queries(query)
 	_dict = parse_query_to_json(query, fields)
-	print("DOWNLOAD: " + str(related_queries))
+	# print("DOWNLOAD: " + str(related_queries))
 	for related_query in related_queries:
 		key = next(iter(related_query.keys()))
 		val = related_query[key]
@@ -203,8 +203,8 @@ def get_query_as_json(query):
 			_dict[key] = val_queries
 		elif hasattr(val, "_meta"):
 			val_model = get_model_from_query(val)
-			print("BLAUUUU: " + str(val_model))
-			print("AUGE: " + str(key) + " : " + str(val))
+			# print("BLAUUUU: " + str(val_model))
+			# print("AUGE: " + str(key) + " : " + str(val))
 			val_fields = get_field_names(val_model, [])
 			val_dict = parse_query_to_json(val, val_fields)
 			_dict[key] = val_dict
@@ -213,7 +213,7 @@ def get_query_as_json(query):
 
 
 
-	print("HALLO ICH BIN HIER: " + str(_dict))
+	# print("HALLO ICH BIN HIER: " + str(_dict))
 	return _dict
 
 def get_related_as_json(query, exclude):
@@ -264,8 +264,8 @@ def q_to_dict(q):
 	dict_ = dict(zip(q.keys(), q.values()))
 	# print("ta: " + str(json.dumps(q)))
 	dict_ = {k: q.getlist(k) if len(q.getlist(k))>1 else v for k, v in q.items()}
-	print("bla: " + str(q.urlencode())) #  falls das mal net klappt dann mit q.urlencode zu dictionary umwandeln
-	print("bla 2 :" + str(dict(q.lists())))
+	# print("bla: " + str(q.urlencode())) #  falls das mal net klappt dann mit q.urlencode zu dictionary umwandeln
+	# print("bla 2 :" + str(dict(q.lists())))
 	return dict_
 
 def get_datatype_model_field(Model, field_name):
@@ -277,7 +277,7 @@ def get_datatype_model_field(Model, field_name):
 
 def set_field_names_onview(queryset=None, context=None, ModelClass=None, exclude_fields=None, exclude_filter_fields=None,\
 						   template_tagname="field_names", allow_related=None):
-	print(str(allow_related))
+	# print(str(allow_related))
 	field_names = get_field_names(ModelClass, exclude_fields)
 	relation_names = get_relation_names(ModelClass, exclude_fields, allow_related)
 	field_names =  relation_names + field_names
@@ -318,7 +318,7 @@ def build_query_condition(dict_, Model):
 				continue
 			Q_kwargs = {k: date_}
 		else:
-			print("DUNKY: " + str(type(v)))
+			# print("DUNKY: " + str(type(v)))
 			if isinstance(v, list):
 				sub_Q = Q()
 				for el in v:
@@ -326,7 +326,7 @@ def build_query_condition(dict_, Model):
 					sub_kwargs = {k: el}
 					sub_Q |= Q(**sub_kwargs)
 				Q_kwargs = None
-				print("BUTTLE:   " + str(sub_Q))
+				# print("BUTTLE:   " + str(sub_Q))
 			else:
 				key_condition =k + "__icontains"
 				Q_kwargs = {key_condition: v}
@@ -334,26 +334,26 @@ def build_query_condition(dict_, Model):
 			condition &= Q(**Q_kwargs)
 		else:
 			condition &= sub_Q
-	print("BONG: " + str(condition))
+	# print("BONG: " + str(condition))
 	return condition
 
 def filter_queryset_from_request(request, ModelClass):
 	querystring = request.GET
-	print(str(querystring))
+	# print(str(querystring))
 
 	if len(querystring) == 0:
 		return ModelClass.objects.all()
 
 	filter_dict = q_to_dict(querystring)
 	# filter_dict = {key: value for key, value in filter_dict.items() if key is not "page"}
-	print("wff: "  + str(filter_dict))
+	# print("wff: "  + str(filter_dict))
 	if "page" in filter_dict:
-		print("######################")
+		# print("######################")
 		filter_dict = {key: val for key, val in filter_dict.items() if key != "page"}
-	print(str(filter_dict))
+	# print(str(filter_dict))
 	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
-	print("AAAANNNNNN: " + str(result))
+	# print("AAAANNNNNN: " + str(result))
 	return result
 
 
@@ -369,8 +369,8 @@ def set_object_ondetailview(context=None, ModelClass=None, exclude_fields=None, 
 def get_and_condition_from_q(request):
 	queries = Q()
 	for pair in request.query_params:
-		print("LOL 2: " + str(pair))
-		print("LOL 3: " + str(request.query_params[pair]))
+		# print("LOL 2: " + str(pair))
+		# print("LOL 3: " + str(request.query_params[pair]))
 		value = request.query_params[pair]
 		if pair == "confirmed":
 			confirmed = request.query_params.get('confirmed')

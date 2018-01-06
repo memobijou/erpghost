@@ -68,15 +68,19 @@ class StockCreateView(CreateView):
         #new_persons = request.FILES['myfile']
 
 		imported_data = dataset.load(document.read())
-		#print("IMPPPPP: " + str(imported_data))
+		# print("IMPPPPP: " + str(imported_data))
+
+		if has_duplicate(imported_data):
+			return_ = super(StockCreateView, self).form_valid(form)
+			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
 		for row in imported_data:
-			#print("ROW: " + str(row[4]))
+			print("ROW: " + str(row[4]) + " : " +  str(row[1]))
 			#print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
 
-			if Stock.objects.filter(lagerplatz=row[4]).exists() == True:
+			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1]).exists() == True:
 				return_ = super(StockCreateView, self).form_valid(form)
-				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():
@@ -91,6 +95,30 @@ class StockCreateView(CreateView):
 	
 		# return render(self.request, self.template_name, self.get_context_data(*args, **kwargs))
 
+
+def has_duplicate(arr):
+	copy_arr = arr
+
+	# for i ,row in enumerate(arr):
+	# 	for index, against in enumerate(arr[(i):len(copy_arr)-1]):
+	# 		if index+1 < len(copy_arr):
+	# 			print("******; " + str(row[1]) +  " : " + str(row[4]) + \
+	# 				" - " + str(arr[index+1][1]) + " : "  + \
+	# 				str(arr[index+1][4]) + " : ")
+	# 			if arr[index+1][1] == row[1] and arr[index+1][4] == row[4]:
+	# 				return True
+
+	for index, row in enumerate(arr):
+		print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
+		for i, against in enumerate(arr[index:len(arr)]):
+			if i+1 <= len(arr[index:len(arr)]) and i > index:
+				if against[1] == row[1] and against[4] == row[4]:
+					print("WOW: " + str(i) + " - " + str(against[1]) \
+						+ " : " + str(against[4]))
+					return True
+
+		# break
+	return False
 
 class StockDetailView(DetailView):
 	template_name = "stock/stock_detail.html"

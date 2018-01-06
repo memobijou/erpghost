@@ -4,5 +4,4 @@ from .models import Stock
 class StockResource(resources.ModelResource):
     class Meta:
         model = Stock
-        import_id_fields = ['ean_vollstaendig', 'lagerplatz']
-        
+        import_id_fields = ['id']

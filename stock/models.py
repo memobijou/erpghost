@@ -6,7 +6,7 @@ from django.core.urlresolvers import reverse
 # Create your models here.
 
 class Stock(models.Model):
-    ean_vollstaendig = models.CharField(max_length=13)
+    ean_vollstaendig = models.CharField(max_length=25)
     bestand = models.IntegerField(max_length=25, null=True, blank=True)
     ean_upc =  models.IntegerField(max_length=25, null=True, blank=True)
     lagerplatz = models.CharField(max_length=25, null=True, blank=True)

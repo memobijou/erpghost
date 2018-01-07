@@ -30,4 +30,4 @@ class Stockdocument(models.Model):
     uploaded_at = models.DateTimeField(auto_now=True)
 
     def get_absolute_url(self):
-        return reverse("stock:detail", kwargs={"pk": self.id})
+        return reverse("stock:documentdetail", kwargs={"pk": self.id})

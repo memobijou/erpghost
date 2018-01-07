@@ -1,15 +1,21 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div style="background-color:white;padding:25px;" class="table table-bordered">
+<div style="text-align:center;">
+<form method="POST" action="{%url 'login'%}">{%csrf_token%}	
+<img src="http://cdn.mysitemyway.com/etc-mysitemyway/icons/legacy-previews/icons/rounded-glossy-black-icons-culture/033442-rounded-glossy-black-icon-culture-holiday-ghost2.png"
+height="80" width="80">
+<h6>ERPGhost</h6>
 
-<form method="POST" action="{%url 'login'%}">{%csrf_token%}
+<br/>
 {{form.username.label_tag}}
 {{form.username}}
-<br/>
 {{form.password.label_tag}}
 {{form.password}}
-<br/>
 <input type="submit" value="Login"/>
 <input type="hidden" name="next" value="{{ next }}"/> 
 </form>
+</div>
+</div>
 {% endblock %}

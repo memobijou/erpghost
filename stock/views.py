@@ -26,7 +26,16 @@ class StockListView(LoginRequiredMixin, ListView):
 		context = super(StockListView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Inventar"
 
-		context["amount"] = Stock.objects.count()
+		amount_positions = 6000
+
+		amount_stocks = Stock.objects.count()
+
+		context["amount_positions"] = amount_positions
+
+		context["amount_stocks"] = amount_stocks
+
+		context["progress_bar_value"] = (100/amount_positions)*amount_stocks
+
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\
 	    exclude_fields=["id", "bestand", "ean_vollstaendig", "ean_upc", "zustand", "scanner", "name", "karton",

@@ -93,7 +93,7 @@ class StockCreateView(LoginRequiredMixin, CreateView):
 			stock_resource.import_data(dataset, dry_run=False)  # Actually import now
 			print("NO ERRORS!!! " +  str(result.has_errors) )
 		else:
-			print("ERRRROORR: " + str(result.has_errors) + " : " + str(result.errors))
+			print("ERRRROORR: " + str(result.has_errors))
 			return_ = super(StockCreateView, self).form_valid(form)
 			print("IS_ERROR!!!")
 			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")

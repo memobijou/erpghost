@@ -25,12 +25,12 @@ height="80" width="80">
 {% csrf_token %}
 {{ form.username.label_tag }}
 {{ form.username }}
-
+</br>
 {{ form.password.label_tag }}
 {{ form.password }}
+</br></br>
 
-
-<input type="submit" value="login" />
+<input type="submit" class="btn btn-primary" value="login" />
 <input type="hidden" name="next" value="{{ next }}" />
 </form>
 

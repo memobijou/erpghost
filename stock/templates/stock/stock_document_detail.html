@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+
+{% block title %}Detailansicht{% endblock %}
+
+
+{% block content %}
+
+{% if request.GET.status == 'false' %}
+
+<div class="alert alert-danger">
+  <strong>ACHTUNG!!!!</strong> Feher beim hochladen, einer der Positionen wurde bereits erfasst!. Das hochladen dieser Datei ist somit ungültig. 
+</div>
+
+<div class="alert alert-info">
+  <strong>Info!</strong> Drücken sie bitte auf "Inventar" um zurück zukehren.
+</div>
+
+
+{% else %}
+<div class="alert alert-success">
+  <strong>Super</strong> Die Datei wurde erfolgreich hochgealden.
+</div>
+
+<div class="alert alert-info">
+  <strong>Info!</strong> Drücken sie bitte auf "Inventar" um weiter zu machen. 
+</div>
+
+
+{% endif %}
+<!-- {{request.GET.status}} -->
+
+{% endblock %}
+

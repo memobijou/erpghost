@@ -115,12 +115,26 @@ def has_duplicate(arr):
 		# break
 	return False
 
-class StockDetailView(LoginRequiredMixin, DetailView):
-	template_name = "stock/stock_detail.html"
+class StockDocumentDetailView(LoginRequiredMixin, DetailView):
+	template_name = "stock/stock_document_detail.html"
 	def get_object(self):
 		obj = get_object_or_404(Stockdocument, pk=self.kwargs.get("pk"))
 		return obj
 
+
+
+class StockDetailView(LoginRequiredMixin, DetailView):
+	template_name = "stock/stock_detail.html"
+	def get_object(self):
+		obj = get_object_or_404(Stock, pk=self.kwargs.get("pk"))
+		return obj
+
+	def get_context_data(self, *args, **kwargs):
+		context = super(StockDetailView, self).get_context_data(*args, **kwargs)
+		context["title"] = "Inventar " + context["object"].lagerplatz
+		set_object_ondetailview(context=context, ModelClass=Stock, exclude_fields=["id"],\
+							    exclude_relations=[], exclude_relation_fields={})
+		return context
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
 	template_name = "stock/form.html"

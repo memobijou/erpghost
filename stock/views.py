@@ -34,7 +34,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
 		context["amount_stocks"] = amount_stocks
 
-		context["progress_bar_value"] = (100/amount_positions)*amount_stocks
+		context["progress_bar_value"] = round((100/amount_positions)*amount_stocks, 2)
 
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\

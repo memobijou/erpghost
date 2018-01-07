@@ -1,21 +1,41 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
 <div style="background-color:white;padding:25px;" class="table table-bordered">
 <div style="text-align:center;">
-<form method="POST" action="{%url 'login'%}">{%csrf_token%}	
+{% if form.errors %}
+<p>Your username and password didn't match. Please try again.</p>
+{% endif %}
+
+{% if next %}
+    {% if user.is_authenticated %}
+    <p>Your account doesn't have access to this page. To proceed,
+    please login with an account that has access.</p>
+    {% else %}
+    <p>Please login to see this page.</p>
+    {% endif %}
+{% endif %}
 <!-- <img src="http://cdn.mysitemyway.com/etc-mysitemyway/icons/legacy-previews/icons/rounded-glossy-black-icons-culture/033442-rounded-glossy-black-icon-culture-holiday-ghost2.png"
 height="80" width="80">
 <h6>ERPGhost</h6>
  -->
-<br/>
-{{form.username.label_tag}}
-{{form.username}}
-{{form.password.label_tag}}
-{{form.password}}
-<input type="submit" value="Login"/>
-<input type="hidden" name="next" value="{{ next }}"/> 
+<form method="post" action="{% url 'login' %}">
+{% csrf_token %}
+<table>
+<tr>
+    <td>{{ form.username.label_tag }}</td>
+    <td>{{ form.username }}</td>
+</tr>
+<tr>
+    <td>{{ form.password.label_tag }}</td>
+    <td>{{ form.password }}</td>
+</tr>
+</table>
+
+<input type="submit" value="login" />
+<input type="hidden" name="next" value="{{ next }}" />
 </form>
+
 </div>
 </div>
 {% endblock %}

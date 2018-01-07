@@ -7,11 +7,12 @@
 {% block content %}
 
 <form method="POST" action="." enctype="multipart/form-data">{% csrf_token %}
-
+<div style="background-color:white;padding:25px;" class="table-bordered">
 {{form.as_p}}
 
 
 <button class="btn btn-primary" id="btn_upload">Upload</button>
+</div>
 </form>
 
 <!-- 

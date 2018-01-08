@@ -38,7 +38,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\
-	    exclude_fields=["id", "bestand", "ean_upc", "zustand", "scanner", "name", "karton",
+	    exclude_fields=["id", "ean_upc", "zustand", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'],\
 	    exclude_filter_fields=["id", "bestand",  "ean_upc", "zustand", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'])
@@ -154,7 +154,7 @@ class StockDetailView(LoginRequiredMixin, DetailView):
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
 	template_name = "stock/form.html"
-	form_class = modelform_factory(model=Stock ,fields=["bestand"], labels={"bestand": "IST Bestand"})
+	form_class = modelform_factory(model=Stock ,fields=["bestand", "ean_vollstaendig",], labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
 	login_url = "/login/"
 
 	def get_object(self):

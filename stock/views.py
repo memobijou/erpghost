@@ -38,9 +38,9 @@ class StockListView(LoginRequiredMixin, ListView):
 
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\
-	    exclude_fields=["id", "ean_upc", "zustand", "scanner", "name", "karton",
+	    exclude_fields=["id", "ean_upc", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'],\
-	    exclude_filter_fields=["id", "bestand",  "ean_upc", "zustand", "scanner", "name", "karton",
+	    exclude_filter_fields=["id", "bestand",  "ean_upc", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'])
 		if context["object_list"]:
 			set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
@@ -91,11 +91,12 @@ class StockCreateView(LoginRequiredMixin, CreateView):
 		for row in imported_data:
 			# print("ROW: " + str(row[4]) + " : " +  str(row[1]))
 			#print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1] ).exists() == True:
-				print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
-				print("IS IN DATABASE")
-				return_ = super(StockCreateView, self).form_valid(form)
-				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+			if row[9] == "":
+				if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[5]).exists() == True:
+					print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
+					print("IS IN DATABASE")
+					return_ = super(StockCreateView, self).form_valid(form)
+					return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():
@@ -123,10 +124,11 @@ def has_duplicate(arr):
 		# print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
 		for i, against in enumerate(arr[index:len(arr)]):
 			if i+1 <= len(arr[index:len(arr)]) and i > index:
-				if against[1] == row[1] and against[4] == row[4]:
-					# print("WOW: " + str(i) + " - " + str(against[1]) \
-						# + " : " + str(against[4]))
-					return True
+				print("BASDSFAS: " + str(row[9]))
+				if row[9] == "":
+					if against[1] == row[1] and against[4] == row[4]\
+					and against[5] == row[5]:
+						return True
 
 		# break
 	return False

@@ -14,7 +14,7 @@ class Stock(models.Model):
     scanner = models.IntegerField(null=True, blank=True)
     name = models.CharField(max_length=250, null=True, blank=True)
     karton = models.CharField(max_length=250, null=True, blank=True)
-    box = models.IntegerField(null=True, blank=True)
+    box = models.CharField(max_length=250, null=True, blank=True)
     bereich = models.CharField(max_length=250, null=True, blank=True)
     ueberpruefung = models.CharField(max_length=250, null=True, blank=True)
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True)

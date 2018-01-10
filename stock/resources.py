@@ -4,4 +4,4 @@ from .models import Stock
 class StockResource(resources.ModelResource):
     class Meta:
         model = Stock
-        exclude = []
+        import_id_fields = ['id']

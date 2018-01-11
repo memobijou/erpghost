@@ -26,7 +26,7 @@ class StockListView(LoginRequiredMixin, ListView):
 		context = super(StockListView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Inventar"
 
-		amount_positions = 6000
+		amount_positions = 20081
 
 		amount_stocks = Stock.objects.count()
 

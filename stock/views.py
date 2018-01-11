@@ -83,20 +83,20 @@ class StockCreateView(LoginRequiredMixin, CreateView):
 		imported_data = dataset.load(document.read())
 		# print("IMPPPPP: " + str(imported_data))
 
-		if has_duplicate(imported_data):
-			return_ = super(StockCreateView, self).form_valid(form)
-			print("HAS DUPLICATE")
-			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+		# if has_duplicate(imported_data):
+		# 	return_ = super(StockCreateView, self).form_valid(form)
+		# 	print("HAS DUPLICATE")
+		# 	return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
 		for row in imported_data:
 			print("ROW: " + str(row[4]) + " : " +  str(row[1]) + " : " + str(row[6]))
 			print("UNDERROW: " + str(str(row[5])))
 			#print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists() == True:
-				print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
-				print("IS IN DATABASE")
-				return_ = super(StockCreateView, self).form_valid(form)
-				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+			# if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists() == True:
+			# 	print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
+			# 	print("IS IN DATABASE")
+			# 	return_ = super(StockCreateView, self).form_valid(form)
+			# 	return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():

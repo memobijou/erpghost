@@ -1,34 +1,22 @@
 {% extends 'base.html' %}
-
-
-{% block title %}Detailansicht{% endblock %}
-
-
+{% load utils %}
 {% block content %}
 
-{% if request.GET.status == 'false' %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
 
-<div class="alert alert-danger">
-  <strong>ACHTUNG!!!!</strong> Feher beim hochladen, einer der Positionen wurde bereits erfasst!. Das hochladen dieser Datei ist somit ungültig. 
-</div>
+	<a style="float:right;" href="{% url 'stock:edit' pk=object.id%}">Bearbeiten</a>
 
-<div class="alert alert-info">
-  <strong>Info!</strong> Drücken sie bitte auf "Inventar" um zurück zukehren.
-</div>
+	{% for field in field_names %}
+		<p><b>{{field}}: </b> {{object_as_json|getattr:field}} </p> 
+	{% endfor %}
 
-
-{% else %}
-<div class="alert alert-success">
-  <strong>Super</strong> Die Datei wurde erfolgreich hochgealden.
-</div>
-
-<div class="alert alert-info">
-  <strong>Info!</strong> Drücken sie bitte auf "Inventar" um weiter zu machen. 
+	
 </div>
 
 
-{% endif %}
-<!-- {{request.GET.status}} -->
+
 
 {% endblock %}
+
+
 

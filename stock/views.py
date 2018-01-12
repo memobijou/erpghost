@@ -11,10 +11,13 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview,\
 filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
+from django.contrib.auth.mixins import LoginRequiredMixin
 # Create your views here.
 
-class StockListView(ListView):
+class StockListView(LoginRequiredMixin, ListView):
 	template_name = "stock/stock_list.html"
+	login_url = "/login/"
+
 	def get_queryset(self):
 		queryset = filter_queryset_from_request(self.request, Stock)
 		return queryset
@@ -23,12 +26,21 @@ class StockListView(ListView):
 		context = super(StockListView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Inventar"
 
-		context["amount"] = Stock.objects.count()
+		amount_positions = 6000
+
+		amount_stocks = Stock.objects.count()
+
+		context["amount_positions"] = amount_positions
+
+		context["amount_stocks"] = amount_stocks
+
+		context["progress_bar_value"] = round((100/amount_positions)*amount_stocks, 2)
+
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\
-	    exclude_fields=["id", "bestand", "ean_vollstaendig", "ean_upc", "zustand", "scanner", "name", "karton",
+	    exclude_fields=["id", "ean_upc", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'],\
-	    exclude_filter_fields=["id", "bestand", "ean_vollstaendig", "ean_upc", "zustand", "scanner", "name", "karton",
+	    exclude_filter_fields=["id", "bestand",  "ean_upc", "scanner", "name", "karton",
 	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'])
 		if context["object_list"]:
 			set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
@@ -38,9 +50,10 @@ class StockListView(ListView):
 
 
 
-class StockCreateView(CreateView):
+class StockCreateView(LoginRequiredMixin, CreateView):
 	template_name = "stock/stock_create.html"
 	form_class = StockdocumentForm
+	login_url = "/login/"
 
 	def form_valid(self, form, *args, **kwargs):
 		
@@ -72,20 +85,28 @@ class StockCreateView(CreateView):
 
 		if has_duplicate(imported_data):
 			return_ = super(StockCreateView, self).form_valid(form)
+			print("HAS DUPLICATE")
 			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
 		for row in imported_data:
-			print("ROW: " + str(row[4]) + " : " +  str(row[1]))
+			# print("ROW: " + str(row[4]) + " : " +  str(row[1]))
 			#print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-
-			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1]).exists() == True:
-				return_ = super(StockCreateView, self).form_valid(form)
-				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+			if row[9] == "":
+				if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[5]).exists() == True:
+					print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
+					print("IS IN DATABASE")
+					return_ = super(StockCreateView, self).form_valid(form)
+					return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():
 			stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-
+			print("NO ERRORS!!! " +  str(result.has_errors) )
+		else:
+			print("ERRRROORR: " + str(result.has_errors))
+			return_ = super(StockCreateView, self).form_valid(form)
+			print("IS_ERROR!!!")
+			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		return_ = super(StockCreateView, self).form_valid(form)
 		return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
 		# return super(StockCreateView, self).form_valid(form)
@@ -99,39 +120,44 @@ class StockCreateView(CreateView):
 def has_duplicate(arr):
 	copy_arr = arr
 
-	# for i ,row in enumerate(arr):
-	# 	for index, against in enumerate(arr[(i):len(copy_arr)-1]):
-	# 		if index+1 < len(copy_arr):
-	# 			print("******; " + str(row[1]) +  " : " + str(row[4]) + \
-	# 				" - " + str(arr[index+1][1]) + " : "  + \
-	# 				str(arr[index+1][4]) + " : ")
-	# 			if arr[index+1][1] == row[1] and arr[index+1][4] == row[4]:
-	# 				return True
-
 	for index, row in enumerate(arr):
-		print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
+		# print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
 		for i, against in enumerate(arr[index:len(arr)]):
 			if i+1 <= len(arr[index:len(arr)]) and i > index:
-				if against[1] == row[1] and against[4] == row[4]:
-					print("WOW: " + str(i) + " - " + str(against[1]) \
-						+ " : " + str(against[4]))
-					return True
+				print("BASDSFAS: " + str(row[9]))
+				if row[9] == "":
+					if against[1] == row[1] and against[4] == row[4]\
+					and against[5] == row[5]:
+						return True
 
 		# break
 	return False
 
-class StockDetailView(DetailView):
-	template_name = "stock/stock_detail.html"
+class StockDocumentDetailView(LoginRequiredMixin, DetailView):
+	template_name = "stock/stock_document_detail.html"
 	def get_object(self):
 		obj = get_object_or_404(Stockdocument, pk=self.kwargs.get("pk"))
 		return obj
 
 
 
+class StockDetailView(LoginRequiredMixin, DetailView):
+	template_name = "stock/stock_detail.html"
+	def get_object(self):
+		obj = get_object_or_404(Stock, pk=self.kwargs.get("pk"))
+		return obj
 
-class StockUpdateView(UpdateView):
+	def get_context_data(self, *args, **kwargs):
+		context = super(StockDetailView, self).get_context_data(*args, **kwargs)
+		context["title"] = "Inventar " + context["object"].lagerplatz
+		set_object_ondetailview(context=context, ModelClass=Stock, exclude_fields=["id"],\
+							    exclude_relations=[], exclude_relation_fields={})
+		return context
+
+class StockUpdateView(LoginRequiredMixin, UpdateView):
 	template_name = "stock/form.html"
-	form_class = modelform_factory(model=Stock ,fields=["bestand"])
+	form_class = modelform_factory(model=Stock ,fields=["bestand", "ean_vollstaendig",], labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
+	login_url = "/login/"
 
 	def get_object(self):
 		object = Stock.objects.get(id=self.kwargs.get("pk"))

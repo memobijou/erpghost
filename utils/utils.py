@@ -337,14 +337,29 @@ def build_query_condition(dict_, Model):
 	# print("BONG: " + str(condition))
 	return condition
 
+def trim_dict(dict_):
+	trimmed_dict = {}
+
+	for key, val in dict_.items():
+		trimmed_dict[key] = val.strip()
+
+	return trimmed_dict
+
+
 def filter_queryset_from_request(request, ModelClass):
 	querystring = request.GET
-	# print(str(querystring))
+	print("*********##########" + str(querystring))
 
 	if len(querystring) == 0:
 		return ModelClass.objects.all()
 
+
 	filter_dict = q_to_dict(querystring)
+	print("*********##########" + str(filter_dict))
+
+
+	filter_dict = trim_dict(filter_dict)
+
 	# filter_dict = {key: value for key, value in filter_dict.items() if key is not "page"}
 	# print("wff: "  + str(filter_dict))
 	if "page" in filter_dict:

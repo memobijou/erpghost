@@ -3,7 +3,6 @@
 
 
 {% if formset %}
-
 	{% for f in formset %}
 	{{f.id}}
 	{{f.text}}
@@ -167,49 +166,6 @@
 </table>
 
 <script>
-// $(document).ready(function(){
-
-
-// 	var error_cols = document.getElementsByClassName("is_error_td {{matching_}}");
-// 	var tmp = [];	
-// 	var parent = null;
-// 	if(error_cols.length > 0){
-// 		for(var i = 0; i<error_cols.length; i++){
-// 			parent = error_cols[i].parentElement.parentElement.parentElement;
-// 			var error_msg = error_cols[i].getElementsByClassName("error_message")[0];
-// 			// alert(error_msg
-// 				// );
-// 			if(error_msg){
-// 				tmp.push(error_cols[i]);
-// 			}
-// 		}
-// 		// alert(parent);
-// 		// alert(tmp.length);
-// 		error_cols = tmp;
-// 		// alert(error_cols.length);
-
-// 		var all_tr_len = parent.getElementsByTagName("tr").length;
-
-// 		// alert(parent.getElementsByTagName("td").length);
-
-// 		for(var i = 0; i<parent.getElementsByTagName("td").length; i++){
-// 			var td = parent.getElementsByTagName("td")[i];
-// 			if(td.className != "is_error_td {{matching_}}"){
-// 				for(var j = 0; j<error_cols.length; j++){
-// 					var error_col = error_cols[j];
-// 					var to_move_row = parseInt(error_col.parentNode.rowIndex)+parseInt(all_tr_len/2);
-// 					// alert(to_move_row)
-// 					if(error_col.cellIndex == td.cellIndex && td.parentNode.rowIndex == to_move_row ){
-// 						// alert(error_col.cellIndex + " : " + td.cellIndex);
-// 						td.appendChild(error_col.getElementsByTagName("div")[0]);
-
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-
-// });
 
 </script>
 

@@ -10,13 +10,12 @@ class Stock(models.Model):
     bestand = models.IntegerField(null=True, blank=True)
     ean_upc =  models.CharField(max_length=250, null=True, blank=True)
     lagerplatz = models.CharField(max_length=250, null=True, blank=True)
+    regal = models.CharField(max_length=250, null=True, blank=True)
     zustand = models.CharField(max_length=250, null=True, blank=True)
     scanner = models.IntegerField(null=True, blank=True)
     name = models.CharField(max_length=250, null=True, blank=True)
     karton = models.CharField(max_length=250, null=True, blank=True)
     box = models.CharField(max_length=250, null=True, blank=True)
-    bereich = models.CharField(max_length=250, null=True, blank=True)
-    ueberpruefung = models.CharField(max_length=250, null=True, blank=True)
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True)
 
     def get_absolute_url(self):

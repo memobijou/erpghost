@@ -26,7 +26,7 @@ class StockListView(LoginRequiredMixin, ListView):
 		context = super(StockListView, self).get_context_data(*args, **kwargs)
 		context["title"] = "Inventar"
 
-		amount_positions = 6000
+		amount_positions = 30000
 
 		amount_stocks = Stock.objects.count()
 
@@ -38,10 +38,10 @@ class StockListView(LoginRequiredMixin, ListView):
 
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock,\
-	    exclude_fields=["id", "ean_upc", "scanner", "name", "karton",
-	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'],\
-	    exclude_filter_fields=["id", "bestand",  "ean_upc", "scanner", "name", "karton",
-	    											  'box', 'bereich', 'ueberpruefung', 'aufnahme_datum'])
+	    exclude_fields=["id", 'regal', "ean_upc", "scanner", "name", "karton",
+	    											  'box', 'aufnahme_datum'],\
+	    exclude_filter_fields=["id", "bestand", 'regal',  "ean_upc", "scanner", "name", "karton",
+	    											  'box', 'aufnahme_datum'])
 		if context["object_list"]:
 			set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
@@ -85,27 +85,27 @@ class StockCreateView(LoginRequiredMixin, CreateView):
 
 		if has_duplicate(imported_data):
 			return_ = super(StockCreateView, self).form_valid(form)
-			print("HAS DUPLICATE")
+			# print("HAS DUPLICATE")
 			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
 		for row in imported_data:
-			# print("ROW: " + str(row[4]) + " : " +  str(row[1]))
+			# print("ROW: " + str(row[4]) + " : " +  str(row[1]) + " : " + str(row[6]))
+			# print("UNDERROW: " + str(str(row[5])))
 			#print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-			if row[9] == "":
-				if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[5]).exists() == True:
-					print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
-					print("IS IN DATABASE")
-					return_ = super(StockCreateView, self).form_valid(form)
-					return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+			if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists() == True:
+				# print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
+				# print("IS IN DATABASE")
+				return_ = super(StockCreateView, self).form_valid(form)
+				return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
 		#print("JAAAAAAAAAA")
 		if not result.has_errors():
 			stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-			print("NO ERRORS!!! " +  str(result.has_errors) )
+			# print("NO ERRORS!!! " +  str(result.has_errors) )
 		else:
-			print("ERRRROORR: " + str(result.has_errors))
+			# print("ERRRROORR: " + str(result.has_errors))
 			return_ = super(StockCreateView, self).form_valid(form)
-			print("IS_ERROR!!!")
+			# print("IS_ERROR!!!")
 			return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 		return_ = super(StockCreateView, self).form_valid(form)
 		return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
@@ -125,10 +125,9 @@ def has_duplicate(arr):
 		for i, against in enumerate(arr[index:len(arr)]):
 			if i+1 <= len(arr[index:len(arr)]) and i > index:
 				print("BASDSFAS: " + str(row[9]))
-				if row[9] == "":
-					if against[1] == row[1] and against[4] == row[4]\
-					and against[5] == row[5]:
-						return True
+				if against[1] == row[1] and against[4] == row[4]\
+				and against[6] == row[6]:
+					return True
 
 		# break
 	return False

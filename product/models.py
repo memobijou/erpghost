@@ -10,8 +10,10 @@ class Product(models.Model):
 		return self.ean
 
 class PositionProduct(models.Model):
-    products = models.ForeignKey(Product, on_delete=models.CASCADE)
-    positions = models.ForeignKey(Position, on_delete=models.CASCADE, unique=False, blank=False, null=False)
-
-    def __str__(self):
-    	return str(self.positions) + " : " + str(self.products)
+	status = models.CharField(blank=True, null=False, max_length=13)
+	products = models.ForeignKey(Product, on_delete=models.CASCADE)
+	positions = models.ForeignKey(Position, on_delete=models.CASCADE, unique=False, blank=False, null=False)
+	amount = models.IntegerField(null=False, blank=False, default=0)
+	
+	def __str__(self):
+		return str(self.positions) + " : " + str(self.products)

@@ -23,8 +23,17 @@ class Position(models.Model):
 		return total
 
 	@property
+	def reserved_volume_with_status(self):
+		total = 0
+		for p in self.positionproduct_set.all():
+			if p.status != "WE":
+				total = total + p.products.masterdata.calc_volume
+		return total
+
+
+	@property
 	def available_volume(self):
-		total = self.reserved_volume-self.max_volume
+		total = self.reserved_volume_with_status-self.max_volume
 
 		return str(total*-1)
 

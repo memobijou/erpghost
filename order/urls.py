@@ -1,5 +1,5 @@
 from django.conf.urls import url
-from .views import OrderListView, OrderListAPIView, OrderDetailView, OrderCreateView, OrderUpdateView, ScanOrderTemplateView
+from .views import OrderListView, OrderListAPIView, OrderDetailView, OrderCreateView, OrderUpdateView, ScanOrderTemplateView,post_detail
 
 urlpatterns = [
 	url(r'^$', OrderListView.as_view(), name="list"),
@@ -8,4 +8,5 @@ urlpatterns = [
 	url(r'^create/$', OrderCreateView.as_view(), name="create"),
 	url(r'^(?P<pk>\d+)/edit/$', OrderUpdateView.as_view(), name="update"),
 	url(r'^(?P<pk>\d+)/scan/$', ScanOrderTemplateView.as_view(), name="scan"),
+	url(r'^position/(?P<myid>\d+)/$',post_detail),
 ]   

@@ -156,6 +156,8 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 		else:
 			formset = ProductOrderFormsetInline(instance=self.object)
 		context["formset"] = formset
+		print("++++++++++++" + str(formset))
+
 		return context
 
 	def form_valid(self, form, *args, **kwargs):
@@ -181,7 +183,6 @@ class OrderCreateView(CreateView):
 		context["title"] = "Bestellung anlegen"
 		context["matching_"] = "Product" # Hier Modelname übergbenen
 		formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3, exclude=["id"])
-
 		if self.request.POST:
 			formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
 		else:
@@ -232,7 +233,7 @@ class OrderListView(ListView):
 		# context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,\
-	    exclude_fields=["id", "products"], exclude_filter_fields=["id", "products"])
+	    exclude_fields=["id", "products", "verified"], exclude_filter_fields=["id", "products"])
 
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)

@@ -1,22 +1,12 @@
 <div ng-app="ng_matchproduct" ng-controller="match_ctrl as m_ctrl">
-
 <form method="POST" id="main_form"> {% csrf_token %}
 	<div class="table-bordered" style="padding:25px;background-color:white;">
-
-		{% for hidden in form.hidden_fields %}
-				{{hidden}}
-		{% endfor %}	
-
-		{% for visible in form.visible_fields %}
-			    {% for error in visible.errors %}
-					<div style="color:red">{{error}}</div>
-			    {% endfor %}
-				
-				<p><b>{{visible.label}}: </b>{{visible}}</p>
-		{% endfor %}	
+		{% for field in form %}
+			<div style="color:red">{{field.errors}}</div>
+			{{field.label_tag}} {{field}}
+		{% endfor %}
 
 		{% include "./formset_table.html" %}
-		
 		<button class="btn btn-primary" ng-submit="submit()"  id="submit_btn" ng-disabled="has_exception">Speichern</button>
 	</div>
 </form>

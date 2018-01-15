@@ -108,3 +108,4 @@ venv.bak/
 
 #datenbank
 .db.sqlite3
+db.sqlite3

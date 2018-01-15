@@ -155,7 +155,7 @@ class StockDetailView(LoginRequiredMixin, DetailView):
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
 	template_name = "stock/form.html"
-	form_class = modelform_factory(model=Stock ,fields=["bestand", "ean_vollstaendig",], labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
+	form_class = modelform_factory(model=Stock ,fields=["bestand", "ean_vollstaendig", "zustand"], labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
 	login_url = "/login/"
 
 	def get_object(self):

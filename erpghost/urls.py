@@ -34,7 +34,7 @@ urlpatterns = [
     url(r'^login/$', LoginView.as_view(), name="login"),
     url(r'^$', main_view, name="root"),
     url(r'^stock/', include("stock.urls", namespace="stock")),
-
+    url(r'^mission/', include("mission.urls", namespace="mission")),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

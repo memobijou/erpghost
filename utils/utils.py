@@ -341,7 +341,16 @@ def trim_dict(dict_):
 	trimmed_dict = {}
 
 	for key, val in dict_.items():
-		trimmed_dict[key] = val.strip()
+		print("before strip: " + str(val))
+		if isinstance(val, type([])):
+			stripped_list = []
+			for item in val:
+				stripped_list.append(item.strip())
+			trimmed_dict[key] = stripped_list
+			print("haaaaa: " + str(stripped_list) )
+		else:
+			trimmed_dict[key] = val.strip()
+			print("after strip: " + str(val.strip()))
 
 	return trimmed_dict
 
@@ -355,17 +364,17 @@ def filter_queryset_from_request(request, ModelClass):
 
 
 	filter_dict = q_to_dict(querystring)
-	print("*********##########" + str(filter_dict))
+	print("++++++++++++++++++++ " + str(filter_dict))
 
 
 	filter_dict = trim_dict(filter_dict)
-
+	print("batatata " + str(filter_dict))
 	# filter_dict = {key: value for key, value in filter_dict.items() if key is not "page"}
 	# print("wff: "  + str(filter_dict))
 	if "page" in filter_dict:
 		# print("######################")
 		filter_dict = {key: val for key, val in filter_dict.items() if key != "page"}
-	# print(str(filter_dict))
+	# print("BATATA: " + str(filter_dict))
 	query_condition = build_query_condition(filter_dict, ModelClass)
 	result = ModelClass.objects.filter(query_condition)
 	# print("AAAANNNNNN: " + str(result))

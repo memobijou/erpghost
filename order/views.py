@@ -233,12 +233,13 @@ class OrderListView(ListView):
 		# context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
 		set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,\
-	    exclude_fields=["id", "products", "verified"], exclude_filter_fields=["id", "products"])
+	    exclude_fields=["id", "products", "verified"], exclude_filter_fields=["id", "products", "verified"])
 
 
 		set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
-		context["option_fields"] = [{"status": ["WARENEINGANG", "WARENAUSGANG"]}]
+		context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT" , "ABGELEHNT", 
+									"WARENEINGANG", "WARENAUSGANG", "POSITIONIEREN"],}]
 
 		return context
 

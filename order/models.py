@@ -75,7 +75,7 @@ class ProductOrder(models.Model):
         if self.amount and self.missing_amount:
             return self.amount-self.missing_amount
         else:
-            return self.amount
+            return self.amount #
 
 
 

@@ -31,7 +31,6 @@ class ScanOrderTemplateView(UpdateView):
 		context["product_orders"] = product_orders
 
 		if product_orders.count() > 0:
-
 			set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
 		    exclude_fields=["id"], exclude_filter_fields=["id"])
 
@@ -40,7 +39,6 @@ class ScanOrderTemplateView(UpdateView):
 		    				allow_related=True)
 		else:
 			context["product_orders"] = None
-
 		return context
 
 	def form_valid(self, form, *args, **kwargs):
@@ -50,13 +48,17 @@ class ScanOrderTemplateView(UpdateView):
 		
 		confirmed_bool = self.request.POST.get("confirmed")
 		product_id = self.request.POST.get("product_id")
+		missing_amount = self.request.POST.get("missing_amount")
 
 		for product_order in object.productorder_set.all():
 			print("FFFFFF: " + str(product_order.pk) + " : " + str(product_id))
 
 			if str(product_order.pk) == str(product_id):
 				print("PPPPPP: " + str(product_order.pk) + " : " + str(product_id))
-
+				if confirmed_bool == "0":
+					product_order.missing_amount = missing_amount
+				elif confirmed_bool == "1":
+					product_order.missing_amount = None
 				product_order.confirmed = confirmed_bool
 				product_order.save()
 				print("WHAAT: " + str(product_order))

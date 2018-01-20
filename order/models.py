@@ -45,7 +45,7 @@ class ProductOrder(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
     amount = models.IntegerField(null=False, blank=False, default=0)
-
+    missing_amount = models.IntegerField(null=True, blank=True)
     confirmed = models.NullBooleanField()
 
     def __str__(self):
@@ -69,6 +69,13 @@ class ProductOrder(models.Model):
             self.order.status = "POSITIONIEREN"
         self.order.save()
         super(ProductOrder, self).save(*args, **kwargs)
+
+    @property
+    def real_amount(self):
+        if self.amount and self.missing_amount:
+            return self.amount-self.missing_amount
+        else:
+            return self.amount
 
 
 

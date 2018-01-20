@@ -153,6 +153,8 @@ class ScanMissionTemplateView(UpdateView):
 		
 		confirmed_bool = self.request.POST.get("confirmed")
 		product_id = self.request.POST.get("product_id")
+		missing_amount = self.request.POST.get("missing_amount")
+
 
 		for product_mission in object.productmission_set.all():
 
@@ -161,5 +163,11 @@ class ScanMissionTemplateView(UpdateView):
 				product_mission.confirmed = confirmed_bool
 				product_mission.save()
 
-
+			if str(product_mission.pk) == str(product_id):
+				if confirmed_bool == "0":
+					product_mission.missing_amount = missing_amount
+				elif confirmed_bool == "1":
+					product_mission.missing_amount = None
+				product_mission.confirmed = confirmed_bool
+				product_mission.save()
 		return HttpResponseRedirect("")

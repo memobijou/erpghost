@@ -18,7 +18,8 @@
 		{% verbatim%} { {% endverbatim %}
 
 		{% for k, v in product_order.items %}
-			{{k}}: 
+			{% if k != 'missing_amount' %}
+			{{k}}:
 			{% if v == None %}
 				null
 			{% else %}
@@ -33,6 +34,7 @@
 				{% else%}
 					{{v}}
 				{% endif %},
+			{% endif %}
 			{% endif %}
 		{% endfor %}
 
@@ -126,7 +128,7 @@
 
 					</thead>
 					<tbody>
-
+							<input type="hidden" value="{% verbatim %}{{confirm_product.amount}}{% endverbatim %}" id="amount_id">
 							<tr ng-repeat="(key, val) in confirm_product" ng-if="key!='id'">
 									<td><b ng-bind="key"></b>: <span ng-bind="val"></span></td>
 							</tr>
@@ -151,6 +153,7 @@
 				</table>
 				<input type="hidden" name="product_id" value="{% verbatim %}{{confirm_product.id}}{% endverbatim %}">
 				<input type="hidden" name="confirmed" id="confirm_value">
+				<input type="hidden" name="missing_amount" id="missing_amount_id">
 			</form>
 			</div>
 
@@ -198,7 +201,18 @@ is_true_btn.onclick = function(){
 is_false_btn.onclick = function(){
 
 	confirm_value_input.value = 0;
-	form.submit();
+	var max_amount = document.getElementById("amount_id").value
+	var missing = prompt("Bitte trage die fehlende Menge ein");
+
+	while(parseInt(missing) > parseInt(max_amount)){
+			var missing = prompt("Menge muss kleiner als " + max_amount + " sein!");
+	}
+
+	var missing_amount_input = document.getElementById("missing_amount_id");
+	missing_amount_input.value = missing;
+	if(missing != null){
+		form.submit();
+	}
 
 }
 

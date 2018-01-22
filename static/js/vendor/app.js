@@ -4,7 +4,7 @@
 requirejs.config({
     "baseUrl": "js/vendor",
     "paths": {
-      "app": "../app"
+        "app": "../app"
     },
     "shim": {
         "backbone": ["jquery", "underscore"],

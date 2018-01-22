@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('invoice', '0002_remove_invoice_date'),
         ('order', '0012_remove_order_invoices'),

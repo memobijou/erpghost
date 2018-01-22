@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('supplier', '0007_remove_supplier_contact'),
         ('order', '0018_remove_order_supplier'),
@@ -17,6 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='supplier',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='supplier.Supplier'),
+            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                       to='supplier.Supplier'),
         ),
     ]

@@ -6,13 +6,14 @@ from product.models import Product
 from invoice.models import Invoice
 from supplier.models import Supplier
 
+
 # Create your models here.
 
 class Order(models.Model):
     ordernumber = models.CharField(max_length=13)
     delivery_date = models.DateField(default=datetime.date.today)
     status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN")
-    supplier = models.ForeignKey(Supplier, null=True, blank=True,related_name = 'order')
+    supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order')
     products = models.ManyToManyField(Product, through="ProductOrder")
     invoice = models.ManyToManyField(Invoice, through="InvoiceOrder")
     CHOICES = (
@@ -20,7 +21,7 @@ class Order(models.Model):
         (True, "Ja"),
         (False, "Nein")
     )
-    verified = models.NullBooleanField(choices = CHOICES)
+    verified = models.NullBooleanField(choices=CHOICES)
 
     def __str__(self):
         return self.ordernumber
@@ -41,6 +42,7 @@ class Order(models.Model):
                 self.status = "ABGELEHNT"
         super(Order, self).save(force_insert=False, force_update=False, *args, **kwargs)
 
+
 class ProductOrder(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
@@ -49,7 +51,7 @@ class ProductOrder(models.Model):
     confirmed = models.NullBooleanField()
 
     def __str__(self):
-    	return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
+        return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
 
     def save(self, *args, **kwargs):
         product_orders = self.order.productorder_set.all()
@@ -73,24 +75,20 @@ class ProductOrder(models.Model):
     @property
     def real_amount(self):
         if self.amount and self.missing_amount:
-            return self.amount-self.missing_amount
+            return self.amount - self.missing_amount
         else:
-            return self.amount #
-
+            return self.amount  #
 
 
 class InvoiceOrder(models.Model):
-    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE,unique=False)
-    order= models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, unique=False)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
     datum = models.CharField(max_length=13)
     extra_text = models.CharField(max_length=13)
     terms_of_payment = models.CharField(max_length=13)
-    
+
     class Meta:
         unique_together = ('invoice', 'order',)
 
-
     def __str__(self):
-    	return str(self.invoice) + ":" +  str(self.order)
-
- 
+        return str(self.invoice) + ":" + str(self.order)

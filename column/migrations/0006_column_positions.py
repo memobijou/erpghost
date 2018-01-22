@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('position', '0001_initial'),
         ('column', '0005_columnposition'),

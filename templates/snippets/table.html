@@ -1,33 +1,32 @@
 {% load utils %}
 <div class="col-md-12">
-<table class="table table-bordered" style="background-color:white;">
-	<thead>
-		<tr>
-			<th class="col-md-1"></th>
-			{% for field in field_names %}
-				<th>{{field}}</th>
-			{% endfor %}
-		</tr>
-	</thead>
+    <table class="table table-bordered" style="background-color:white;">
+        <thead>
+        <tr>
+            <th class="col-md-1"></th>
+            {% for field in field_names %}
+                <th>{{ field }}</th>
+            {% endfor %}
+        </tr>
+        </thead>
 
-	<tbody>
-			{% for object in object_list_as_json %}
-				<tr>
-					<td class="col-md-1"><a href="{{object.id}}">Ansicht</a>
-						<a href="{{object.id}}/edit">Bearbeiten</a>
-					</td>
-					{% for field in field_names%}
-					  <td> {{object|getattr:field}} </td>
-					{% endfor %}
-				</tr>
-			{% endfor %}
-	</tbody>
+        <tbody>
+        {% for object in object_list_as_json %}
+            <tr>
+                <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
+                    <a href="{{ object.id }}/edit">Bearbeiten</a>
+                </td>
+                {% for field in field_names %}
+                    <td> {{ object|getattr:field}} </td>
+                {% endfor %}
+            </tr>
+        {% endfor %}
+        </tbody>
 
-</table>
+    </table>
 
-<script>
+    <script>
 
 
-
-</script>
+    </script>
 </div>

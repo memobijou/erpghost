@@ -1,26 +1,27 @@
 {% extends 'base.html' %}
 
 {% block title %}
-	Inventar
+    Inventar
 {% endblock %}
 
 {% block content %}
 
-<a class="btn btn-primary" id="btn_new_inventar" href="{% url 'stock:create' %}">Inventar importieren</a>
+    <a class="btn btn-primary" id="btn_new_inventar" href="{% url 'stock:create' %}">Inventar importieren</a>
 
 
-<p>
-	  <p>Aufgenommene Positionen: <b style="font-size:30px;">{{amount_stocks}}</b></p>
+    <p>
+    <p>Aufgenommene Positionen: <b style="font-size:30px;">{{ amount_stocks }}</b></p>
 
-<div class="progress">
-  <div class="progress-bar progress-bar-success progress-bar-striped" role="progressbar"
-  aria-valuenow="5000" aria-valuemin="5000" aria-valuemax="6000" style="width:{{progress_bar_value}}%;color:black;">
-   {{progress_bar_value}}% Complete (success)
-  </div>
-</div>
-<h1>
-</h1>
-<!-- {% include "snippets/navigation.html" %}
+    <div class="progress">
+        <div class="progress-bar progress-bar-success progress-bar-striped" role="progressbar"
+             aria-valuenow="5000" aria-valuemin="5000" aria-valuemax="6000"
+             style="width:{{ progress_bar_value }}%;color:black;">
+            {{ progress_bar_value }}% Complete (success)
+        </div>
+    </div>
+    <h1>
+    </h1>
+    <!-- {% include "snippets/navigation.html" %}
 {% include "snippets/filter.html" %}
 {% include "snippets/pagination.html" %}
 
@@ -28,26 +29,25 @@
 {% include "snippets/table.html" %}
  -->
 
- 
-{% include "snippets/js/ng_listview.html" %}
 
-<div ng-app="ng_listview" ng-init="detail_query={{object_list_as_json.0}}">
+    {% include "snippets/js/ng_listview.html" %}
 
-	{% include "snippets/navigation.html" %}
-	{% include "snippets/filter.html" %}
-		<div class="row"><h1><br /> <br /> </h1></div>
+    <div ng-app="ng_listview" ng-init="detail_query={{ object_list_as_json.0 }}">
 
-	<div style="display:none;">
+        {% include "snippets/navigation.html" %}
+        {% include "snippets/filter.html" %}
+        <div class="row"><h1><br/> <br/></h1></div>
 
-	{% include "snippets/pagination.html" %}
+        <div style="display:none;">
 
-
-	</div>
-	{% include "snippets/master_detail.html"  %}
+            {% include "snippets/pagination.html" %}
 
 
+        </div>
+        {% include "snippets/master_detail.html" %}
 
-</div>
+
+    </div>
 
 
 

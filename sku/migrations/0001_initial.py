@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -24,7 +23,8 @@ class Migration(migrations.Migration):
                 ('nettopreis', models.FloatField(blank=True, default=None, null=True)),
                 ('bruttopreis', models.FloatField(blank=True, default=None, null=True)),
                 ('menge', models.IntegerField(blank=True, default=None, null=True)),
-                ('product', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='sku', to='product.Product')),
+                ('product', models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                                 related_name='sku', to='product.Product')),
             ],
         ),
     ]

@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('contact', '0001_initial'),
         ('supplier', '0002_supplier_contact_details'),
@@ -21,6 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='supplier',
             name='contact',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='supplier', to='contact.Contact'),
+            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                       related_name='supplier', to='contact.Contact'),
         ),
     ]

@@ -1,16 +1,19 @@
 var app = angular.module('ng_listview', []);
-app.controller('masterdetail_ctrl', function($scope){
-	$scope.clickFunction = function(id,querylist){
-		// alert(id  + " : " + JSON.stringify(querylist));
-		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
-			$scope.detail_query = match_result;
-		}
+app.controller('masterdetail_ctrl', function ($scope) {
+        $scope.clickFunction = function (id, querylist) {
+            // alert(id  + " : " + JSON.stringify(querylist));
+            for (var query in querylist) if (querylist[query].id == id) {
+                var match_result = querylist[query];
+                break;
+            }
+            $scope.detail_query = match_result;
+        }
 
-	}
+    }
 );
 
 // app.controller('filter_ctrl', ['$scope', '$http', function($scope, $http){
-	
+
 // 	var initializing = true;
 // 	$scope.changeFunction = function(e){
 // 				// alert("ab: " + e.target)

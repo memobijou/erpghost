@@ -6,7 +6,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('stock', '0006_stockdocument_uploaded_at'),
     ]

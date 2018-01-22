@@ -1,15 +1,15 @@
 {% load utils %}
 
 <input type="text"
-	{% if request.GET %}
-		value="{{request.GET|get_from_GET:field}}"
-	{% endif %} 
-	placeholder="{{field}}" name="{{field}}" 
-	{% if field_datatypes|getattr:field == "DateField" %}
-		class="form-control datepicker" readonly style="background-color:white;"
-	{% else %}
-		class="form-control" 
-	{% endif %}
-	>
+        {% if request.GET %}
+       value="{{ request.GET|get_from_GET:field}}"
+        {% endif %}
+       placeholder="{{ field }}" name="{{ field }}"
+        {% if field_datatypes|getattr:field == "DateField" %}
+       class="form-control datepicker" readonly style="background-color:white;"
+        {% else %}
+       class="form-control"
+        {% endif %}
+>
 </input>
 

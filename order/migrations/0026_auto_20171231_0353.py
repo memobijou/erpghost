@@ -6,7 +6,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('invoice', '0002_remove_invoice_date'),
         ('order', '0025_auto_20171231_0347'),

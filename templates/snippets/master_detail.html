@@ -1,68 +1,68 @@
 {% load utils %}
 {% if object_list %}
-<div ng-controller="masterdetail_ctrl">
-	<div class="col-md-4">
-	<table class="table table-bordered" style="background-color:white;">	
-		<thead>
-			<tr>
-				{% for field in field_names %}
-					<th>{{field}}</th>
-				{% endfor %}
-			</tr>	
-		</thead>
+    <div ng-controller="masterdetail_ctrl">
+        <div class="col-md-4">
+            <table class="table table-bordered" style="background-color:white;">
+                <thead>
+                <tr>
+                    {% for field in field_names %}
+                        <th>{{ field }}</th>
+                    {% endfor %}
+                </tr>
+                </thead>
 
-		<tbody>
-			{% for obj in object_list %}
-				<tr ng-click="clickFunction('{{obj.id}}' ,{{object_list_as_json}})"  style="cursor:pointer;"
-				     ng-class="{active : {{obj.id}} == detail_query.id}" >
-					{% for field in field_names %}
-					<td >
-						{{obj|get_from_model:field}} 
-					</td>
-					{% endfor %}
-				</tr>
-			{% endfor %}
-		</tbody>
-	</table>
-	</div>
+                <tbody>
+                {% for obj in object_list %}
+                    <tr ng-click="clickFunction('{{ obj.id }}' ,{{ object_list_as_json }})" style="cursor:pointer;"
+                        ng-class="{active : {{ obj.id }} == detail_query.id}">
+                        {% for field in field_names %}
+                            <td>
+                                {{ obj|get_from_model:field}}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-	<div class="col-md-8">
-		<div class="table-bordered" style="background-color:white;height:595px;padding:25px;">
-
-
-			{% verbatim %}	
-			<div style="float:right;" ng-cloak>
-				<a href="{{detail_query.id}}">Ansicht</a>
-			</br>
-				<a href="{{detail_query.id}}/edit">Bearbeiten</a>
-
-			</div>
-			<p ng-repeat="(key, val) in detail_query" ng-cloak>	
-				 <b>{{ key }}: </b> {{val}}
-			 <p/>
-			{% endverbatim %}
-		</div>
-	</div>
-	<input type="hidden" ng-model="querylist" value="abc"/>
+        <div class="col-md-8">
+            <div class="table-bordered" style="background-color:white;height:595px;padding:25px;">
 
 
-<script>
-	// var app = angular.module('masterDetail', []);
-	// app.controller('ctrl', function($scope){
-	// 	$scope.clickFunction = function(id,querylist){
-	// 		// alert(id  + " : " + JSON.stringify(querylist));
-	// 		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
-	// 			$scope.detail_query = match_result;
-	// 		}
+                {% verbatim %}
+                    <div style="float:right;" ng-cloak>
+                        <a href="{{ detail_query.id }}">Ansicht</a>
+                        </br>
+                        <a href="{{ detail_query.id }}/edit">Bearbeiten</a>
 
-	// 	}
-	// );
-</script>
-</div>
+                    </div>
+                    <p ng-repeat="(key, val) in detail_query" ng-cloak>
+                        <b>{{ key }}: </b> {{ val }}
+                    <p/>
+                {% endverbatim %}
+            </div>
+        </div>
+        <input type="hidden" ng-model="querylist" value="abc"/>
+
+
+        <script>
+            // var app = angular.module('masterDetail', []);
+            // app.controller('ctrl', function($scope){
+            // 	$scope.clickFunction = function(id,querylist){
+            // 		// alert(id  + " : " + JSON.stringify(querylist));
+            // 		for(var query in querylist) if(querylist[query].id == id){ var match_result = querylist[query]; break;}
+            // 			$scope.detail_query = match_result;
+            // 		}
+
+            // 	}
+            // );
+        </script>
+    </div>
 {% else %}
-<div class="col-md-12" >
-<div class="table-bordered" style="background-color:white;height:200px;text-align: center;">
-	<h1 style="">Keine Ergebnisse</h1>
-</div>
-</div>
+    <div class="col-md-12">
+        <div class="table-bordered" style="background-color:white;height:200px;text-align: center;">
+            <h1 style="">Keine Ergebnisse</h1>
+        </div>
+    </div>
 {% endif %}

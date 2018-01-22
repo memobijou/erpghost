@@ -3,12 +3,13 @@ import datetime
 from django.utils import timezone
 from django.core.urlresolvers import reverse
 
+
 # Create your models here.
 
 class Stock(models.Model):
     ean_vollstaendig = models.CharField(max_length=250)
     bestand = models.IntegerField(null=True, blank=True)
-    ean_upc =  models.CharField(max_length=250, null=True, blank=True)
+    ean_upc = models.CharField(max_length=250, null=True, blank=True)
     lagerplatz = models.CharField(max_length=250, null=True, blank=True)
     regal = models.CharField(max_length=250, null=True, blank=True)
     zustand = models.CharField(max_length=250, null=True, blank=True)
@@ -23,6 +24,7 @@ class Stock(models.Model):
 
     def __str__(self):
         return str(self.ean_vollstaendig)
+
 
 class Stockdocument(models.Model):
     document = models.FileField(upload_to='documents/', null=True, blank=False)

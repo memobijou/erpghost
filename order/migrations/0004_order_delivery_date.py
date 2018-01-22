@@ -7,7 +7,6 @@ import django.utils.timezone
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('order', '0003_remove_order_delivery_date'),
     ]

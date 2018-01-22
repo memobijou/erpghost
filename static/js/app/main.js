@@ -19,9 +19,6 @@
 // });
 
 
-
-
-
 // define([
 //     // "../vendor/jquery",
 //     // "../vendor/bootstrap.min",
@@ -33,7 +30,7 @@
 
 // ], function()
 // {
- 
+
 // });
 
 

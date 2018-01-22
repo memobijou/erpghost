@@ -1,6 +1,6 @@
-var generate_master_detail = function(){
+var generate_master_detail = function () {
 
-	var master_div = document.createElement("div");
+    var master_div = document.createElement("div");
     var detail_div = document.createElement("div");
 
     var row = document.createElement("div");
@@ -22,29 +22,29 @@ var generate_master_detail = function(){
 }
 
 
-var generate_table = function(){
-	var table = document.createElement("table");
-	var thead = document.createElement("thead");
-	var tbody = document.createElement("tbody");
-	table.appendChild(thead);
-	table.appendChild(tbody);
+var generate_table = function () {
+    var table = document.createElement("table");
+    var thead = document.createElement("thead");
+    var tbody = document.createElement("tbody");
+    table.appendChild(thead);
+    table.appendChild(tbody);
     return {"table": table, "tbody": tbody, "thead": thead};
 }
 
 
-var parse_json = function(toparse_string){
+var parse_json = function (toparse_string) {
     toparse_string = toparse_string.replace(/\'/g, '"');
     return JSON.parse(toparse_string)
 }
 
 
-var create_header_from_array = function(fields, thead, exclude){
+var create_header_from_array = function (fields, thead, exclude) {
     var tr = document.createElement("tr");
 
-    for(var f in fields){
-        if(exclude && exclude.includes(fields[f])) continue;
+    for (var f in fields) {
+        if (exclude && exclude.includes(fields[f])) continue;
         var th = document.createElement("th");
-        th.innerHTML = fields[f]; 
+        th.innerHTML = fields[f];
         tr.appendChild(th);
 
     }
@@ -54,80 +54,74 @@ var create_header_from_array = function(fields, thead, exclude){
 }
 
 
-
-var fill_master_detail = function(query, detail_div, exclude){
+var fill_master_detail = function (query, detail_div, exclude) {
     var master_value = query.str;
     var detail = query;
 
-    for(var k in Object.keys(detail)){
-         var column = Object.keys(detail)[k];
-         if(is_in_array(column, exclude)){
-          continue;
+    for (var k in Object.keys(detail)) {
+        var column = Object.keys(detail)[k];
+        if (is_in_array(column, exclude)) {
+            continue;
         }
-         var col_b = document.createElement("b");
-         col_b.innerHTML = column + ": ";
-         detail_div.appendChild(col_b);
-         var val_span = document.createElement("span");
-         val_span.innerHTML = detail[column];
-         detail_div.appendChild(val_span);
-         detail_div.appendChild(document.createElement("br"));
+        var col_b = document.createElement("b");
+        col_b.innerHTML = column + ": ";
+        detail_div.appendChild(col_b);
+        var val_span = document.createElement("span");
+        val_span.innerHTML = detail[column];
+        detail_div.appendChild(val_span);
+        detail_div.appendChild(document.createElement("br"));
     }
 
 }
 
 
+var queryset_to_master = function (response, master_tbody) {
+    var master_rows = [];
+    for (var r in response) {
+        var query = response[r];
+        var master_value = query.str;
 
-var queryset_to_master = function(response, master_tbody){
-var master_rows = [];
-for(var r in response){
-    var query = response[r];
-    var master_value = query.str;
+        var tr = document.createElement("tr");
+        tr.style.cursor = "pointer";
 
-    var tr = document.createElement("tr");
-    tr.style.cursor = "pointer";
+        var td = document.createElement("td");
+        var b = document.createElement("b");
+        b.innerHTML = master_value;
 
-    var td = document.createElement("td");
-    var b = document.createElement("b");
-    b.innerHTML = master_value;
-    
-    td.appendChild(b);
-    tr.appendChild(td);
-    master_tbody.appendChild(tr); 
+        td.appendChild(b);
+        tr.appendChild(td);
+        master_tbody.appendChild(tr);
 
-    var detail_values = query[master_value];
-   
-    master_rows.push({"row": tr, "query": query });
+        var detail_values = query[master_value];
 
+        master_rows.push({"row": tr, "query": query});
 
 
-    // }
-    // alert(master_value + " : " + JSON.stringify(product_detail));
+        // }
+        // alert(master_value + " : " + JSON.stringify(product_detail));
 
-}
+    }
 
-return master_rows
+    return master_rows
 
 }
 
 
+function show_query_on_detail_click(row, detail_view, query, exclude) {
 
+    row.onclick = function () {
+        highlight_table_row(row);
+        remove_all_childs_of_element(detail_view);
+        fill_master_detail(query, detail_view, exclude);
 
-function show_query_on_detail_click(row, detail_view, query, exclude){
-
-        row.onclick = function(){
-            highlight_table_row(row);
-            remove_all_childs_of_element(detail_view);
-            fill_master_detail(query, detail_view, exclude);
-
-        }
+    }
 
 
 }
 
- 
 
 // DAMIT DIESE FUNKTION FUNKTIONIERT MÜSSEN queryset UND field_names IN JAVASCRIPT DEFINIERT SEIN
-function MasterDetailToListView(response, exclude=[]){
+function MasterDetailToListView(response, exclude=[]) {
 
 
     var field_names = get_field_names_from_json(response);
@@ -145,7 +139,7 @@ function MasterDetailToListView(response, exclude=[]){
 
     var table = table_components.table;
     var tbody = table_components.tbody;
-    var thead = table_components.thead; 
+    var thead = table_components.thead;
 
     thead = create_header_from_array(field_names, thead, ["id", "str"]);
 
@@ -159,14 +153,14 @@ function MasterDetailToListView(response, exclude=[]){
 
 
     var master_rows = queryset_to_master(response, tbody);
-    for(var m in master_rows){
+    for (var m in master_rows) {
 
         var master_row_components = master_rows[m];
         var master_row = master_row_components.row;
         var query = master_row_components.query;
         show_query_on_detail_click(master_row, detail, query, exclude)
 
-        if(m == 0){
+        if (m == 0) {
             fill_master_detail(query, detail, exclude);
             highlight_table_row(master_row);
 
@@ -174,7 +168,13 @@ function MasterDetailToListView(response, exclude=[]){
 
     }
 
-    return {"master": master, "detail": detail, "master_tbody": tbody, "master_thead": thead, "master_rows": master_rows}
+    return {
+        "master": master,
+        "detail": detail,
+        "master_tbody": tbody,
+        "master_thead": thead,
+        "master_rows": master_rows
+    }
 }
 
 

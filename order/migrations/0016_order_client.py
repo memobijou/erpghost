@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('client', '0001_initial'),
         ('order', '0015_auto_20171230_1613'),
@@ -17,6 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='client',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='client.Client'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                    to='client.Client'),
         ),
     ]

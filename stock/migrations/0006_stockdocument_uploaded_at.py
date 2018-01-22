@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('stock', '0005_remove_stockdocument_uploaded_at'),
     ]

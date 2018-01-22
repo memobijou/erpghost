@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('supplier', '0003_auto_20171230_1830'),
     ]
@@ -16,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='supplier',
             name='contact',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='contact', to='contact.Contact'),
+            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                       related_name='contact', to='contact.Contact'),
         ),
     ]

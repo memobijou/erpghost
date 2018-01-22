@@ -1,12 +1,15 @@
 from django.db import models
-#from position.models import Position
+
+
+# from position.models import Position
 
 class Column(models.Model):
-	volumen = models.FloatField(null=False, blank=True, default="100.0")
-	#positions = models.ManyToManyField(Position,through="ColumnPosition")
+    volumen = models.FloatField(null=False, blank=True, default="100.0")
 
-	def __str__(self):
-		return str(self.id)+ "/" + str(self.volumen)
+    # positions = models.ManyToManyField(Position,through="ColumnPosition")
+
+    def __str__(self):
+        return str(self.id) + "/" + str(self.volumen)
 
 # class ColumnPosition(models.Model):
 #     positions = models.ForeignKey(Position, on_delete=models.CASCADE)

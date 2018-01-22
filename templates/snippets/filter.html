@@ -1,36 +1,37 @@
 {% load utils %}
 
 <div class="col-md-12">
-<form id="filter_form" action="." class="form-inline">
-<div class"checkbox-inline">
-	{% for field in filter_fields %}
-		{% for option_row in option_fields %}
-			{% if option_row|getattr:field %}
-				{% for option in option_row|getattr:field %}
-					{% include "snippets/filter/checkbox.html" %}
-				{% endfor %}
-		{% endif %}
-	{% endfor %}
+    <form id="filter_form" action="." class="form-inline">
+        <div class
+        "checkbox-inline">
+        {% for field in filter_fields %}
+            {% for option_row in option_fields %}
+                {% if option_row|getattr:field %}
+                    {% for option in option_row|getattr:field %}
+                        {% include "snippets/filter/checkbox.html" %}
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
 
-	{% endfor %}
+        {% endfor %}
 </div>
 <div class="form-group">
-{% for field in filter_fields %}
-	{% if option_fields %}
-		{% for option_row in option_fields %}
+    {% for field in filter_fields %}
+        {% if option_fields %}
+            {% for option_row in option_fields %}
 
-			{% if option_row|getattr:field %}
+                {% if option_row|getattr:field %}
 
-			{% else %}
-				{% include "snippets/filter/input.html" %}
+                {% else %}
+                    {% include "snippets/filter/input.html" %}
 
-			{% endif %}
-		{% endfor %}
-	{% else %}
-		{% include "snippets/filter/input.html" %}
-	{% endif %}
-{% endfor %}
-	<button type="submit" class="btn btn-default">Filter</button>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            {% include "snippets/filter/input.html" %}
+        {% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-default">Filter</button>
 </div>
 
 </form>
@@ -39,27 +40,26 @@
 
 <script>
 
-var elements = document.getElementsByClassName("fire_submit");
-var calendars = document.getElementsByClassName("datepicker");
-var filter_btn = document.getElementById("filter_form");
+    var elements = document.getElementsByClassName("fire_submit");
+    var calendars = document.getElementsByClassName("datepicker");
+    var filter_btn = document.getElementById("filter_form");
 
-for(var i = 0; i<elements.length; i++){
-	elements[i].onclick = function(){
+    for (var i = 0; i < elements.length; i++) {
+        elements[i].onclick = function () {
 
-		filter_btn.submit();
-	}
-}
+            filter_btn.submit();
+        }
+    }
 
-for(var i = 0; i<calendars.length; i++){
-	var calendar = calendars[i];
-	calendar.onchange = function(){
-		filter_btn.submit(); 
-	}
-}
+    for (var i = 0; i < calendars.length; i++) {
+        var calendar = calendars[i];
+        calendar.onchange = function () {
+            filter_btn.submit();
+        }
+    }
 
 
-
-		// elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
-		// alert(elements[i].innerHTML );
+    // elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
+    // alert(elements[i].innerHTML );
 
 </script>

@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('supplier', '0001_initial'),
         ('order', '0016_order_client'),
@@ -21,6 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='supplier',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='supplier.Supplier'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                    to='supplier.Supplier'),
         ),
     ]

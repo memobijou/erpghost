@@ -15,8 +15,8 @@ class Mission(models.Model):
         (True, "Ja"),
         (False, "Nein")
     )
-    verified = models.NullBooleanField(choices = CHOICES)
-    pickable = models.NullBooleanField(choices = CHOICES)
+    verified = models.NullBooleanField(choices=CHOICES)
+    pickable = models.NullBooleanField(choices=CHOICES)
 
     def __init__(self, *args, **kwargs):
         super(Mission, self).__init__(*args, **kwargs)
@@ -30,7 +30,7 @@ class Mission(models.Model):
                 self.status = "AKZEPTIERT"
             elif self.verified == False:
                 self.status = "ABGELEHNT"
-        if self.verified == True:      
+        if self.verified == True:
             if self.__original_pickable != self.pickable:
                 if self.pickable == True:
                     self.status = "PICKBEREIT"
@@ -38,18 +38,18 @@ class Mission(models.Model):
                     self.status = "AUSSTEHEND"
                 else:
                     if self.verified == True:
-                         # name changed - do something here
+                        # name changed - do something here
                         self.status = "AKZEPTIERT"
                     elif self.verified == False:
                         self.status = "ABGELEHNT"
         super(Mission, self).save(force_insert=False, force_update=False, *args, **kwargs)
-
 
     def __str__(self):
         return self.mission_number
 
     def get_absolute_url(self):
         return reverse("mission:detail", kwargs={"pk": self.id})
+
 
 class ProductMission(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -60,11 +60,11 @@ class ProductMission(models.Model):
     confirmed = models.NullBooleanField()
 
     def __str__(self):
-    	return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
+        return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
 
     @property
     def real_amount(self):
         if self.amount and self.missing_amount:
-            return self.amount-self.missing_amount
+            return self.amount - self.missing_amount
         else:
             return self.amount

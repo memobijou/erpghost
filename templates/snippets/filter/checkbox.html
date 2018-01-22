@@ -1,18 +1,18 @@
 {% load utils %}
 
 <div class="checkbox">
-	<label>
-		<input type="checkbox"  name="{{field}}" value="{{option}}"
-					{% if request.GET|get_from_GET:field  == option%}
-						checked
-					{% else %}
-						{% for list_option in request.GET|get_from_GET:field %}
-							{% if list_option == option %}
-								checked
-							{% endif %}
-						{% endfor %}
-					{% endif %} class="fire_submit">
-		</input>
-		<b> {{option}}</b>
-	</label>
+    <label>
+        <input type="checkbox" name="{{ field }}" value="{{ option }}"
+                {% if request.GET|get_from_GET:field == option %}
+               checked
+                {% else %}
+                    {% for list_option in request.GET|get_from_GET:field %}
+                        {% if list_option == option %}
+               checked
+                        {% endif %}
+                    {% endfor %}
+                {% endif %} class="fire_submit">
+        </input>
+        <b> {{ option }}</b>
+    </label>
 </div>

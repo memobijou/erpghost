@@ -2,16 +2,16 @@
 {% load utils %}
 {% block content %}
 
-<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
 
-	<a style="float:right;" href="{% url 'stock:edit' pk=object.id%}">Bearbeiten</a>
+        <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
 
-	{% for field in field_names %}
-		<p><b>{{field}}: </b> {{object_as_json|getattr:field}} </p> 
-	{% endfor %}
+        {% for field in field_names %}
+            <p><b>{{ field }}: </b> {{ object_as_json|getattr:field}} </p>
+        {% endfor %}
 
-	
-</div>
+
+    </div>
 
 
 

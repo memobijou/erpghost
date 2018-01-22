@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('masterdata', '0002_masterdata_product'),
     ]
@@ -16,6 +15,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='masterdata',
             name='product',
-            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='masterdata', to='product.Product'),
+            field=models.OneToOneField(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                       related_name='masterdata', to='product.Product'),
         ),
     ]

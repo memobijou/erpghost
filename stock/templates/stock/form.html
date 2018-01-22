@@ -2,19 +2,19 @@
 
 
 {% block content %}
-<div class="row">
-	<div class="col-md-12">
-	<div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-		<b>Position: </b> <span> {{object.lagerplatz}} </span></br>
-	</div>
-	<div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-		<b>Ean: </b>{{object.ean_vollstaendig}}
-	</div>
-	<div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-		<b>Aktuelle Menge: </b>{{object.bestand}}
-	</div>
-</div>
-</div>
-</br>
-	{% include 'snippets/forms/form.html' %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+            </div>
+            <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Ean: </b>{{ object.ean_vollstaendig }}
+            </div>
+            <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Aktuelle Menge: </b>{{ object.bestand }}
+            </div>
+        </div>
+    </div>
+    </br>
+    {% include 'snippets/forms/form.html' %}
 {% endblock %}

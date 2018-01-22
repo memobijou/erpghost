@@ -1,33 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>ERPGhost - {% block title %} {% endblock %}</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-{% include 'js.html' %}	
+    <title>ERPGhost - {% block title %} {% endblock %}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include 'js.html' %}
 
-{% include 'css.html' %}
+    {% include 'css.html' %}
 
-{% block js %}
+    {% block js %}
 
-{% endblock %}
-
-
-  <style>
-    /* Remove the navbar's default margin-bottom and rounded borders */ 
-    .navbar {
-      margin-bottom: 0;
-      border-radius: 0;
-    }
-    
-    /* Add a gray background color and some padding to the footer */
-    footer {
-      background-color: #f5f5f5;
-      padding: 25px;
-    }
+    {% endblock %}
 
 
-  </style>
+    <style>
+        /* Remove the navbar's default margin-bottom and rounded borders */
+        .navbar {
+            margin-bottom: 0;
+            border-radius: 0;
+        }
+
+        /* Add a gray background color and some padding to the footer */
+        footer {
+            background-color: #f5f5f5;
+            padding: 25px;
+        }
+
+
+    </style>
 
 </head>
 <body style="background-color:#f5f5f5;">
@@ -36,15 +36,15 @@
 
 {% include 'snippets/whereami.html' %}
 
-  
+
 <div class="container" id="main-container">
-  {% block content %}
-    
-  {% endblock %}
+    {% block content %}
+
+    {% endblock %}
 </div>
 
 <footer class="container-fluid text-center">
-  <p>Copyright© ERPGhost</p>
+    <p>Copyright© ERPGhost</p>
 </footer>
 
 </body>

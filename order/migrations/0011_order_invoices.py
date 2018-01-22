@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('invoice', '0001_initial'),
         ('order', '0010_auto_20171220_0642'),
@@ -17,6 +16,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='invoices',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='invoice.Invoice'),
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE,
+                                    to='invoice.Invoice'),
         ),
     ]

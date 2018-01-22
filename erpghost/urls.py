@@ -21,7 +21,6 @@ from utils.api import match_product
 from django.contrib.auth.views import LoginView
 from main.views import main_view
 
-
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^product/', include("product.urls", namespace="product")),

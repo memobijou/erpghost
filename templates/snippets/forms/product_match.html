@@ -1,8 +1,10 @@
 <td>
-	<input ng-keyup="match_product($event, product{{current_count}}, 'product{{current_count}}_val')" ng-model="product{{current_count}}">
-	</input>
-	<input type="hidden" id="{{visible.auto_id}}" name="{{visible.html_name}}" ng-model="product{{current_count}}_val" 
-	ng-value="product{{current_count}}_val">
+    <input ng-keyup="match_product($event, product{{ current_count }}, 'product{{ current_count }}_val')"
+           ng-model="product{{ current_count }}">
+    </input>
+    <input type="hidden" id="{{ visible.auto_id }}" name="{{ visible.html_name }}"
+           ng-model="product{{ current_count }}_val"
+           ng-value="product{{ current_count }}_val">
     </input>
 </td>
 

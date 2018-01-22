@@ -109,3 +109,6 @@ venv.bak/
 #datenbank
 .db.sqlite3
 db.sqlite3
+.DS_Store
+DS_Store
+.idea/workspace.xml

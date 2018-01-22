@@ -3,86 +3,87 @@
 
 
 {% if formset %}
-	{% for f in formset %}
-	{{f.id}}
-	{{f.text}}
-		{% with current_count=forloop.counter0 %}
-			{% if current_count == 0 %}
-				{% for manage_field in formset.management_form %}
-				<input id="{{manage_field.auto_id}}" name="{{manage_field.html_name}}" value="{{manage_field.value}}"
-					{% if 'TOTAL_FORMS' in manage_field.auto_id %}
-						class="TOTAL_FORMS"
-					{% endif %} autocomplete="off" type="hidden"/>
-				{% endfor %}
-				{% for hidden in formset.hidden_fields %}
-					{{hidden}}
-				{% endfor %}
+    {% for f in formset %}
+        {{ f.id }}
+        {{ f.text }}
+        {% with current_count=forloop.counter0 %}
+            {% if current_count == 0 %}
+                {% for manage_field in formset.management_form %}
+                    <input id="{{ manage_field.auto_id }}" name="{{ manage_field.html_name }}"
+                           value="{{ manage_field.value }}"
+                            {% if 'TOTAL_FORMS' in manage_field.auto_id %}
+                           class="TOTAL_FORMS"
+                            {% endif %} autocomplete="off" type="hidden"/>
+                {% endfor %}
+                {% for hidden in formset.hidden_fields %}
+                    {{ hidden }}
+                {% endfor %}
 
-				<span class="glyphicon glyphicon-plus" ng-click="addRow(
+                <span class="glyphicon glyphicon-plus" ng-click="addRow(
 					{% for manage_field in formset.management_form %}
 						{% if 'TOTAL_FORMS' in manage_field.auto_id %}
-							'{{manage_field.auto_id}}'
+							'{{ manage_field.auto_id }}'
 						{% endif %} 
 					{% endfor %}
 				)" style="cursor:pointer;" value="+"></span>
-				<br/>
-				<br/>
+                <br/>
+                <br/>
 
-				<table class="table table-bordered">
+                <table class="table table-bordered">
 
-				<thead>
-					<tr>
-						{% for visible in formset.0.visible_fields %}
-							<th>{{visible.label}}</th>
-						{% endfor %}
-					</tr>
-				</thead>
-				<tbody>
+                <thead>
+                <tr>
+                    {% for visible in formset.0.visible_fields %}
+                        <th>{{ visible.label }}</th>
+                    {% endfor %}
+                </tr>
+                </thead>
+                <tbody>
 
-			{% endif %}
+            {% endif %}
 
 
-		<tr>
+            <tr>
 
-			{% for visible in f.visible_fields %}
-			    {% for error in visible.errors %}
-	    			<td style="display:none;" class="is_error_td {{matching_}}">
-						<div style="color:red" class="error_message">{{error}}</div>
-					</td>
-			    {% endfor %}
-			   	<div ng-init=
-			   	{% with match_condition=visible.field.queryset.0|to_class_name %}
-				   	"
-				   	store_row('{{current_count}}','{{visible.auto_id}}', '{{visible.html_name}}',
+                {% for visible in f.visible_fields %}
+                    {% for error in visible.errors %}
+                        <td style="display:none;" class="is_error_td {{ matching_ }}">
+                            <div style="color:red" class="error_message">{{ error }}</div>
+                        </td>
+                    {% endfor %}
+                    <div ng-init=
+                                 {% with match_condition=visible.field.queryset.0|to_class_name %}
+                                     "
+				   	store_row('{{ current_count }}','{{ visible.auto_id }}', '{{ visible.html_name }}',
 					{% if matching_ == match_condition %}
 					''
 					{% else %}
-					{{visible.field.choices|get_choices}}
-					{%endif%}, 
-					'{{visible.value}}', 
+					{{ visible.field.choices|get_choices }}
+					{% endif %},
+					'{{ visible.value }}',
 					{% if matching_ == match_condition %}
-					{{visible.field.choices|get_choices}}
+					{{ visible.field.choices|get_choices }}
 					{% else %}
 					'',
 					{% endif %}
 					{% if matching_ != match_condition %}
-					'{{visible.field|get_field_type}}'
+					'{{ visible.field|get_field_type }}'
 					{% endif %}
-					,'{% for error in visible.errors %}{{error}} {% endfor %}'
+					,'{% for error in visible.errors %}{{ error }} {% endfor %}'
 					)"
-				{% endwith %}
-				>
-			    {% if product_match == visible.label %}
+                                 {% endwith %}
+                    >
+                    {% if product_match == visible.label %}
 
-			    {% else %}
+                    {% else %}
 
-<!-- 
+                        <!--
 				<div ng-init="store_row('{{current_count}}','{{visible.auto_id}}', '{{visible.html_name}}',
 				{{visible.field.choices|get_choices}}, '{{visible.label}}'
 				)">
 				</div> -->
-				{% endif %}
-<!-- 
+                    {% endif %}
+                    <!--
 				{% if visible.label == product_match %}
 					{% include "./product_match.html" %}
 				{% else %}
@@ -91,75 +92,78 @@
 				{% endif %} -->
 
 
-			{% endfor %}
-		</tr>
+                {% endfor %}
+            </tr>
 
-		{% endwith %}
-	{% endfor %}
-
-
-	<tr ng-repeat="row in table">
-	    <td ng-repeat="col in row">	    	
- 	    	 {% verbatim %}
-
- 			<div style="color:red" class="error_message">{{col.errors}}</div>
+        {% endwith %}
+    {% endfor %}
 
 
-    			<div ng-if="col.is_match_field">
-    				<input ng-if="col"  ng-change="match_product(col)" 
-    				ng-model='col.visible_value' class="{{col.class}}">
-					<input ng-if="col" type="hidden" id="{{col.id}}" name="{{col.name}}" 
-					value="{{col.hidden_value}}">
-    			</div>
+<tr ng-repeat="row in table">
+    <td ng-repeat="col in row">
+        {% verbatim %}
 
-    			<div ng-if="!col.is_match_field">
-    				<div ng-if="col.field_type != 'NullBooleanField' && col.field_type != 'BooleanField'">
-		    			<input ng-if="!col.choices" id="{{col.id}}" name="{{col.name}}" value="{{col.field_value}}">
-
-		    		</div>
-
-    				<div ng-if="col.field_type == 'NullBooleanField'">
-		    			<select id="{{col.id}}" name="{{col.name}}">
-		    				<option value="1">----</option>
-		    				<option value="2" ng-selected="col.field_value == 'True'">Ja</option>
-		    				<option value="3" ng-selected="col.field_value == 'False'">Nein</option>
-	    				</select>
-		    		</div>
+            <div style="color:red" class="error_message">{{ col.errors }}</div>
 
 
-    				<div ng-if="col.field_type == 'BooleanField'">
-	    				<input id="{{col.id}}" name="{{col.name}}" type='checkbox' ng-checked="col.field_value == 'True'">
-		    		</div>
+            <div ng-if="col.is_match_field">
+                <input ng-if="col" ng-change="match_product(col)"
+                       ng-model='col.visible_value' class="{{ col.class }}">
+                <input ng-if="col" type="hidden" id="{{ col.id }}" name="{{ col.name }}"
+                       value="{{ col.hidden_value }}">
+            </div>
+
+            <div ng-if="!col.is_match_field">
+                <div ng-if="col.field_type != 'NullBooleanField' && col.field_type != 'BooleanField'">
+                    <input ng-if="!col.choices" id="{{ col.id }}" name="{{ col.name }}" value="{{ col.field_value }}">
+
+                </div>
+
+                <div ng-if="col.field_type == 'NullBooleanField'">
+                    <select id="{{ col.id }}" name="{{ col.name }}">
+                        <option value="1">----</option>
+                        <option value="2" ng-selected="col.field_value == 'True'">Ja</option>
+                        <option value="3" ng-selected="col.field_value == 'False'">Nein</option>
+                    </select>
+                </div>
 
 
-  			    </div>
-    			
-  	       	 {% endverbatim %}
+                <div ng-if="col.field_type == 'BooleanField'">
+                    <input id="{{ col.id }}" name="{{ col.name }}" type='checkbox'
+                           ng-checked="col.field_value == 'True'">
+                </div>
 
- 	    	 {% verbatim %}
-		    	 <select ng-if="col.choices" id="{{col.id}}" name="{{col.name}}">
-		    	 	<option value="">-----</option>
-		    	 	<option ng-repeat="(id, choice) in col.choices" value="{{id}}">{{choice}}</option>
-		    	 </select>
- 	       	 {% endverbatim %}
-	    </td>   
-	</tr>
-	
-	<!-- Dynamische Felder !  -->
-	<tr ng-repeat="field in tablerows track by $id(field)">
-		<td ng-model="tablerows[$index]">
-			<input ng-keyup="match_product($event, product{{current_count}}, 'product{{current_count}}_val')" 
-			ng-model="product{{current_count}}">
-			
-			<input type="hidden" {% verbatim %}id="{{field}}"{% endverbatim %} name="{{visible.html_name}}" ng-model="product{{current_count}}_val" 
-			>
-		</td>
-		<td>
-			<span ng-click="removeChoice($index)" class="glyphicon glyphicon-trash" type="button" style="color:red;cursor:pointer;"></span>
-		</td>
-	</tr>
 
-	</tbody>
+            </div>
+
+        {% endverbatim %}
+
+        {% verbatim %}
+            <select ng-if="col.choices" id="{{ col.id }}" name="{{ col.name }}">
+                <option value="">-----</option>
+                <option ng-repeat="(id, choice) in col.choices" value="{{ id }}">{{ choice }}</option>
+            </select>
+        {% endverbatim %}
+    </td>
+</tr>
+
+<!-- Dynamische Felder !  -->
+<tr ng-repeat="field in tablerows track by $id(field)">
+    <td ng-model="tablerows[$index]">
+        <input ng-keyup="match_product($event, product{{ current_count }}, 'product{{ current_count }}_val')"
+               ng-model="product{{ current_count }}">
+
+        <input type="hidden" {% verbatim %}id="{{ field }}"{% endverbatim %} name="{{ visible.html_name }}"
+               ng-model="product{{ current_count }}_val"
+        >
+    </td>
+    <td>
+        <span ng-click="removeChoice($index)" class="glyphicon glyphicon-trash" type="button"
+              style="color:red;cursor:pointer;"></span>
+    </td>
+</tr>
+
+</tbody>
 {% endif %}
 
 

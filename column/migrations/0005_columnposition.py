@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ('position', '0001_initial'),
         ('column', '0004_remove_column_positions'),

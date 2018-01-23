@@ -1,10 +1,8 @@
 from django.db import models
-import datetime
-from django.utils import timezone
 from django.core.urlresolvers import reverse
+from django.utils.translation import gettext as _
+from django.core.exceptions import ValidationError
 
-
-# Create your models here.
 
 class Stock(models.Model):
     ean_vollstaendig = models.CharField(max_length=250)
@@ -24,6 +22,14 @@ class Stock(models.Model):
 
     def __str__(self):
         return str(self.ean_vollstaendig)
+
+    def clean(self):
+        # Don't allow draft entries to have a pub_date.
+        stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
+                                      lagerplatz=self.lagerplatz)
+
+        if stocks.count() > 0:
+            raise ValidationError(_('Lagerbestand schon vorhanden'))
 
 
 class Stockdocument(models.Model):

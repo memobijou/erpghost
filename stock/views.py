@@ -161,20 +161,18 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_object(self):
         object = Stock.objects.get(id=self.kwargs.get("pk"))
+        print("AAAAAAAAAA: " + str(object))
         return object
-
-    def dispatch(self, request, *args, **kwargs):
-        # request.user = AnonymousUser()
-        return super(StockUpdateView, self).dispatch(request, *args, **kwargs)
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockUpdateView, self).get_context_data(*args, **kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
-        # print("asdsadasdsa: " + str(context["object"]))
+        if not self.request.POST:
+            context["object"] = self.get_object(*args, **kwargs)
+            print("asdsadasdsa: " + str(context["object"]))
 
-        context["title"] = "Inventar bearbeiten"
-        # context["matching_"] = "Product" # Hier Modelname übergbenen
-        # if self.request.POST:
-        # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
-        # else:
+            context["title"] = "Inventar bearbeiten"
+            # context["matching_"] = "Product" # Hier Modelname übergbenen
+            # if self.request.POST:
+            # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
+            # else:
         return context

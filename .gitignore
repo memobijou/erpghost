@@ -111,4 +111,8 @@ venv.bak/
 db.sqlite3
 .DS_Store
 DS_Store
-.idea/workspace.xml
+
+#pycharm
+.idea/
+
+documents/

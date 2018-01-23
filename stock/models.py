@@ -16,6 +16,7 @@ class Stock(models.Model):
     karton = models.CharField(max_length=250, null=True, blank=True)
     box = models.CharField(max_length=250, null=True, blank=True)
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True)
+    ignore_unique = models.CharField(max_length=250, null=True, blank=True)
 
     def get_absolute_url(self):
         return reverse("stock:list")

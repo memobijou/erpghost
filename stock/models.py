@@ -30,14 +30,14 @@ class Stock(models.Model):
     def __str__(self):
         return str(self.ean_vollstaendig)
 
-    def clean(self):
-        if self.ignore_unique == "IGNORE":
-            return
-
-        stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
-                                      lagerplatz=self.lagerplatz)
-        if stocks.count() > 0:
-            raise ValidationError(_('Lagerbestand schon vorhanden'))
+    # def clean(self):
+    #     if self.ignore_unique == "IGNORE":
+    #         return
+    #
+    #     stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
+    #                                   lagerplatz=self.lagerplatz)
+    #     if stocks.count() > 0:
+    #         raise ValidationError(_('Lagerbestand schon vorhanden'))
 
 
 class Stockdocument(models.Model):

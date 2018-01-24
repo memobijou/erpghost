@@ -40,9 +40,9 @@ class StockListView(LoginRequiredMixin, ListView):
 
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock, \
                                exclude_fields=["id", 'regal', "ean_upc", "scanner", "name", "karton",
-                                               'box', 'aufnahme_datum'], \
+                                               'box', 'aufnahme_datum', "ignore_unique"], \
                                exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "name", "karton",
-                                                      'box', 'aufnahme_datum'])
+                                                      'box', 'aufnahme_datum', "ignore_unique"])
         if context["object_list"]:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
@@ -155,26 +155,24 @@ class StockDetailView(LoginRequiredMixin, DetailView):
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = modelform_factory(model=Stock, fields=["bestand", "ean_vollstaendig", "zustand"],
+    form_class = modelform_factory(model=Stock, fields=["bestand", "ean_vollstaendig", "zustand", "ignore_unique"],
                                    labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
     login_url = "/login/"
 
     def get_object(self):
         object = Stock.objects.get(id=self.kwargs.get("pk"))
+        print("AAAAAAAAAA: " + str(object))
         return object
-
-    def dispatch(self, request, *args, **kwargs):
-        # request.user = AnonymousUser()
-        return super(StockUpdateView, self).dispatch(request, *args, **kwargs)
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockUpdateView, self).get_context_data(*args, **kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
-        # print("asdsadasdsa: " + str(context["object"]))
+        if not self.request.POST:
+            context["object"] = self.get_object(*args, **kwargs)
+            print("asdsadasdsa: " + str(context["object"]))
 
-        context["title"] = "Inventar bearbeiten"
-        # context["matching_"] = "Product" # Hier Modelname übergbenen
-        # if self.request.POST:
-        # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
-        # else:
+            context["title"] = "Inventar bearbeiten"
+            # context["matching_"] = "Product" # Hier Modelname übergbenen
+            # if self.request.POST:
+            # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
+            # else:
         return context

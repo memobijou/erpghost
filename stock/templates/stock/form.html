@@ -3,6 +3,15 @@
 
 {% block content %}
     <div class="row">
+         {% if form.non_field_errors %}
+
+        <div class="alert alert-danger">
+                {% for  error in form.non_field_errors %}
+                    <h1>{{ error  }}</h1>
+                {% endfor %}
+        </div>
+        {% endif %}
+
         <div class="col-md-12">
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
                 <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>

@@ -44,7 +44,7 @@ class StockListView(LoginRequiredMixin, ListView):
                                exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "name", "karton",
                                                       'box', 'aufnahme_datum', "ignore_unique"])
         if context["object_list"]:
-            set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
+            set_paginated_queryset_onview(context["object_list"], self.request, 200, context)
 
         return context
 
@@ -161,14 +161,12 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_object(self):
         object = Stock.objects.get(id=self.kwargs.get("pk"))
-        print("AAAAAAAAAA: " + str(object))
         return object
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockUpdateView, self).get_context_data(*args, **kwargs)
         if not self.request.POST:
             context["object"] = self.get_object(*args, **kwargs)
-            print("asdsadasdsa: " + str(context["object"]))
 
             context["title"] = "Inventar bearbeiten"
             # context["matching_"] = "Product" # Hier Modelname übergbenen

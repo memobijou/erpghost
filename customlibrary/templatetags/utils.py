@@ -46,8 +46,12 @@ def get_q(request_GET):
         if len(v) < 1:
             q = q + k + "=" + v + "&"
         else:
-            for item in v:
-                q = q + k + "=" + item + "&"
+            if not isinstance(v, str):
+                for item in v:
+                    q = q + k + "=" + item + "&"
+            else:
+                q = q + k + "=" + v + "&"
+
     q = q[:-1]
     return q
 
@@ -56,6 +60,7 @@ register.filter('get_q', get_q)
 
 
 def remove_param_from_q(q, remove_value):
+    print("!!!!!!!!: " + str(q))
     q = q.replace(remove_value, "")
     splitted_q = q.split("&")
     new_q = ""

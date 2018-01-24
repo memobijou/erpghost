@@ -25,19 +25,20 @@ class Stock(models.Model):
                                      verbose_name="Block")
 
     def get_absolute_url(self):
-        return reverse("stock:list")
+        return reverse("stock:detail", kwargs={'pk': self.id})
 
     def __str__(self):
         return str(self.ean_vollstaendig)
 
-    # def clean(self):
-    #     if self.ignore_unique == "IGNORE":
-    #         return
-    #
-    #     stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
-    #                                   lagerplatz=self.lagerplatz)
-    #     if stocks.count() > 0:
-    #         raise ValidationError(_('Lagerbestand schon vorhanden'))
+    def clean(self):
+        if self.ignore_unique == "IGNORE":
+            return
+
+        stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
+                                      lagerplatz=self.lagerplatz).exclude(id=self.id)
+
+        if stocks.count() > 0:
+            raise ValidationError(_('Lagerbestand schon vorhanden'))
 
 
 class Stockdocument(models.Model):

@@ -26,7 +26,6 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockListView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Inventar"
 
         amount_positions = 30000
 
@@ -47,8 +46,10 @@ class StockListView(LoginRequiredMixin, ListView):
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
         if "table" in str(self.request.get_full_path()):
+            context["title"] = "Lagerbestand"
             context["is_table"] = True
         else:
+            context["title"] = "Inventar"
             context["is_table"] = None
         return context
 

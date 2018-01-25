@@ -46,6 +46,10 @@ class StockListView(LoginRequiredMixin, ListView):
         if context["object_list"]:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
+        if "table" in str(self.request.get_full_path()):
+            context["is_table"] = True
+        else:
+            context["is_table"] = None
         return context
 
 

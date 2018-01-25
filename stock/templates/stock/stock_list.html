@@ -6,9 +6,6 @@
 
 {% block content %}
 
-    <a class="btn btn-primary" id="btn_new_inventar" href="{% url 'stock:create' %}">Inventar importieren</a>
-
-
     <p>
     <p>Aufgenommene Positionen: <b style="font-size:30px;">{{ amount_stocks }}</b></p>
 
@@ -35,7 +32,9 @@
 
     <div ng-app="ng_listview" ng-init="detail_query={{ object_list_as_json.0 }}">
 
-        {% include "snippets/navigation.html" %}
+        {% if request.user.is_superuser %}
+            {% include "snippets/navigation.html" %}
+        {% endif %}
         {% include "snippets/filter.html" %}
         <div class="row"><h1><br/> <br/></h1></div>
         {% if is_table %}

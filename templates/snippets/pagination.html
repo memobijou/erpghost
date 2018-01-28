@@ -15,14 +15,54 @@
                     Zur&uuml;ck
                 </a>
             </li>
+            {% if pages_range.0 %}
+                {% if pages_range.0|slugify != current_page|slugify %}
+                    <li>
+                        {% with request.GET|get_q as q %}
+                            <a href="?page={{ pages_range.0 }}&
+                                    {{ q|remove_param_from_q:"page="}}">{{ pages_range.0 }}</a>
+                        {% endwith %}
+                    </li>
+                {% endif %}
+            {% endif %}
 
-            {% for p in pages_range %}
-                <li {% if p|slugify == current_page|slugify %}class=active {% endif %}>
-                    {% with request.GET|get_q as q %}
-                        <a href="?page={{ p }}&{{ q|remove_param_from_q:"page="}}">{{ p }}</a>
-                    {% endwith %}
-                </li>
-            {% endfor %}
+            {% if before_page %}
+                {% if before_page|slugify != page_ranges.0|slugify %}
+                    <li>
+                        {% with request.GET|get_q as q %}
+                            <a href="?page={{ before_page }}&{{ q|remove_param_from_q:"page="}}">{{ before_page }}</a>
+                        {% endwith %}
+                    </li>
+                {% endif %}
+            {% endif %}
+
+
+            <li class=active>
+                {% with request.GET|get_q as q %}
+                    <a href="?page={{ current_page }}&{{ q|remove_param_from_q:"page="}}">{{ current_page }}</a>
+                {% endwith %}
+            </li>
+
+            {% if next_page %}
+                {% if next_page|slugify != last_page|slugify %}
+                    <li>
+                        {% with request.GET|get_q as q %}
+                            <a href="?page={{ next_page }}&{{ q|remove_param_from_q:"page="}}">{{ next_page }}</a>
+                        {% endwith %}
+                    </li>
+                {% endif %}
+            {% endif %}
+
+            {% if last_page %}
+                {% if last_page|slugify !=  current_page|slugify %}
+                    <li>
+                        {% with request.GET|get_q as q %}
+                            <a href="?page={{ last_page }}&
+                                        {{ q|remove_param_from_q:"page="}}">{{ last_page }}</a>
+                        {% endwith %}
+                    </li>
+                {% endif %}
+            {% endif %}
 
             <li>
                 <a {% if object_list.has_next %}

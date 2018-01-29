@@ -57,8 +57,7 @@
                 {% if last_page|slugify !=  current_page|slugify %}
                     <li>
                         {% with request.GET|get_q as q %}
-                            <a href="?page={{ last_page }}&
-                                        {{ q|remove_param_from_q:"page="}}">{{ last_page }}</a>
+                            <a href="?page={{ last_page }}&{{ q|remove_param_from_q:"page="}}">{{ last_page }}</a>
                         {% endwith %}
                     </li>
                 {% endif %}

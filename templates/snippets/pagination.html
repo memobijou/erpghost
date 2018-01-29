@@ -18,9 +18,8 @@
             {% if pages_range.0 %}
                 {% if pages_range.0|slugify != current_page|slugify %}
                     <li>
-                        {% with request.GET|get_q as q %}
-                            <a href="?page={{ pages_range.0 }}&
-                                    {{ q|remove_param_from_q:"page="}}">{{ pages_range.0 }}</a>
+                     {% with request.GET|get_q as q %}
+                        <a href="?page={{ pages_range.0 }}&{{ q|remove_param_from_q:"page="}}">{{ pages_range.0 }}</a>
                         {% endwith %}
                     </li>
                 {% endif %}

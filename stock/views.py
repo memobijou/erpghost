@@ -51,6 +51,8 @@ class StockListView(LoginRequiredMixin, ListView):
         else:
             context["title"] = "Inventar"
             context["is_table"] = None
+        context["extra_fields"] = [("total_amount_ean", "GESAMT")]
+
         return context
 
 

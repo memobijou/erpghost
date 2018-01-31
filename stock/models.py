@@ -2,6 +2,7 @@ from django.db import models
 from django.core.urlresolvers import reverse
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
 
 class Stock(models.Model):
@@ -39,6 +40,11 @@ class Stock(models.Model):
 
         if stocks.count() > 0:
             raise ValidationError(_('Lagerbestand schon vorhanden'))
+
+    @property
+    def total_amount_ean(self):
+        total = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).aggregate(Sum('bestand'))
+        return total["bestand__sum"]
 
 
 class Stockdocument(models.Model):

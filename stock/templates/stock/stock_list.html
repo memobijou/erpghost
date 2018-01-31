@@ -38,11 +38,11 @@
         {% include "snippets/filter.html" %}
         <div class="row"><h1><br/> <br/></h1></div>
         {% if is_table %}
-            {% include "snippets/table.html" %}
+            {% include "snippets/table.html" with extra_fields=extra_fields %}
         {% else %}
             {% include "snippets/master_detail.html" %}
         {% endif %}
-        {% include "snippets/pagination.html" %}
+        {% include "snippets/pagination.html"%}
 
     </div>
 

@@ -43,7 +43,8 @@ class Stock(models.Model):
 
     @property
     def total_amount_ean(self):
-        total = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).aggregate(Sum('bestand'))
+        # total = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).aggregate(Sum('bestand'))
+        total = {"bestand__sum": "dummy"}
         return total["bestand__sum"]
 
 

@@ -7,6 +7,9 @@
             {% for field in field_names %}
                 <th>{{ field }}</th>
             {% endfor %}
+            {% for extra_field, extra_label in extra_fields %}
+                <th>{{ extra_label }}</th>
+            {% endfor %}
         </tr>
         </thead>
 
@@ -18,6 +21,10 @@
                 </td>
                 {% for field in field_names %}
                     <td> {{ object|getattr:field}} </td>
+                {% endfor %}
+
+                {% for extra_field, extra_label in extra_fields %}
+                    <td> {{ object|getattr:extra_field}} </td>
                 {% endfor %}
             </tr>
         {% endfor %}

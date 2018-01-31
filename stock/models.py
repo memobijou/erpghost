@@ -44,7 +44,7 @@ class Stock(models.Model):
     @property
     def total_amount_ean(self):
         # total = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).aggregate(Sum('bestand'))
-        x = len(Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig))
+        x = len(Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).values("ean_vollstaendig"))
         total = {"bestand__sum": x}
         return total["bestand__sum"]
 

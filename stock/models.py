@@ -41,7 +41,6 @@ class Stock(models.Model):
         if stocks.count() > 0:
             raise ValidationError(_('Lagerbestand schon vorhanden'))
 
-    @property
     def total_amount_ean(self):
         total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
         print("?!?!: " + str(total))

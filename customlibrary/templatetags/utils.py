@@ -13,6 +13,16 @@ def getattribute(value, args):
 register.filter('getattr', getattribute)
 
 
+def callattr(value, args):
+    # print("aaaa: : " + str(value) + " : " + str(args))
+    if args in value:
+        print("CALLATTR*******" + str(value[args]()))
+        return value[args]()
+
+
+register.filter('callattr', callattr)
+
+
 def get_from_model(value, args):
     # print("aaaa: : " + str(value) + " : " + str(args))
     return getattr(value, args)

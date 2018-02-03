@@ -58,11 +58,12 @@ class StockListView(LoginRequiredMixin, ListView):
         context["gesamt_arr"] = gesamt_arr
 
         # Auf die Art und WEISE kann man manuell was hinzufügen!! TODO: Dry machen in utils oder so
-        new = []
-        for json, g in zip(context["object_list_as_json"], gesamt_arr):
-            json["GESAMT"] = g
-            new.append(json)
-        context["object_list_as_json"] = new
+        if "object_list_as_json" in context:
+            new = []
+            for json, g in zip(context["object_list_as_json"], gesamt_arr):
+                json["GESAMT"] = g
+                new.append(json)
+            context["object_list_as_json"] = new
         # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
         context["extra_fields"] = [("GESAMT", "GESAMT")]
         return context

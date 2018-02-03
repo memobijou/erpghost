@@ -30,6 +30,16 @@
 
     {% endif %}
     <!-- {{request.GET.status}} -->
+    {% if messages %}
+        <div class="m-separator--space"></div>
+        {% for m in messages %}
+            <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}success{% endif %}">
+                {% if message.tags %}
+                {% endif %}
+                    {{ m }}
+            </div>
+        {% endfor %}
+    {% endif %}
 
 {% endblock %}
 

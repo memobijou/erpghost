@@ -12,6 +12,7 @@ from django.http import HttpResponseRedirect
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 
 
 # Create your views here.
@@ -88,7 +89,11 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         imported_data = dataset.load(document.read())
         dataset.insert_col(0, lambda r: "", header='id')
 
-        if has_duplicate(imported_data):
+        duplicate = check_duplicate_inside_excel(imported_data)
+
+        if duplicate:
+            messages.error(self.request, 'Doppelter Eintrag in Exceldatei!')
+            messages.error(self.request, duplicate)
             super(StockCreateView, self).form_valid(form)
             return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
@@ -106,16 +111,16 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
 
 
-def has_duplicate(arr):
-    copy_arr = arr
-
-    for index, row in enumerate(arr):
-        for i, against in enumerate(arr[index:len(arr)]):
-            if i + 1 <= len(arr[index:len(arr)]) and i > index:
-                if against[1] == row[1] and against[4] == row[4] \
-                        and against[6] == row[6]:
-                    return True
-    return False
+def check_duplicate_inside_excel(arr):
+    for i, row in enumerate(arr):
+        for j, against_row in enumerate(arr):
+            if i != j:
+                if row[1] == against_row[1] and row[4] == against_row[4] and row[6] == against_row[6]:
+                    print(
+                        f"{i} {j} :: {row[1]} - {row[4]} - {row[6]}"
+                        f" == {against_row[1]} - {against_row[4]} - {against_row[6]}")
+                    return f"{row[1]} - {row[4]} - {row[6]} " \
+                           f"== {against_row[1]} - {against_row[4]} - {against_row[6]}"
 
 
 class StockDocumentDetailView(LoginRequiredMixin, DetailView):

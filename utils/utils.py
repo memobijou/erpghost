@@ -255,6 +255,8 @@ def handle_pagination(queryset, request, results_per_page):
 
 
 def set_paginated_queryset_onview(queryset, request, results_per_page, context):
+    if not context["object_list"]:
+        return
     context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
     if context["object_list_as_json"]:

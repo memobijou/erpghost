@@ -5,7 +5,16 @@
 {% endblock %}
 
 {% block content %}
-
+        {% if messages %}
+        <div class="m-separator--space"></div>
+        {% for m in messages %}
+            <div class="alert alert-{% if m.tags == 'error' %}danger{% else %}success{% endif %}">
+                {% if message.tags %}
+                {% endif %}
+                    {{ m | safe }}
+            </div>
+        {% endfor %}
+    {% endif %}
     <form method="POST" action="." enctype="multipart/form-data">{% csrf_token %}
         <div style="background-color:white;padding:25px;" class="table-bordered">
             {{ form.as_p }}

@@ -78,12 +78,21 @@ class StockCreateView(LoginRequiredMixin, CreateView):
 
         stock_resource = StockResource()
         dataset = Dataset()
-
-        dataset.insert_col(0, col=[None, ], header="id")
-
+        dataset.headers = ('id',
+                           'ean_vollstaendig', 'bestand', 'ean_upc', 'lagerplatz', 'regal', 'zustand', 'scanner',
+                           'name', 'karton',
+                           'box',
+                           'aufnahme_datum', 'ignore_unique')
         document = form.cleaned_data["document"]
 
+        # dataset.insert_col(len(document), col=[None, ], header="id")
+        # dataset.headers.append('id')
+
         imported_data = dataset.load(document.read())
+        dataset.insert_col(0, lambda r: "", header='id')
+        # imported_data.insert_col(1, col=["id", ], header="id")
+
+        print(str(imported_data))
 
         if has_duplicate(imported_data):
             super(StockCreateView, self).form_valid(form)

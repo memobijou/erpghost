@@ -92,23 +92,26 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         duplicate = check_duplicate_inside_excel(imported_data)
 
         if duplicate:
-            messages.error(self.request, 'Doppelter Eintrag in Exceldatei!')
+            messages.error(self.request, 'Doppelter Eintrag in <b>Exceldatei</b>!')
             messages.error(self.request, duplicate)
             super(StockCreateView, self).form_valid(form)
-            return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+            return HttpResponseRedirect("")
 
         for row in imported_data:
             if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
+                messages.error(self.request, 'Eintrag in <b>Datenbank</b> vorhanden!')
+                messages.error(self.request,  f"{row[1]} - {row[4]} - {row[6]} ")
                 super(StockCreateView, self).form_valid(form)
-                return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+                return HttpResponseRedirect("")
         result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
         if not result.has_errors():
             stock_resource.import_data(dataset, dry_run=False)  # Actually import now
         else:
             super(StockCreateView, self).form_valid(form)
-            return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+            return HttpResponseRedirect(self.get_success_url())
+        messages.success(self.request, f"{document} erfolgreich hochgeladen!")
         super(StockCreateView, self).form_valid(form)
-        return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
+        return HttpResponseRedirect(self.get_success_url())
 
 
 def check_duplicate_inside_excel(arr):

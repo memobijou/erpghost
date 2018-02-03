@@ -32,6 +32,8 @@
 
     <div ng-app="ng_listview" ng-init="detail_query={{ object_list_as_json.0 }}">
 
+        {% include "snippets/messages.html" %}
+
         {% if request.user.is_superuser %}
             {% if is_table %}
             <div class="col-md-12 text-right">

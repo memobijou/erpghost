@@ -79,73 +79,38 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         dataset = Dataset()
 
         dataset.insert_col(0, col=[None, ], header="id")
-        # new_persons = request.FILES['myfile']
 
         document = form.cleaned_data["document"]
-        # print("AAAA: " + str(document))
-        # document = self.request.FILES["document"]
-        # print("BBBBB: " + str(document))
-
-        # imported_data = dataset.load(document.read())
-        # result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
-
-        # if not result.has_errors():
-        # 	stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-
-        # person_resource = PersonResource()
-        # dataset = Dataset()
-        # new_persons = request.FILES['myfile']
 
         imported_data = dataset.load(document.read())
-        # print("IMPPPPP: " + str(imported_data))
 
         if has_duplicate(imported_data):
-            return_ = super(StockCreateView, self).form_valid(form)
-            # print("HAS DUPLICATE")
+            super(StockCreateView, self).form_valid(form)
             return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
 
         for row in imported_data:
-            # print("ROW: " + str(row[4]) + " : " +  str(row[1]) + " : " + str(row[6]))
-            # print("UNDERROW: " + str(str(row[5])))
-            # print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-            if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists() == True:
-                # print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
-                # print("IS IN DATABASE")
-                return_ = super(StockCreateView, self).form_valid(form)
+            if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
+                super(StockCreateView, self).form_valid(form)
                 return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
         result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
-        # print("JAAAAAAAAAA")
         if not result.has_errors():
             stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-        # print("NO ERRORS!!! " +  str(result.has_errors) )
         else:
-            # print("ERRRROORR: " + str(result.has_errors))
-            return_ = super(StockCreateView, self).form_valid(form)
-            # print("IS_ERROR!!!")
+            super(StockCreateView, self).form_valid(form)
             return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
-        return_ = super(StockCreateView, self).form_valid(form)
+        super(StockCreateView, self).form_valid(form)
         return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
-    # return super(StockCreateView, self).form_valid(form)
-
-    # #/stock/document/
-    # return HttpResponseRedirect(self.get_success_url() + '?' + request.META['QUERY_STRING'])
-
-    # return render(self.request, self.template_name, self.get_context_data(*args, **kwargs))
 
 
 def has_duplicate(arr):
     copy_arr = arr
 
     for index, row in enumerate(arr):
-        # print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
         for i, against in enumerate(arr[index:len(arr)]):
             if i + 1 <= len(arr[index:len(arr)]) and i > index:
-                print("BASDSFAS: " + str(row[9]))
                 if against[1] == row[1] and against[4] == row[4] \
                         and against[6] == row[6]:
                     return True
-
-    # break
     return False
 
 

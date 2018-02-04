@@ -95,14 +95,14 @@ class StockCreateView(LoginRequiredMixin, CreateView):
             messages.error(self.request, 'Doppelter Eintrag in <b>Exceldatei</b>!')
             messages.error(self.request, duplicate)
             super(StockCreateView, self).form_valid(form)
-            return HttpResponseRedirect("")
+            return HttpResponseRedirect(self.request.path_info)
 
         for row in imported_data:
             if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
                 messages.error(self.request, 'Eintrag in <b>Datenbank</b> vorhanden!')
                 messages.error(self.request,  f"{row[1]} - {row[4]} - {row[6]} ")
                 super(StockCreateView, self).form_valid(form)
-                return HttpResponseRedirect("")
+                return HttpResponseRedirect(self.request.path_info)
         result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
         if not result.has_errors():
             stock_resource.import_data(dataset, dry_run=False)  # Actually import now
@@ -119,9 +119,6 @@ def check_duplicate_inside_excel(arr):
         for j, against_row in enumerate(arr):
             if i != j:
                 if row[1] == against_row[1] and row[4] == against_row[4] and row[6] == against_row[6]:
-                    print(
-                        f"{i} {j} :: {row[1]} - {row[4]} - {row[6]}"
-                        f" == {against_row[1]} - {against_row[4]} - {against_row[6]}")
                     return f"{row[1]} - {row[4]} - {row[6]} " \
                            f"== {against_row[1]} - {against_row[4]} - {against_row[6]}"
 

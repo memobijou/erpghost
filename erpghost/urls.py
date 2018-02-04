@@ -20,6 +20,8 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from utils.api import match_product
 from django.contrib.auth.views import LoginView
 from main.views import main_view
+from django.conf import settings
+from django.contrib.auth.views import logout
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -31,6 +33,7 @@ urlpatterns = [
     url(r'^column/', include("column.urls", namespace="column")),
     url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
     url(r'^login/$', LoginView.as_view(), name="login"),
+    url(r'^logout/$', logout, {'next_page': settings.LOGOUT_REDIRECT_URL}, name='logout'),
     url(r'^$', main_view, name="root"),
     url(r'^stock/', include("stock.urls", namespace="stock")),
     url(r'^mission/', include("mission.urls", namespace="mission")),

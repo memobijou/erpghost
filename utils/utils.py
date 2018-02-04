@@ -368,6 +368,8 @@ def handle_pagination(queryset, request, results_per_page):
 
 
 def set_paginated_queryset_onview(queryset, request, results_per_page, context):
+    if not context["object_list"]:
+        return
     context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
     if context["object_list_as_json"]:
@@ -382,6 +384,11 @@ def set_paginated_queryset_onview(queryset, request, results_per_page, context):
         context["object_list"] = pagination_components["queryset"]
         context["pages_range"] = pagination_components["pages_range"]
         context["current_page"] = pagination_components["current_page"]
+        context["last_page"] = len(context["pages_range"])
+        if context["last_page"] != int(context["current_page"]):
+            context["next_page"] = str(int(pagination_components["current_page"]) + 1)
+        if int(context["current_page"]) > 1 and int(context["current_page"]) != 2:
+            context["before_page"] = str(int(pagination_components["current_page"]) - 1)
 
 
 def q_to_dict(q):

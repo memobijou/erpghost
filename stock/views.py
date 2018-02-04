@@ -12,6 +12,7 @@ from django.http import HttpResponseRedirect
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 
 
 # Create your views here.
@@ -26,7 +27,6 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockListView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Inventar"
 
         amount_positions = 30000
 
@@ -44,8 +44,29 @@ class StockListView(LoginRequiredMixin, ListView):
                                exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "name", "karton",
                                                       'box', 'aufnahme_datum', "ignore_unique"])
         if context["object_list"]:
-            set_paginated_queryset_onview(context["object_list"], self.request, 50, context)
+            set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
+        if "table" in str(self.request.get_full_path()):
+            context["title"] = "Lagerbestand"
+            context["is_table"] = True
+        else:
+            context["title"] = "Inventar"
+            context["is_table"] = None
+        # context["extra_fields"] = [("total_amount_ean", "GESAMT")]
+        gesamt_arr = []
+        for obj in context["object_list"]:
+            gesamt_arr.append(obj.total_amount_ean())
+        context["gesamt_arr"] = gesamt_arr
+
+        # Auf die Art und WEISE kann man manuell was hinzufügen!! TODO: Dry machen in utils oder so
+        if "object_list_as_json" in context:
+            new = []
+            for json, g in zip(context["object_list_as_json"], gesamt_arr):
+                json["GESAMT"] = g
+                new.append(json)
+            context["object_list_as_json"] = new
+        # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
+        context["extra_fields"] = [("GESAMT", "GESAMT")]
         return context
 
 
@@ -55,79 +76,53 @@ class StockCreateView(LoginRequiredMixin, CreateView):
     login_url = "/login/"
 
     def form_valid(self, form, *args, **kwargs):
-
+        context = self.get_context_data(**kwargs)
         stock_resource = StockResource()
         dataset = Dataset()
-
-        dataset.insert_col(0, col=[None, ], header="id")
-        # new_persons = request.FILES['myfile']
-
+        dataset.headers = ('id',
+                           'ean_vollstaendig', 'bestand', 'ean_upc', 'lagerplatz', 'regal', 'zustand', 'scanner',
+                           'name', 'karton',
+                           'box',
+                           'aufnahme_datum', 'ignore_unique')
         document = form.cleaned_data["document"]
-        # print("AAAA: " + str(document))
-        # document = self.request.FILES["document"]
-        # print("BBBBB: " + str(document))
-
-        # imported_data = dataset.load(document.read())
-        # result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
-
-        # if not result.has_errors():
-        # 	stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-
-        # person_resource = PersonResource()
-        # dataset = Dataset()
-        # new_persons = request.FILES['myfile']
 
         imported_data = dataset.load(document.read())
-        # print("IMPPPPP: " + str(imported_data))
+        dataset.insert_col(0, lambda r: "", header='id')
 
-        if has_duplicate(imported_data):
-            return_ = super(StockCreateView, self).form_valid(form)
-            # print("HAS DUPLICATE")
-            return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+        duplicate = check_duplicate_inside_excel(imported_data)
+
+        if duplicate:
+            messages.error(self.request, 'Doppelter Eintrag in <b>Exceldatei</b>!')
+            messages.error(self.request, duplicate)
+            super(StockCreateView, self).form_valid(form)
+            return render(self.request, self.template_name, context)
 
         for row in imported_data:
-            # print("ROW: " + str(row[4]) + " : " +  str(row[1]) + " : " + str(row[6]))
-            # print("UNDERROW: " + str(str(row[5])))
-            # print("ABC: " + str(Stock.objects.filter(lagerplatz=row[4]).exists()))
-            if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists() == True:
-                # print("BEFORE DB: " + str(row[4]) + " : "  +str(row[1]))
-                # print("IS IN DATABASE")
-                return_ = super(StockCreateView, self).form_valid(form)
-                return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
+            if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
+                messages.error(self.request, 'Eintrag in <b>Datenbank</b> vorhanden!')
+                messages.error(self.request, f"{row[1]} - {row[4]} - {row[6]} ")
+                super(StockCreateView, self).form_valid(form)
+                return render(self.request, self.template_name, context)
         result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
-        # print("JAAAAAAAAAA")
         if not result.has_errors():
             stock_resource.import_data(dataset, dry_run=False)  # Actually import now
-        # print("NO ERRORS!!! " +  str(result.has_errors) )
         else:
-            # print("ERRRROORR: " + str(result.has_errors))
-            return_ = super(StockCreateView, self).form_valid(form)
-            # print("IS_ERROR!!!")
-            return HttpResponseRedirect(self.get_success_url() + '?' + "status=false")
-        return_ = super(StockCreateView, self).form_valid(form)
-        return HttpResponseRedirect(self.get_success_url() + '?' + "status=true")
-    # return super(StockCreateView, self).form_valid(form)
-
-    # #/stock/document/
-    # return HttpResponseRedirect(self.get_success_url() + '?' + request.META['QUERY_STRING'])
-
-    # return render(self.request, self.template_name, self.get_context_data(*args, **kwargs))
+            super(StockCreateView, self).form_valid(form)
+            return HttpResponseRedirect("")
+        messages.success(self.request, f"{document} erfolgreich hochgeladen!")
+        super(StockCreateView, self).form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
 
-def has_duplicate(arr):
-    copy_arr = arr
-
-    for index, row in enumerate(arr):
-        # print(str(index) + " - " + str(row[1]) + " : " + str(row[4]))
-        for i, against in enumerate(arr[index:len(arr)]):
-            if i + 1 <= len(arr[index:len(arr)]) and i > index:
-                print("BASDSFAS: " + str(row[9]))
-                if against[1] == row[1] and against[4] == row[4] \
-                        and against[6] == row[6]:
-                    return True
-
-    # break
-    return False
+def check_duplicate_inside_excel(arr):
+    for i, row in enumerate(arr):
+        for j, against_row in enumerate(arr):
+            if i != j:
+                if row[1] == against_row[1] and row[4] == against_row[4] and row[6] == against_row[6]:
+                    print(f"error: {row[1]} - {row[4]} - {row[6]} " \
+                          f"== {against_row[1]} - {against_row[4]} - {against_row[6]}")
+                    return f"{row[1]} - {row[4]} - {row[6]} " \
+                           f"== {against_row[1]} - {against_row[4]} - {against_row[6]}"
 
 
 class StockDocumentDetailView(LoginRequiredMixin, DetailView):

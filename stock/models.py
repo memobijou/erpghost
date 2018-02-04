@@ -2,6 +2,7 @@ from django.db import models
 from django.core.urlresolvers import reverse
 from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 
 
 class Stock(models.Model):
@@ -25,19 +26,26 @@ class Stock(models.Model):
                                      verbose_name="Block")
 
     def get_absolute_url(self):
-        return reverse("stock:list")
+        return reverse("stock:detail", kwargs={'pk': self.id})
 
     def __str__(self):
         return str(self.ean_vollstaendig)
 
-    # def clean(self):
-    #     if self.ignore_unique == "IGNORE":
-    #         return
-    #
-    #     stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
-    #                                   lagerplatz=self.lagerplatz)
-    #     if stocks.count() > 0:
-    #         raise ValidationError(_('Lagerbestand schon vorhanden'))
+    def clean(self):
+        if self.ignore_unique == "IGNORE":
+            return
+
+        stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
+                                      lagerplatz=self.lagerplatz).exclude(id=self.id)
+
+        if stocks.count() > 0:
+            raise ValidationError(_('Lagerbestand schon vorhanden'))
+
+    def total_amount_ean(self):
+        total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
+        print("?!?!: " + str(total))
+        total = {"bestand__sum": total["bestand__sum"]}
+        return total["bestand__sum"]
 
 
 class Stockdocument(models.Model):

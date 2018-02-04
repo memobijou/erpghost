@@ -79,39 +79,48 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         context = self.get_context_data(**kwargs)
         stock_resource = StockResource()
         dataset = Dataset()
-        dataset.headers = ('id',
-                           'ean_vollstaendig', 'bestand', 'ean_upc', 'lagerplatz', 'regal', 'zustand', 'scanner',
-                           'name', 'karton',
-                           'box',
-                           'aufnahme_datum', 'ignore_unique')
         document = form.cleaned_data["document"]
 
         imported_data = dataset.load(document.read())
         dataset.insert_col(0, lambda r: "", header='id')
 
-        duplicate = check_duplicate_inside_excel(imported_data)
+        is_only_block = has_only_block(imported_data)
 
-        if duplicate:
-            messages.error(self.request, 'Doppelter Eintrag in <b>Exceldatei</b>!')
-            messages.error(self.request, duplicate)
-            super(StockCreateView, self).form_valid(form)
-            return render(self.request, self.template_name, context)
+        if is_only_block is False:
+            duplicate = check_duplicate_inside_excel(imported_data)
 
-        for row in imported_data:
-            if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
-                messages.error(self.request, 'Eintrag in <b>Datenbank</b> vorhanden!')
-                messages.error(self.request, f"{row[1]} - {row[4]} - {row[6]} ")
-                super(StockCreateView, self).form_valid(form)
-                return render(self.request, self.template_name, context)
+            if duplicate:
+                error_messages = ['Doppelter Eintrag in <b>Exceldatei</b>!', duplicate]
+                return render_error_page(self, context, form, error_messages)
+
+            for row in imported_data:
+                if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
+                    error_messages = ['Eintrag in <b>Datenbank</b> vorhanden!', f"{row[1]} - {row[4]} - {row[6]} "]
+                    return render_error_page(self, context, form, error_messages)
+
         result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
         if not result.has_errors():
-            stock_resource.import_data(dataset, dry_run=False)  # Actually import now
+            stock_resource.import_data(dataset, dry_run=False)  # Actually import
         else:
-            super(StockCreateView, self).form_valid(form)
-            return HttpResponseRedirect("")
+            error_messages = ["Ein unbekannter Fehler ist aufgetaucht!"]
+            return render_error_page(self, context, form, error_messages)
         messages.success(self.request, f"{document} erfolgreich hochgeladen!")
         super(StockCreateView, self).form_valid(form)
         return HttpResponseRedirect(self.get_success_url())
+
+
+def render_error_page(self_, context, form,  error_messages):
+    for error_message in error_messages:
+        messages.error(self_.request, error_message)
+    super(StockCreateView, self_).form_valid(form)
+    return render(self_.request, self_.template_name, context)
+
+
+def has_only_block(arr):
+    for i, row in enumerate(arr):
+        if "block" not in row[4].lower():
+            return False
+    return True
 
 
 def check_duplicate_inside_excel(arr):

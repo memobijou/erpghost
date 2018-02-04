@@ -20,15 +20,15 @@ class Position(models.Model):
     @property
     def reserved_volume(self):
         total = 0
-        for p in self.product_set.all():
-            total = total + p.masterdata.calc_volume
+        for p in self.positionproductorder_set.all():
+            total = total + p.productorder.product.masterdata.calc_volume
         return total
 
     @property
     def available_volume(self):
         total = self.reserved_volume - self.max_volume
 
-        return str(total * -1)
+        return total * -1
 
     @property
     def max_volume(self):
@@ -46,4 +46,4 @@ class Position(models.Model):
 
     @property
     def total_order_cost(self):
-        return "THEWALKINGDEAD"
+        return "THEWALKINGDEADssssss"

@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'main',
     'stock',
     'import_export',
+    'picklist',
 ]
 
 MIDDLEWARE_CLASSES = [

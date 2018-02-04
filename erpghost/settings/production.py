@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'main',
     'stock',
     'import_export',
+    'picklist',
 ]
 
 IMPORT_EXPORT_USE_TRANSACTIONS = True

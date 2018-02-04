@@ -1,18 +1,60 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, FormView
-from order.models import Order, ProductOrder
+from order.models import Order, ProductOrder,PositionProductOrder,PositionProductOrderPicklist
+from position.models import Position
 from order.forms import OrderForm, ProductOrderFormsetInline
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
-from order.serializers import OrderSerializer
+    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview,save_picklist,search_positions_for_order,search_all_wareneingang_products
+from order.serializers import OrderSerializer,PositionProductOrderSerializer
 from rest_framework.generics import ListAPIView
 from django.forms import modelform_factory, inlineformset_factory
 from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import AnonymousUser
+from django.db.models import Q
+from picklist.models import Picklist
 
+# search position for product which are on Wareneingang
+def search_after_product_on_we(request):
+    wePosition = Position.objects.get(halle="WE")
 
-# Create your views here.
+    gefunden_array = search_all_wareneingang_products()
+
+    if len(gefunden_array) != 0:
+        positions_products = save_picklist(gefunden_array,"Wareneingang", wePosition)
+    else:
+        positions_products = "NIX NEUES"
+
+    wareneingang_products = PositionProductOrder.objects.filter(positions=wePosition)
+
+    context = {"Positionen": positions_products,
+               "we":wareneingang_products
+               }
+    return render(request, "order/position_product.html", context)
+
+# function to search avaialble postion for productorder.
+def search_positions(request,ordernummer):
+    order = Order.objects.get(id=ordernummer)
+    wePosition = Position.objects.get(halle="WE")
+
+    all = search_positions_for_order(ordernummer)
+    gefunden = all[0]
+    alle = all[1]
+
+    if len(gefunden) != 0:
+        positions_products_new = save_picklist(gefunden,order,wePosition)
+    else:
+        positions_products_new = "NIX neues"
+
+    positionproducts_all = PositionProductOrder.objects.filter(productorder__in=alle)
+    positionproducts_we = PositionProductOrder.objects.filter(positions=wePosition)
+
+    context = {"Positionen": positions_products_new,
+               "alle": positionproducts_all,
+               "we": positionproducts_we
+               }
+
+    return render(request, "order/position_product.html", context)
 
 
 class ScanOrderTemplateView(UpdateView):
@@ -224,6 +266,7 @@ class OrderDetailView(DetailView):
 class OrderListView(ListView):
     def get_queryset(self):
         # queryset = Order.objects.all()
+
         queryset = filter_queryset_from_request(self.request, Order)
         return queryset
 
@@ -245,7 +288,10 @@ class OrderListView(ListView):
 
         return context
 
-
 class OrderListAPIView(ListAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+
+class PositionProductOrderListAPIView(ListAPIView):
+    queryset = Picklist.objects.all()
+    serializer_class = PositionProductOrderSerializer

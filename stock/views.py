@@ -41,7 +41,7 @@ class StockListView(LoginRequiredMixin, ListView):
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock, \
                                exclude_fields=["id", 'regal', "ean_upc", "scanner", "name", "karton",
                                                'box', 'aufnahme_datum', "ignore_unique"], \
-                               exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "name", "karton",
+                               exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
                                                       'box', 'aufnahme_datum', "ignore_unique"])
         if context["object_list"]:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
@@ -66,7 +66,7 @@ class StockListView(LoginRequiredMixin, ListView):
                 new.append(json)
             context["object_list_as_json"] = new
         # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
-        context["extra_fields"] = [("GESAMT", "GESAMT")]
+        context["extra_fields"] = [ ("name", "name"), ("GESAMT", "GESAMT")]
         return context
 
 

@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'stock',
     'import_export',
     'picklist',
+    "reservation",
 ]
 
 MIDDLEWARE_CLASSES = [

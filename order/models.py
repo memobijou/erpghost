@@ -79,7 +79,15 @@ class ProductOrder(models.Model):
         if self.amount and self.missing_amount:
             return self.amount - self.missing_amount
         else:
-            return self.amount  #
+            return self.amount
+
+    def free_amount(self):
+        result = 0
+        alle = self.produtcorders.all()
+        for k in alle:
+            result = result + k.amount
+        free = self.amount - result
+        return int(free)
 
 
 class InvoiceOrder(models.Model):

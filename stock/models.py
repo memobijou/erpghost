@@ -32,7 +32,7 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def clean(self):
-        if self.ignore_unique == "IGNORE":
+        if self.ignore_unique == "IGNORE" and "block" in self.lagerplatz.lower():
             return
 
         stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,

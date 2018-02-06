@@ -66,7 +66,7 @@ class StockListView(LoginRequiredMixin, ListView):
                 new.append(json)
             context["object_list_as_json"] = new
         # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
-        context["extra_fields"] = [ ("name", "name"), ("GESAMT", "GESAMT")]
+        context["extra_fields"] = [("name", "name"), ("GESAMT", "GESAMT")]
         return context
 
 
@@ -109,7 +109,7 @@ class StockCreateView(LoginRequiredMixin, CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-def render_error_page(self_, context, form,  error_messages):
+def render_error_page(self_, context, form, error_messages):
     for error_message in error_messages:
         messages.error(self_.request, error_message)
     super(StockCreateView, self_).form_valid(form)
@@ -173,6 +173,7 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
             context["object"] = self.get_object(*args, **kwargs)
 
             context["title"] = "Inventar bearbeiten"
+
             # context["matching_"] = "Product" # Hier Modelname übergbenen
             # if self.request.POST:
             # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)

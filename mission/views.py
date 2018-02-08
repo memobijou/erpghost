@@ -59,7 +59,8 @@ class MissionCreateView(CreateView):
         print("**context***" + str(context))
         context["title"] = "Auftrag anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3, exclude=["id"])
+        formset_class = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3,
+                                              exclude=["id", "missing_amount", "confirmed"])
 
         if self.request.POST:
             formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)

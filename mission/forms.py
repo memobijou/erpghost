@@ -15,4 +15,5 @@ class MissionForm(forms.ModelForm):
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 
-ProductMissionFormsetInline = inlineformset_factory(Mission, ProductMission, can_delete=True, extra=1, exclude=["id"])
+ProductMissionFormsetInline = inlineformset_factory(Mission, ProductMission, can_delete=True, extra=1,
+                                                    exclude=["id", "missing_amount", "confirmed"])

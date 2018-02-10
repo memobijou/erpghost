@@ -44,6 +44,11 @@ class Mission(models.Model):
                     elif self.verified is False:
                         self.status = "ABGELEHNT"
 
+        # for product_mission in self.productmission_set.all():
+        #     if product_mission.confirmed is True or product_mission.confirmed is False:
+        #         self.status = "WARENAUSGANG"
+        #         break
+
         if self.mission_number == "":
             today = date.today().strftime('%d%m%y')
             count = Mission.objects.filter(mission_number__icontains=today).count()+1
@@ -74,3 +79,22 @@ class ProductMission(models.Model):
             return self.amount - self.missing_amount
         else:
             return self.amount
+
+    def save(self, *args, **kwargs):
+        product_missions = self.mission.productmission_set.all()
+        all_scanned = True
+        if self.confirmed == "1" or self.confirmed == "0":
+            self.mission.status = "WARENAUSGANG"
+        else:
+            all_scanned = False
+
+        for product_mission in product_missions:
+            if self.id != product_mission.id:
+                if product_mission.confirmed is True or product_mission.confirmed is False:
+                    self.mission.status = "WARENAUSGANG"
+                else:
+                    all_scanned = False
+        if all_scanned and product_missions.exists():
+            self.mission.status = "VERSANDBEREIT"
+        self.mission.save()
+        super().save(*args, **kwargs)

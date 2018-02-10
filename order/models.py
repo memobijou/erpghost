@@ -49,8 +49,6 @@ class Order(models.Model):
             today = date.today().strftime('%d%m%y')
             count = Order.objects.filter(ordernumber__icontains=today).count()+1
             self.ordernumber = f"B{today}-{count}"
-            print(f"****: {self.ordernumber}")
-
         super().save(force_insert=False, force_update=False, *args, **kwargs)
 
 
@@ -77,7 +75,6 @@ class ProductOrder(models.Model):
                     self.order.status = "WARENEINGANG"
                 else:
                     all_scanned = False
-
         if all_scanned and product_orders.exists():
             self.order.status = "POSITIONIEREN"
         self.order.save()

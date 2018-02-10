@@ -1,8 +1,8 @@
 from django.db import models
 from django.core.urlresolvers import reverse
-from django.utils.translation import gettext as _
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
+from django.template import Context, Template
 
 
 class Stock(models.Model):
@@ -32,14 +32,32 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def clean(self):
-        if self.ignore_unique == "IGNORE":
+        if self.ignore_unique == "IGNORE" and "block" in self.lagerplatz.lower():
             return
 
         stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
                                       lagerplatz=self.lagerplatz).exclude(id=self.id)
 
         if stocks.count() > 0:
-            raise ValidationError(_('Lagerbestand schon vorhanden'))
+            stock_html = "<h1>Lagerbestand schon vorhanden</h1>" \
+                         "<table class='table table-bordered'>" \
+                         "<thead>" \
+                         "<tr>" \
+                         "<th></th><th>EAN</th><th>Lagerplatz</th><th>Zustand</th><th>IST Bestand</th>"\
+                         "</tr>" \
+                         "</thead>"\
+                         "<tbody>"
+            for stock in stocks:
+                stock_html = stock_html + f"<tr>" \
+                                          "<td><a href=" + "'{% " f"url 'stock:edit' pk={stock.id}" + " %}'" + ">Bearbeiten</a></td>" \
+                                          f"<td>{stock.ean_vollstaendig}</td>" \
+                                          f"<td>{stock.lagerplatz}</td>" \
+                                          f"<td>{stock.zustand}</td>" \
+                                          f"<td>{stock.bestand}</td>" \
+                                          f"</tr>"
+            stock_html = stock_html + "</tbody></table>"
+            c = Context({'unique_message': 'Your message'})
+            raise ValidationError(Template(stock_html).render(c))
 
     def total_amount_ean(self):
         total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))

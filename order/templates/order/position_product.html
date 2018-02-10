@@ -1,0 +1,23 @@
+<h1>Zur Positionieren </h1>
+{% for book in Positionen %}
+    {{ book }}
+     <br>
+{% endfor %}
+
+
+<h1>Alle </h1>
+{% for book in alle %}
+    {{ book }}
+     <br>
+{% endfor %}
+
+
+
+<h1>Am Wareneingang </h1>
+{% for book in we %}
+    {{ book }}
+     <br>
+{% endfor %}
+
+
+ <a href="{% url 'order:apilistforProduct' pk=2 %}" class="btn btn-success" id="scan_btn">SCAN<a>

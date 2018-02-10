@@ -6,4 +6,4 @@ from django import forms
 class StockdocumentForm(ModelForm):
     class Meta:
         model = Stockdocument
-        exclude = ['id', ]
+        exclude = ["id,"]

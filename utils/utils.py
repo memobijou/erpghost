@@ -9,6 +9,119 @@ from io import BytesIO
 from django.http import HttpResponse
 from django.template.loader import get_template
 
+from picklist.models import Picklist
+from order.models import Order, ProductOrder,PositionProductOrder,PositionProductOrderPicklist
+from position.models import Position
+
+
+
+def search_all_wareneingang_products():
+    all_positions = Position.objects.all()
+    wePosition = Position.objects.get(halle="WE")
+    zurPostion = PositionProductOrder.objects.filter(positions=wePosition)
+    gefunden_array = []
+    for pro in zurPostion:
+        count = 0
+        if hasattr(pro.productorder.product, "masterdata"):
+            lastpos = ""
+            while count < pro.amount:
+                gefunden = False
+                for p in all_positions:
+                    # print(pro.productorder.product.masterdata.calc_volume)
+                    if (p.available_volume >= pro.productorder.product.masterdata.calc_volume):
+                        if lastpos == p:
+                            myid = PositionProductOrder.objects.latest('id')
+                            save_ = PositionProductOrder.objects.filter(id=myid.id).first()
+                            save_.amount += 1
+                            save_.save()
+                            save_1 = PositionProductOrder.objects.filter(positions=wePosition,productorder=pro.productorder).first()
+                            save_1.amount -= 1
+                            save_1.save()
+                        else:
+                            save_ = PositionProductOrder.objects.filter(positions=wePosition,productorder=pro.productorder).first()
+                            save_.amount -= 1
+                            save_.save()
+                            saveToObjectWE = PositionProductOrder(productorder=pro.productorder, amount=1, status=False,positions=p)
+                            saveToObjectWE.save()
+                        gefunden = True
+                        lastpos = p
+                        gefunden_array.append(saveToObjectWE.id)
+                        break
+                if gefunden == False:
+                    pass
+                count = count + 1
+        else:
+            print("kein masterdata")
+
+    return (gefunden_array)
+
+def search_positions_for_order(ordernummer):
+    all_positions = Position.objects.all()
+    wePosition = Position.objects.get(halle="WE")
+    order = Order.objects.get(id=ordernummer)
+    order_products = order.productorder_set.filter(confirmed=True)
+    gefundenarray = []
+    allemyarray = []
+    for pro in order_products:
+        allemyarray.append(pro.id)
+        count = 0
+        if hasattr(pro.product, "masterdata"):
+            lastpos = ""
+            vorhanden = PositionProductOrder.objects.filter(productorder=pro).exists()
+            if vorhanden == False:
+                while count < pro.real_amount:
+                    gefunden = False
+                    for p in all_positions:
+                        if (p.available_volume >= pro.product.masterdata.calc_volume):
+                            if lastpos == p:
+                                myid = PositionProductOrder.objects.latest('id')
+                                save_ = PositionProductOrder.objects.filter(id=myid.id).first()
+                                save_.amount += 1
+                                save_.save()
+                            else:
+                                saveToObject = PositionProductOrder(productorder=pro, amount=1, status=False,
+                                                                    positions=p)
+                                saveToObject.save()
+                            gefunden = True
+                            lastpos = p
+                            gefundenarray.append(pro.id)
+                            break
+                    if gefunden == False:
+                        if lastpos == wePosition:
+                            myid = PositionProductOrder.objects.latest('id')
+                            save_ = PositionProductOrder.objects.filter(id=myid.id).first()
+                            save_.amount += 1
+                            save_.save()
+                        else:
+                            saveToObjectWE = PositionProductOrder(productorder=pro, amount=1, status=False,
+                                                                  positions=wePosition)
+                            saveToObjectWE.save()
+                        lastpos = wePosition
+                    count = count + 1
+            else:
+                print("SCHON VORHANDEN")
+        else:
+            print("kein masterdata")
+
+    return (gefundenarray,allemyarray)
+
+def save_picklist(thelist,ordername,position):
+    thelist = list(set(thelist))
+    zurPostion = PositionProductOrder.objects.filter(productorder__in=thelist).exclude(positions=position).exclude(status=True)
+    pickliste = Picklist()
+    pickliste.bestellungsnummer = ordername
+    pickliste.comment = True
+    pickliste.save()
+    myid = Picklist.objects.latest('id')
+    for i in zurPostion:
+        pos = PositionProductOrderPicklist()
+        pos.positionproductorder = i
+        pos.picklist = myid
+        pos.comment = ""
+        pos.pickerid = ""
+        pos.belegt = False
+        pos.save()
+    return zurPostion
 
 class BaseValidationError(ValueError):
     pass
@@ -255,6 +368,8 @@ def handle_pagination(queryset, request, results_per_page):
 
 
 def set_paginated_queryset_onview(queryset, request, results_per_page, context):
+    if not context["object_list"]:
+        return
     context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
     if context["object_list_as_json"]:

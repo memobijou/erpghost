@@ -6,6 +6,8 @@ from product.models import Product
 from invoice.models import Invoice
 from supplier.models import Supplier
 from django.core.exceptions import ValidationError
+from position.models import Position
+from picklist.models import Picklist
 
 
 # Create your models here.
@@ -97,3 +99,32 @@ class InvoiceOrder(models.Model):
 
     def __str__(self):
         return str(self.invoice) + ":" + str(self.order)
+
+
+class PositionProductOrder(models.Model):
+    productorder = models.ForeignKey(ProductOrder, on_delete=models.CASCADE,blank=True, null=True)
+    amount = models.IntegerField(null=False, blank=False, default=0)
+    positions = models.ForeignKey(Position, on_delete=models.CASCADE,blank=True, null=True)
+    CHOICES = (
+        (None, "----"),
+        (True, "Position"),
+        (False, "WE")
+    )
+    status = models.NullBooleanField(choices=CHOICES)
+
+    def __str__(self):
+        return str(self.productorder) + " : " + str(self.amount) + " : " + str(self.positions) + " : " + str(self.status)
+
+
+class PositionProductOrderPicklist(models.Model):
+    positionproductorder = models.ForeignKey(PositionProductOrder, on_delete=models.CASCADE,blank=True, null=True,related_name='positionsproduct')
+    picklist = models.ForeignKey(Picklist, on_delete=models.CASCADE, blank=True, null=True,related_name='artikeln')
+    comment = models.CharField(max_length=13)
+    pickerid = models.CharField(max_length=13)
+    belegt = models.NullBooleanField()
+
+    def __str__(self):
+        return str(self.positionproductorder) + " : " + str(self.picklist) + " : " + str(self.comment) + " : " + str(self.pickerid)
+
+    def __unicode__(self):
+        return '%d: %s' % (self.picklist, self.positionproductorder)

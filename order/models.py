@@ -5,6 +5,7 @@ from django.core.urlresolvers import reverse
 from product.models import Product
 from invoice.models import Invoice
 from supplier.models import Supplier
+from django.core.exceptions import ValidationError
 
 
 # Create your models here.
@@ -62,7 +63,7 @@ class ProductOrder(models.Model):
             all_scanned = False
         for product_order in product_orders:
             if self.id != product_order.id:
-                if product_order.confirmed == True or product_order.confirmed == False:
+                if product_order.confirmed is True or product_order.confirmed is False:
                     self.order.status = "WARENEINGANG"
                 else:
                     all_scanned = False
@@ -71,6 +72,10 @@ class ProductOrder(models.Model):
             self.order.status = "POSITIONIEREN"
         self.order.save()
         super(ProductOrder, self).save(*args, **kwargs)
+
+    def clean(self):
+        if self.amount == "0":
+            raise ValidationError('Draft entries may not have a publication date.')
 
     @property
     def real_amount(self):

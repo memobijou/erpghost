@@ -11,7 +11,7 @@ class OrderForm(forms.ModelForm):
 
     class Meta:
         model = Order
-        fields = ['ordernumber', 'delivery_date', 'verified']
+        fields = ['delivery_date', 'verified']
         labels = {
             "status": "Status",
             'ordernumber': "Bestellnummer",

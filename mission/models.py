@@ -2,11 +2,12 @@ from django.db import models
 import datetime
 from django.core.urlresolvers import reverse
 from product.models import Product
+from datetime import date
 
 
 # Create your models here.
 class Mission(models.Model):
-    mission_number = models.CharField(max_length=13)
+    mission_number = models.CharField(max_length=13, blank=True)
     delivery_date = models.DateField(default=datetime.date.today)
     status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN")
     products = models.ManyToManyField(Product, through="ProductMission")
@@ -42,7 +43,12 @@ class Mission(models.Model):
                         self.status = "AKZEPTIERT"
                     elif self.verified is False:
                         self.status = "ABGELEHNT"
-        super(Mission, self).save(force_insert=False, force_update=False, *args, **kwargs)
+
+        if self.mission_number == "":
+            today = date.today().strftime('%d%m%y')
+            count = Mission.objects.filter(mission_number__icontains=today).count()+1
+            self.mission_number = f"A{today}-{count}"
+        super().save(force_insert=False, force_update=False, *args, **kwargs)
 
     def __str__(self):
         return self.mission_number

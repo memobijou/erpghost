@@ -8,12 +8,13 @@ from supplier.models import Supplier
 from django.core.exceptions import ValidationError
 from position.models import Position
 from picklist.models import Picklist
+from datetime import date
 
 
 # Create your models here.
 
 class Order(models.Model):
-    ordernumber = models.CharField(max_length=13)
+    ordernumber = models.CharField(max_length=13, blank=True)
     delivery_date = models.DateField(default=datetime.date.today)
     status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN")
     supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order')
@@ -38,12 +39,19 @@ class Order(models.Model):
 
     def save(self, force_insert=False, force_update=False, *args, **kwargs):
         if self.__original_verified != self.verified:
-            if self.verified == True:
+            if self.verified is True:
                 # name changed - do something here
                 self.status = "AKZEPTIERT"
-            elif self.verified == False:
+            elif self.verified is False:
                 self.status = "ABGELEHNT"
-        super(Order, self).save(force_insert=False, force_update=False, *args, **kwargs)
+
+        if self.ordernumber == "":
+            today = date.today().strftime('%d%m%y')
+            count = Order.objects.filter(ordernumber__icontains=today).count()+1
+            self.ordernumber = f"B{today}-{count}"
+            print(f"****: {self.ordernumber}")
+
+        super().save(force_insert=False, force_update=False, *args, **kwargs)
 
 
 class ProductOrder(models.Model):
@@ -74,10 +82,6 @@ class ProductOrder(models.Model):
             self.order.status = "POSITIONIEREN"
         self.order.save()
         super(ProductOrder, self).save(*args, **kwargs)
-
-    def clean(self):
-        if self.amount == "0":
-            raise ValidationError('Draft entries may not have a publication date.')
 
     @property
     def real_amount(self):

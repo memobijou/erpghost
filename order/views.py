@@ -65,7 +65,7 @@ class ScanOrderUpdateView(UpdateView):
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(ScanOrderUpdateView, self).get_context_data(*args, **kwargs)
+        context = super(ScanOrderUpdateView, self).get_context_data(**kwargs)
         context["object"] = self.get_object(*args, **kwargs)
 
         product_orders = context["object"].productorder_set.all()
@@ -77,7 +77,8 @@ class ScanOrderUpdateView(UpdateView):
                                    exclude_fields=["id"], exclude_filter_fields=["id"])
 
             set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,
-                                   exclude_fields=["id", "order", "positionproductorder"], exclude_filter_fields=["id", "order"],
+                                   exclude_fields=["id", "order", "positionproductorder"],
+                                   exclude_filter_fields=["id", "order"],
                                    template_tagname="product_order_field_names",
                                    allow_related=True)
         else:
@@ -107,16 +108,13 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     login_url = "/login/"
     form_class = OrderForm
 
-    def get_object(self):
+    def get_object(self, *args, **kwargs):
         object = Order.objects.get(id=self.kwargs.get("pk"))
         return object
 
-    def dispatch(self, request, *args, **kwargs):
-        return super(OrderUpdateView, self).dispatch(request, *args, **kwargs)
-
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderUpdateView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Bestellung bearbeiten"
+        context = super(OrderUpdateView, self).get_context_data(**kwargs)
+        context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
         if self.request.POST:
             formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
@@ -143,7 +141,7 @@ class OrderCreateView(CreateView):
     form_class = OrderForm
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderCreateView, self).get_context_data(*args, **kwargs)
+        context = super(OrderCreateView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
         formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3,
@@ -170,12 +168,12 @@ class OrderCreateView(CreateView):
 
 
 class OrderDetailView(DetailView):
-    def get_object(self):
+    def get_object(self, *args, **kwargs):
         obj = get_object_or_404(Order, pk=self.kwargs.get("pk"))
         return obj
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderDetailView, self).get_context_data(*args, **kwargs)
+        context = super(OrderDetailView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung " + context["object"].ordernumber
         set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
@@ -188,7 +186,7 @@ class OrderListView(ListView):
         return queryset
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderListView, self).get_context_data(*args, **kwargs)
+        context = super(OrderListView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung"
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,
                                exclude_fields=["id", "products", "verified"],
@@ -197,7 +195,7 @@ class OrderListView(ListView):
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
         context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT", "ABGELEHNT",
-                                                "WARENEINGANG", "WARENAUSGANG", "POSITIONIEREN"], }]
+                                                "WARENEINGANG", "POSITIONIEREN"], }]
 
         return context
 

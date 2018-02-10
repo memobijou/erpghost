@@ -11,7 +11,7 @@ class MissionForm(forms.ModelForm):
 
     class Meta:
         model = Mission
-        fields = ['mission_number', 'delivery_date', 'verified', 'pickable']
+        fields = ['delivery_date', 'verified', 'pickable']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 

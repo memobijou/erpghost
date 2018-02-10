@@ -119,11 +119,6 @@ def to_class_name(value):
 def to_json(query_dict):
     meta = query_dict[0].__class__._meta
     field_names = meta.get_fields()
-    print(f"{query_dict}")
-    print("FIELD NAMES: " + str(field_names))
-
-    for item in query_dict:
-        print("ITEM: " + str(item.product))
     result = []
     for q in query_dict:
         dict_ = {}
@@ -132,7 +127,6 @@ def to_json(query_dict):
                 dict_[field.name] = getattr(q, field.name)
         if dict_:
             result.append(dict_)
-    print(result)
     return result
 
 

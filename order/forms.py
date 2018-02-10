@@ -20,9 +20,5 @@ class OrderForm(forms.ModelForm):
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 
-# inline_order = modelform_factory(Order, exclude=('id', 'products'),\
-# 				 widgets={'delivery_date': forms.DateInput(attrs={"class": "datepicker"})})
-
-
 ProductOrderFormsetInline = inlineformset_factory(Order, ProductOrder, can_delete=True, extra=1,
                                                   exclude=["id", "missing_amount", "confirmed"])

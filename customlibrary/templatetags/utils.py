@@ -126,12 +126,12 @@ def to_json(query_dict):
         print("ITEM: " + str(item.product))
     result = []
     for q in query_dict:
+        dict_ = {}
         for field in field_names:
-            dict_ = {}
             if hasattr(q, field.name):
                 dict_[field.name] = getattr(q, field.name)
-            if dict_:
-                result.append(dict_)
+        if dict_:
+            result.append(dict_)
     print(result)
     return result
 

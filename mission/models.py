@@ -25,22 +25,22 @@ class Mission(models.Model):
 
     def save(self, force_insert=False, force_update=False, *args, **kwargs):
         if self.__original_verified != self.verified:
-            if self.verified == True:
+            if self.verified is True:
                 # name changed - do something here
                 self.status = "AKZEPTIERT"
-            elif self.verified == False:
+            elif self.verified is False:
                 self.status = "ABGELEHNT"
-        if self.verified == True:
+        if self.verified is True:
             if self.__original_pickable != self.pickable:
-                if self.pickable == True:
+                if self.pickable is True:
                     self.status = "PICKBEREIT"
-                elif self.pickable == False:
+                elif self.pickable is False:
                     self.status = "AUSSTEHEND"
                 else:
-                    if self.verified == True:
+                    if self.verified is True:
                         # name changed - do something here
                         self.status = "AKZEPTIERT"
-                    elif self.verified == False:
+                    elif self.verified is False:
                         self.status = "ABGELEHNT"
         super(Mission, self).save(force_insert=False, force_update=False, *args, **kwargs)
 
@@ -60,7 +60,7 @@ class ProductMission(models.Model):
     confirmed = models.NullBooleanField()
 
     def __str__(self):
-        return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
+        return str(self.product) + " : " + str(self.mission) + " : " + str(self.amount)
 
     @property
     def real_amount(self):

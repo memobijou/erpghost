@@ -77,7 +77,7 @@ class ScanOrderUpdateView(UpdateView):
                                    exclude_fields=["id"], exclude_filter_fields=["id"])
 
             set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,
-                                   exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"],
+                                   exclude_fields=["id", "order", "positionproductorder"], exclude_filter_fields=["id", "order"],
                                    template_tagname="product_order_field_names",
                                    allow_related=True)
         else:

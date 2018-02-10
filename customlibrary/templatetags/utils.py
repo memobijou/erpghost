@@ -14,7 +14,6 @@ register.filter('getattr', getattribute)
 
 
 def callattr(value, args):
-    # print("aaaa: : " + str(value) + " : " + str(args))
     if args in value:
         print("CALLATTR*******" + str(value[args]()))
         return value[args]()
@@ -23,9 +22,9 @@ def callattr(value, args):
 register.filter('callattr', callattr)
 
 
-def get_from_model(value, args):
-    # print("aaaa: : " + str(value) + " : " + str(args))
-    return getattr(value, args)
+def get_from_model(value, arg):
+    if hasattr(value, arg):
+        return getattr(value, arg)
 
 
 register.filter('get_from_model', get_from_model)
@@ -119,15 +118,21 @@ def to_class_name(value):
 
 def to_json(query_dict):
     meta = query_dict[0].__class__._meta
-    model = meta.model_name
     field_names = meta.get_fields()
+    print(f"{query_dict}")
     print("FIELD NAMES: " + str(field_names))
 
     for item in query_dict:
         print("ITEM: " + str(item.product))
-    result = [{field.name: getattr(q, field.name) for field in field_names} for q in query_dict]
-    print(str(result))
-    print("TEST : " + str(result[0]["product"].id))
+    result = []
+    for q in query_dict:
+        for field in field_names:
+            dict_ = {}
+            if hasattr(q, field.name):
+                dict_[field.name] = getattr(q, field.name)
+            if dict_:
+                result.append(dict_)
+    print(result)
     return result
 
 

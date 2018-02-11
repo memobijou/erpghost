@@ -40,7 +40,8 @@ class MissionListView(ListView):
         if context["object_list"].count() > 0:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
-        context["option_fields"] = [{"status": ["WARENAUSGANG", "AKZEPTIERT", "ABGELEHNT", "PICKBEREIT", "AUSSTEHEND"]}]
+        context["option_fields"] = [
+            {"status": ["WARENAUSGANG", "AKZEPTIERT", "ABGELEHNT", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "VERSANDBEREIT"]}]
         return context
 
 

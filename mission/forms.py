@@ -4,7 +4,7 @@ from django.forms import modelform_factory, inlineformset_factory
 
 
 class MissionForm(forms.ModelForm):
-    delivery_date = forms.DateField(input_formats=['%d/%m/%Y'], \
+    delivery_date = forms.DateField(input_formats=['%d/%m/%Y'],
                                     widget=forms.DateTimeInput(format='%d/%m/%Y', attrs={
                                         'class': 'datepicker'
                                     }))

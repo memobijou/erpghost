@@ -24,30 +24,18 @@ class Mission(models.Model):
         self.__original_verified = self.verified
         self.__original_pickable = self.pickable
 
-    def save(self, force_insert=False, force_update=False, *args, **kwargs):
+    def save(self, *args, **kwargs):
         if self.__original_verified != self.verified:
             if self.verified is True:
-                # name changed - do something here
                 self.status = "AKZEPTIERT"
             elif self.verified is False:
                 self.status = "ABGELEHNT"
-        if self.verified is True:
-            if self.__original_pickable != self.pickable:
-                if self.pickable is True:
-                    self.status = "PICKBEREIT"
-                elif self.pickable is False:
-                    self.status = "AUSSTEHEND"
-                else:
-                    if self.verified is True:
-                        # name changed - do something here
-                        self.status = "AKZEPTIERT"
-                    elif self.verified is False:
-                        self.status = "ABGELEHNT"
 
-        # for product_mission in self.productmission_set.all():
-        #     if product_mission.confirmed is True or product_mission.confirmed is False:
-        #         self.status = "WARENAUSGANG"
-        #         break
+        if self.__original_pickable != self.pickable:
+            if self.pickable is True and self.verified is True:
+                    self.status = "PICKBEREIT"
+            elif self.pickable is False:
+                self.status = "AUSSTEHEND"
 
         if self.mission_number == "":
             today = date.today().strftime('%d%m%y')
@@ -84,6 +72,7 @@ class ProductMission(models.Model):
         product_missions = self.mission.productmission_set.all()
         all_scanned = True
         if self.confirmed == "1" or self.confirmed == "0":
+            print("????????????????????????")
             self.mission.status = "WARENAUSGANG"
         else:
             all_scanned = False

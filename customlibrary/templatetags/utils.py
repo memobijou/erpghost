@@ -131,3 +131,11 @@ def to_json(query_dict):
 
 
 register.filter('to_json', to_json)
+
+
+@register.filter
+def has_group(request, name):
+    for group in request.user.groups.all():
+        if group.name == name:
+            return True
+    return False

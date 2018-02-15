@@ -18,17 +18,16 @@
                 {% for hidden in formset.hidden_fields %}
                     {{ hidden }}
                 {% endfor %}
-
+                <br/><br/>
                 <span class="glyphicon glyphicon-plus" ng-click="addRow(
 					{% for manage_field in formset.management_form %}
 						{% if 'TOTAL_FORMS' in manage_field.auto_id %}
 							'{{ manage_field.auto_id }}'
-						{% endif %} 
+						{% endif %}
 					{% endfor %}
 				)" style="cursor:pointer;" value="+"></span>
-                <br/>
-                <br/>
-
+                <br/> <br/>
+                
                 <table class="table table-bordered">
 
                 <thead>

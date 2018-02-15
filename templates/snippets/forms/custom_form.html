@@ -1,11 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
 <div ng-app="ng_matchproduct" ng-controller="match_ctrl as m_ctrl">
     <form method="POST" id="main_form"> {% csrf_token %}
         <div class="table-bordered" style="padding:25px;background-color:white;">
-            {% for field in form %}
-                <div style="color:red">{{ field.errors }}</div>
-                {{ field.label_tag }} {{ field }}
-            {% endfor %}
+            {% block form %}
 
+            {% endblock %}
             {% include "./formset_table.html" %}
             <button class="btn btn-primary" ng-submit="submit()" id="submit_btn" ng-disabled="has_exception">Speichern
             </button>
@@ -21,3 +21,5 @@
         main_form.submit();
     };
 </script>
+
+{% endblock %}

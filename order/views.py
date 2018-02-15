@@ -1,39 +1,38 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, TemplateView, FormView
-from order.models import Order, ProductOrder,PositionProductOrder,PositionProductOrderPicklist
+from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from order.models import Order, ProductOrder, PositionProductOrder
 from position.models import Position
 from order.forms import OrderForm, ProductOrderFormsetInline
-from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview,save_picklist,search_positions_for_order,search_all_wareneingang_products
-from order.serializers import OrderSerializer,PositionProductOrderSerializer
+from utils.utils import set_field_names_onview, set_paginated_queryset_onview, \
+    filter_queryset_from_request, set_object_ondetailview, save_picklist, search_positions_for_order, \
+    search_all_wareneingang_products
+from order.serializers import OrderSerializer, PositionProductOrderSerializer
 from rest_framework.generics import ListAPIView
 from django.forms import modelform_factory, inlineformset_factory
-from django import forms
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.models import AnonymousUser
-from django.db.models import Q
 from picklist.models import Picklist
+
 
 # search position for product which are on Wareneingang
 def search_after_product_on_we(request):
     wePosition = Position.objects.get(halle="WE")
-
     gefunden_array = search_all_wareneingang_products()
 
     if len(gefunden_array) != 0:
-        positions_products = save_picklist(gefunden_array,"Wareneingang", wePosition)
+        positions_products = save_picklist(gefunden_array, "Wareneingang", wePosition)
     else:
         positions_products = "NIX NEUES"
 
     wareneingang_products = PositionProductOrder.objects.filter(positions=wePosition)
 
     context = {"Positionen": positions_products,
-               "we":wareneingang_products
+               "we": wareneingang_products
                }
     return render(request, "order/position_product.html", context)
 
+
 # function to search avaialble postion for productorder.
-def search_positions(request,ordernummer):
+def search_positions(request, ordernummer):
     order = Order.objects.get(id=ordernummer)
     wePosition = Position.objects.get(halle="WE")
 
@@ -42,7 +41,7 @@ def search_positions(request,ordernummer):
     alle = all[1]
 
     if len(gefunden) != 0:
-        positions_products_new = save_picklist(gefunden,order,wePosition)
+        positions_products_new = save_picklist(gefunden, order, wePosition)
     else:
         positions_products_new = "NIX neues"
 
@@ -57,7 +56,7 @@ def search_positions(request,ordernummer):
     return render(request, "order/position_product.html", context)
 
 
-class ScanOrderTemplateView(UpdateView):
+class ScanOrderUpdateView(UpdateView):
     template_name = "order/scan_order.html"
     form_class = modelform_factory(ProductOrder, fields=("confirmed",))
 
@@ -66,7 +65,7 @@ class ScanOrderTemplateView(UpdateView):
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(ScanOrderTemplateView, self).get_context_data(*args, **kwargs)
+        context = super(ScanOrderUpdateView, self).get_context_data(**kwargs)
         context["object"] = self.get_object(*args, **kwargs)
 
         product_orders = context["object"].productorder_set.all()
@@ -74,12 +73,13 @@ class ScanOrderTemplateView(UpdateView):
         context["product_orders"] = product_orders
 
         if product_orders.count() > 0:
-            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order, \
+            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,
                                    exclude_fields=["id"], exclude_filter_fields=["id"])
 
-            set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder, \
-                                   exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"],
-                                   template_tagname="product_order_field_names", \
+            set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,
+                                   exclude_fields=["id", "order", "positionproductorder"],
+                                   exclude_filter_fields=["id", "order"],
+                                   template_tagname="product_order_field_names",
                                    allow_related=True)
         else:
             context["product_orders"] = None
@@ -88,90 +88,19 @@ class ScanOrderTemplateView(UpdateView):
     def form_valid(self, form, *args, **kwargs):
         object = form.save()
 
-        context = self.get_context_data(*args, **kwargs)
-
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
 
         for product_order in object.productorder_set.all():
-            print("FFFFFF: " + str(product_order.pk) + " : " + str(product_id))
-
             if str(product_order.pk) == str(product_id):
-                print("PPPPPP: " + str(product_order.pk) + " : " + str(product_id))
                 if confirmed_bool == "0":
                     product_order.missing_amount = missing_amount
                 elif confirmed_bool == "1":
                     product_order.missing_amount = None
                 product_order.confirmed = confirmed_bool
                 product_order.save()
-                print("WHAAT: " + str(product_order))
-
-        print("BRAND NEW: " + str(confirmed_bool) + " : " + str(product_id))
-        print("****************************CONFIRMED: " + str(self.request.POST.get("confirmed")))
         return HttpResponseRedirect("")
-
-
-# def ScanOrderTemplateView(request, *args, **kwargs):
-# 	if request.method == "POST":
-
-
-# 	context = {}
-
-# 	object = Order.objects.get(pk=kwargs.get("pk"))
-
-# 	context["object"] = object
-
-# 	product_orders = context["object"].productorder_set.all()
-
-# 	context["product_orders"] = product_orders
-
-
-# 	if product_orders.count() > 0:
-# 		set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
-# 		exclude_fields=["id"], exclude_filter_fields=["id"])
-
-# 		set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
-# 		exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
-# 					allow_related=True)
-# 	else:
-# 		context["product_orders"] = None
-
-
-# 	return render(request, "order/scan_order.html", context )
-
-
-# class ScanOrderTemplateView(TemplateView):
-# 	template_name = "order/scan_order.html"
-# 	def get_object(self, *args, **kwargs):
-# 		object = Order.objects.get(pk=self.kwargs.get("pk"))
-# 		return object
-
-# 	def get_context_data(self, *args, **kwargs):
-# 		context = super(ScanOrderTemplateView, self).get_context_data(*args, **kwargs)
-# 		context["object"] = self.get_object(*args, **kwargs)
-
-# 		product_orders = context["object"].productorder_set.all()
-
-# 		context["product_orders"] = product_orders
-
-# 		print("*********************: " + str(product_orders.count()))
-
-# 		if product_orders.count() > 0:
-
-# 			set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,\
-# 		    exclude_fields=["id"], exclude_filter_fields=["id"])
-
-# 			set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,\
-# 		    exclude_fields=["id", "order"], exclude_filter_fields=["id", "order"], template_tagname="product_order_field_names",\
-# 		    				allow_related=True)
-# 		else:
-# 			context["product_orders"] = None
-
-# 		return context
-
-# 	def post(self, request, *args, **kwargs):
-# 		return HttpResponseRedirect(self.success_url)
 
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):
@@ -179,28 +108,19 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     login_url = "/login/"
     form_class = OrderForm
 
-    def get_object(self):
+    def get_object(self, *args, **kwargs):
         object = Order.objects.get(id=self.kwargs.get("pk"))
         return object
 
-    def dispatch(self, request, *args, **kwargs):
-        # request.user = AnonymousUser()
-        return super(OrderUpdateView, self).dispatch(request, *args, **kwargs)
-
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderUpdateView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Bestellung bearbeiten"
+        context = super(OrderUpdateView, self).get_context_data(**kwargs)
+        context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        # if self.request.POST:
-        # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
-        # else:
         if self.request.POST:
             formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
         else:
             formset = ProductOrderFormsetInline(instance=self.object)
         context["formset"] = formset
-        print("++++++++++++" + str(formset))
-
         return context
 
     def form_valid(self, form, *args, **kwargs):
@@ -221,18 +141,16 @@ class OrderCreateView(CreateView):
     form_class = OrderForm
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderCreateView, self).get_context_data(*args, **kwargs)
-        print("**context***" + str(context))
+        context = super(OrderCreateView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3, exclude=["id"])
+        formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3,
+                                              exclude=["id", "missing_amount", "confirmed"])
         if self.request.POST:
             formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
         else:
             formset = formset_class(instance=self.object)
-
         context["formset"] = formset
-
         return context
 
     def form_valid(self, form, *args, **kwargs):
@@ -250,47 +168,42 @@ class OrderCreateView(CreateView):
 
 
 class OrderDetailView(DetailView):
-
-    def get_object(self):
+    def get_object(self, *args, **kwargs):
         obj = get_object_or_404(Order, pk=self.kwargs.get("pk"))
         return obj
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderDetailView, self).get_context_data(*args, **kwargs)
+        context = super(OrderDetailView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung " + context["object"].ordernumber
-        set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"], \
+        set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         return context
 
 
 class OrderListView(ListView):
     def get_queryset(self):
-        # queryset = Order.objects.all()
-
         queryset = filter_queryset_from_request(self.request, Order)
         return queryset
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderListView, self).get_context_data(*args, **kwargs)
+        context = super(OrderListView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung"
-
-        # context["field_names"] = get_field_names(context["object_list"], ["id"])
-        # context["object_list_as_json"] = get_queries_as_json(context["object_list"])
-
-        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order, \
+        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,
                                exclude_fields=["id", "products", "verified"],
                                exclude_filter_fields=["id", "products", "verified"])
 
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
         context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT", "ABGELEHNT",
-                                                "WARENEINGANG", "WARENAUSGANG", "POSITIONIEREN"], }]
+                                                "WARENEINGANG", "POSITIONIEREN"], }]
 
         return context
+
 
 class OrderListAPIView(ListAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
+
 
 class PositionProductOrderListAPIView(ListAPIView):
     queryset = Picklist.objects.all()

@@ -5,14 +5,16 @@ from django.core.urlresolvers import reverse
 from product.models import Product
 from invoice.models import Invoice
 from supplier.models import Supplier
+from django.core.exceptions import ValidationError
 from position.models import Position
 from picklist.models import Picklist
+from datetime import date
 
 
 # Create your models here.
 
 class Order(models.Model):
-    ordernumber = models.CharField(max_length=13)
+    ordernumber = models.CharField(max_length=13, blank=True)
     delivery_date = models.DateField(default=datetime.date.today)
     status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN")
     supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order')
@@ -37,12 +39,17 @@ class Order(models.Model):
 
     def save(self, force_insert=False, force_update=False, *args, **kwargs):
         if self.__original_verified != self.verified:
-            if self.verified == True:
+            if self.verified is True:
                 # name changed - do something here
                 self.status = "AKZEPTIERT"
-            elif self.verified == False:
+            elif self.verified is False:
                 self.status = "ABGELEHNT"
-        super(Order, self).save(force_insert=False, force_update=False, *args, **kwargs)
+
+        if self.ordernumber == "":
+            today = date.today().strftime('%d%m%y')
+            count = Order.objects.filter(ordernumber__icontains=today).count()+1
+            self.ordernumber = f"B{today}-{count}"
+        super().save(force_insert=False, force_update=False, *args, **kwargs)
 
 
 class ProductOrder(models.Model):
@@ -64,11 +71,10 @@ class ProductOrder(models.Model):
             all_scanned = False
         for product_order in product_orders:
             if self.id != product_order.id:
-                if product_order.confirmed == True or product_order.confirmed == False:
+                if product_order.confirmed is True or product_order.confirmed is False:
                     self.order.status = "WARENEINGANG"
                 else:
                     all_scanned = False
-
         if all_scanned and product_orders.exists():
             self.order.status = "POSITIONIEREN"
         self.order.save()
@@ -109,6 +115,7 @@ class PositionProductOrder(models.Model):
 
     def __str__(self):
         return str(self.productorder) + " : " + str(self.amount) + " : " + str(self.positions) + " : " + str(self.status)
+
 
 class PositionProductOrderPicklist(models.Model):
     positionproductorder = models.ForeignKey(PositionProductOrder, on_delete=models.CASCADE,blank=True, null=True,related_name='positionsproduct')

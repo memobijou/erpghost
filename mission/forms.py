@@ -4,15 +4,16 @@ from django.forms import modelform_factory, inlineformset_factory
 
 
 class MissionForm(forms.ModelForm):
-    delivery_date = forms.DateField(input_formats=['%d/%m/%Y'], \
+    delivery_date = forms.DateField(input_formats=['%d/%m/%Y'],
                                     widget=forms.DateTimeInput(format='%d/%m/%Y', attrs={
                                         'class': 'datepicker'
                                     }))
 
     class Meta:
         model = Mission
-        fields = ['mission_number', 'delivery_date', 'verified', 'pickable']
+        fields = ['delivery_date', 'verified', 'pickable']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 
-ProductMissionFormsetInline = inlineformset_factory(Mission, ProductMission, can_delete=True, extra=1, exclude=["id"])
+ProductMissionFormsetInline = inlineformset_factory(Mission, ProductMission, can_delete=True, extra=1,
+                                                    exclude=["id", "missing_amount", "confirmed"])

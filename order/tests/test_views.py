@@ -3,7 +3,7 @@ from mixer.backend.django import mixer
 
 pytestmark = pytest.mark.django_db  # verhindert das nix in datenbank geschrieben wird
 from django.test import RequestFactory
-from order.views import OrderUpdateView, ScanOrderTemplateView
+from order.views import OrderUpdateView, ScanOrderUpdateView
 from django.contrib.auth.models import AnonymousUser
 from django.test import Client
 from django.contrib import auth
@@ -30,7 +30,7 @@ class TestScanOrderTemplateView:
         order_object = mixer.blend("order.Order")
 
         request = RequestFactory().get("/")
-        response = ScanOrderTemplateView.as_view()(request, pk=order_object.pk)
+        response = ScanOrderUpdateView.as_view()(request, pk=order_object.pk)
         assert response.status_code == 200, "should return 200 Status"
 
     def test_scan_order_view_POST_change_confirmed_from_none_to_true(self):
@@ -39,7 +39,7 @@ class TestScanOrderTemplateView:
 
         data = {"confirmed": 1, "product_id": product.pk}
         request = RequestFactory().post("/", data=data)
-        response = ScanOrderTemplateView.as_view()(request, pk=order_object.pk)
+        response = ScanOrderUpdateView.as_view()(request, pk=order_object.pk)
         assert response.status_code == 302, "should redirect to GET page so should be 302 status"
         order_object.refresh_from_db()
         updated_product_order = order_object.productorder_set.all()[0]

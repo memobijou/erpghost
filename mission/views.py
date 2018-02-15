@@ -26,16 +26,12 @@ class MissionDetailView(DetailView):
 
 class MissionListView(ListView):
     def get_queryset(self):
-        # queryset = Order.objects.all()
         queryset = filter_queryset_from_request(self.request, Mission)
         return queryset
 
     def get_context_data(self, *args, **kwargs):
         context = super(MissionListView, self).get_context_data(*args, **kwargs)
         context["title"] = "Auftrag"
-
-        # context["field_names"] = get_field_names(context["object_list"], ["id"])
-        # context["object_list_as_json"] = get_queries_as_json(context["object_list"])
 
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission, \
                                exclude_fields=["id", "verified", "pickable"],
@@ -44,9 +40,8 @@ class MissionListView(ListView):
         if context["object_list"].count() > 0:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
-        context["option_fields"] = [{"status": ["WARENEINGANG", "WARENAUSGANG", "AKZEPTIERT",
-                                                "ABGELEHNT", "PICKBEREIT", "AUSSTEHEND"]}]
-
+        context["option_fields"] = [
+            {"status": ["WARENAUSGANG", "AKZEPTIERT", "ABGELEHNT", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "VERSANDBEREIT"]}]
         return context
 
 
@@ -56,10 +51,10 @@ class MissionCreateView(CreateView):
 
     def get_context_data(self, *args, **kwargs):
         context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
-        print("**context***" + str(context))
         context["title"] = "Auftrag anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3, exclude=["id"])
+        formset_class = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3,
+                                              exclude=["id", "missing_amount", "confirmed"])
 
         if self.request.POST:
             formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
@@ -99,7 +94,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, *args, **kwargs):
         context = super(MissionUpdateView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Auftrag bearbeiten"
+        context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
         if self.request.POST:
             formset = ProductMissionFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
@@ -139,12 +134,12 @@ class ScanMissionTemplateView(UpdateView):
 
         if product_missions.count() > 0:
 
-            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Mission, \
+            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Mission,
                                    exclude_fields=["id"], exclude_filter_fields=["id"])
 
-            set_field_names_onview(queryset=product_missions, context=context, ModelClass=ProductMission, \
+            set_field_names_onview(queryset=product_missions, context=context, ModelClass=ProductMission,
                                    exclude_fields=["id", "mission"], exclude_filter_fields=["id", "mission"],
-                                   template_tagname="product_mission_field_names", \
+                                   template_tagname="product_mission_field_names",
                                    allow_related=True)
         else:
             context["product_missions"] = None
@@ -153,9 +148,6 @@ class ScanMissionTemplateView(UpdateView):
 
     def form_valid(self, form, *args, **kwargs):
         object = form.save()
-
-        context = self.get_context_data(*args, **kwargs)
-
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")

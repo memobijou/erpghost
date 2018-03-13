@@ -490,26 +490,57 @@ def trim_dict(dict_):
 
 def filter_queryset_from_request(request, ModelClass):
     querystring = request.GET
-    print("*********##########" + str(querystring))
 
     if len(querystring) == 0:
         return ModelClass.objects.all()
 
     filter_dict = q_to_dict(querystring)
-    print("++++++++++++++++++++ " + str(filter_dict))
-
     filter_dict = trim_dict(filter_dict)
-    print("batatata " + str(filter_dict))
-    # filter_dict = {key: value for key, value in filter_dict.items() if key is not "page"}
-    # print("wff: "  + str(filter_dict))
+    filter_dict = exclude_non_model_keys_from_dict(filter_dict, ModelClass)
     if "page" in filter_dict:
-        # print("######################")
         filter_dict = {key: val for key, val in filter_dict.items() if key != "page"}
-    # print("BATATA: " + str(filter_dict))
     query_condition = build_query_condition(filter_dict, ModelClass)
     result = ModelClass.objects.filter(query_condition)
-    # print("AAAANNNNNN: " + str(result))
     return result
+
+
+def filter_complete_and_uncomplete_order_or_mission(request, queryset, model_class):
+    if request.GET.get("complete"):
+        complete_ids = []
+        uncomplete_ids = []
+        for order_or_mission in queryset:
+            is_complete = True
+            if hasattr(model_class, "productorder_set"):
+                order_or_mission_products = order_or_mission.productorder_set.all()
+            elif hasattr(model_class, "productmission_set"):
+                order_or_mission_products = order_or_mission.productmission_set.all()
+            else:
+                return queryset
+            for productresolution in order_or_mission_products:
+                if productresolution.confirmed is None or productresolution.confirmed is False:
+                    is_complete = False
+                    uncomplete_ids.append(order_or_mission.id)
+                    break
+            if is_complete is False:
+                continue
+            complete_ids.append(order_or_mission.id)
+        if request.GET.get("complete") == "VOLLSTÄNDIG":
+            queryset = queryset.filter(pk__in=complete_ids)
+        elif request.GET.get("complete") == "UNVOLLSTÄNDIG":
+            queryset = queryset.filter(pk__in=uncomplete_ids)
+    return queryset
+
+def exclude_non_model_keys_from_dict(dict_, model_class):
+    tmp_dict = {}
+    fields = model_class._meta.get_fields()
+    field_names = []
+    for field in fields:
+        field_names.append(field.name)
+    for key, val in dict_.items():
+        if key in field_names:
+            tmp_dict[key] = val
+    dict_ = tmp_dict
+    return dict_
 
 
 def set_object_ondetailview(context=None, ModelClass=None, exclude_fields=None, exclude_relations=None,
@@ -542,3 +573,26 @@ def get_and_condition_from_q(request):
 
         queries &= Q(**{pair: value})
     return queries
+
+def get_verbose_names(model_class, exclude=None):
+    fields = model_class._meta.get_fields()
+    verbose_fields = []
+    for field in fields:
+        if hasattr(field, "verbose_name") is False:
+            continue
+        print(field.attname)
+        if field.attname not in exclude:
+            verbose_fields.append(field.verbose_name)
+    return verbose_fields
+
+
+def get_filter_fields(model_class, exclude=None):
+    filter_fields = []
+    fields = model_class._meta.get_fields()
+    for field in fields:
+
+        if hasattr(field, "verbose_name") is False:
+            continue
+        if field.attname not in exclude:
+            filter_fields.append((field.attname, field.verbose_name))
+    return filter_fields

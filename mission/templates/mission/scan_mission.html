@@ -45,12 +45,19 @@
 	{% verbatim %} ] {% endverbatim %}
 )"></div>
 
-            <div class="row" style="background-color:white;padding:25px;">
+            <div class="row table-bordered" style="background-color:white;padding:25px;">
                 <div class="row">
                     <div class="col-md-6">
-                        {% for field in field_names %}
-                            <p><b>{{ field }}: </b>{{ object|get_from_model:field}}</p>
-                        {% endfor %}
+                            <p><b>Auftragsnummer: </b>{{ object.mission_number}}</p>
+                            <p><b>Lieferdatum: </b>{{ object.delivery_date}}</p>
+                            <p><b>Status: </b>{{ object.status}}</p>
+                            <p><b>Pickbereit: </b>
+                                {% if object.pickable == True %}
+                                    <span class="glyphicon glyphicon-ok" style="color:green;"></span>
+                                {% elif object.pickable == False %}
+                                    <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                {% endif %}
+                            </p>
                     </div>
 
                     <div class="col-md-6">
@@ -77,12 +84,11 @@
 
                         <table class="table table-responsive table-bordered">
                             <thead>
-                            <tr>
-                                {% for field in product_mission_field_names %}
-                                    <th>{{ field }}</th>
-                                {% endfor %}
-                            </tr>
-
+                                <tr>
+                                    {% for field in fields %}
+                                        <th>{{field}}</th>
+                                    {% endfor %}
+                                </tr>
                             </thead>
 
                             <tbody>
@@ -98,6 +104,12 @@
                                                     <span class="glyphicon glyphicon-ok" style="color:green"></span>
                                                 {% elif product_order|get_from_model:field == False %}
                                                     <span class="glyphicon glyphicon-remove" style="color:red"></span>
+                                                {% endif %}
+                                            {% elif field == "missing_amount" %}
+                                                {% if product_order|get_from_model:field %}
+                                                    <div style="color:red">
+                                                        {{ product_order|get_from_model:field}}
+                                                    </div>
                                                 {% endif %}
                                             {% else %}
                                                 {{ product_order|get_from_model:field}}
@@ -184,7 +196,7 @@
         product_match_input.focus();
         window.onclick = function (e) {
             product_match_input.focus();
-        }
+        };
 
         var clear_btn = document.getElementById("clearMatchField");
 
@@ -203,7 +215,7 @@
         is_true_btn.onclick = function () {
             confirm_value_input.value = 1;
             form.submit();
-        }
+        };
 
         is_false_btn.onclick = function () {
             confirm_value_input.value = 0;

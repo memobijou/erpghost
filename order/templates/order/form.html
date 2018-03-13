@@ -2,6 +2,11 @@
 {% load utils %}
 
 {% block form %}
+        {% if object %}
+            <div class="pull-right">
+                <a href="{% url 'order:detail' pk=object.pk %}">Zur Ansicht</a>
+            </div>
+        {% endif %}
         {% for field in form %}
             {% if field.name == "verified" %}
                 {% if request|has_group:"master" %}

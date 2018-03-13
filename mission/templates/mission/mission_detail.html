@@ -6,30 +6,62 @@
 
         <a style="float:right;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
 
-        {% for field in field_names %}
-            <p><b>{{ field }}: </b> {{ object_as_json|getattr:field}} </p>
-        {% endfor %}
+        <p><b>Auftragsnummer: </b> {{object.mission_number}}</p>
+        <p><b>Kunde: </b> {{object.customer.name|default:"/"}}</p>
+        <p><b>Lieferdatum: </b> {{object.delivery_date|date:"d.m.Y"}}</p>
+        <p><b>Status: </b> {{object.status}}</p>
+        <p>
+            <b>Pickbereit: </b>
+            {% if object.pickable == True %}
+                <span class="glyphicon glyphicon-ok " style="color:green;"></span>
+            {% elif object.pickable == False %}
+                <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+            {% else %}
+                ---
+            {% endif %}
+        </p>
 
-        {% for relation_name, relation in related_as_json.items %}
-            <h1>{{ relation_name }}</h1>
-            <table class="table table-bordered">
-                <thead>
-                {% for field in relation_field_names|getattr:relation_name %}
-                    <th> {{ field }} </th>
-                {% endfor %}
-                </thead>
-                <tbody>
-                {% for row in relation %}
 
-                    <tr>
-                        {% for field in relation_field_names|getattr:relation_name %}
-                            <td> {{ row|get_from_model:field}} </td>
-                        {% endfor %}
-                    </tr>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    {% for field in fields %}
+                        <th>{{field}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in object.products.all %}
+                    {% for productmission in product.productmission_set.all %}
+                        {% if object.id == productmission.mission.id %}
+                        <tr>
+                            <td>{{productmission.product.ean}}</td>
+                            <td>{{productmission.amount}}</td>
+                            <td style="color:red;">
+                                {% if productmission.missing_amount %}
+                                    {{productmission.missing_amount}}
+                                {% endif %}
+                            </td>
+                            <td>{{productmission.netto_price|default:""}}</td>
+                            <td>
+                                {% if productmission.netto_price %}
+                                {{ productmission.netto_price|multiply:productmission.amount }}
+                                {% else %}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if productmission.confirmed == True %}
+                                    <span class="glyphicon glyphicon-ok " style="color:green;"></span>
+                                {% elif productmission.confirmed == False %}
+                                    <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    {% endfor %}
                 {% endfor %}
-                </tbody>
-            </table>
-        {% endfor %}
+            </tbody>
+        </table>
         {% if object.pickable == True %}
             <a href="{% url 'mission:scan' pk=object.id %}" class="btn btn-success" id="scan_btn">SCAN<a>
         {% endif %}

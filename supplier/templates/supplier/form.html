@@ -1,0 +1,19 @@
+{% extends 'snippets/forms/custom_form.html' %}
+{% load utils %}
+
+{% block form %}
+        {% if object %}
+            <div class="pull-right">
+                <a href="{% url 'supplier:detail' pk=object.pk %}">Zur Ansicht</a>
+            </div>
+        {% endif %}
+        {% for field in form %}
+            {% if field.name == "verified" %}
+                {% if request|has_group:"master" %}
+                    {% include "snippets/forms/field.html" %}
+                {% endif %}
+            {% else %}
+                    {% include "snippets/forms/field.html" %}
+            {% endif %}
+        {% endfor %}
+{% endblock %}

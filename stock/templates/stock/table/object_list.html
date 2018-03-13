@@ -1,0 +1,11 @@
+{% for object in object_list %}
+    <tr>
+        <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
+            <a href="{{ object.id }}/edit">Bearbeiten</a>
+        </td>
+            <td> {{ object.ean_vollstaendig}} </td>
+            <td> {{ object.bestand}} </td>
+            <td> {{ object.lagerplatz}} </td>
+            <td> {{object.zustand}} </td>
+    </tr>
+{% endfor %}

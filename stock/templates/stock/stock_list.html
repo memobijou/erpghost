@@ -49,7 +49,7 @@
         {% include "snippets/filter.html" %}
         <div class="row"><h1><br/> <br/></h1></div>
         {% if is_table %}
-            {% include "snippets/table.html" with extra_fields=extra_fields %}
+            {% include "snippets/table.html" with extra_fields=extra_fields app="stock"%}
         {% else %}
             {% include "snippets/master_detail.html" %}
         {% endif %}

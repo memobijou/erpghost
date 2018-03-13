@@ -46,6 +46,11 @@ class StockListView(LoginRequiredMixin, ListView):
         if context["object_list"]:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
 
+        context["fields"] = self.get_verbose_names(exclude=["id", 'regal', "ean_upc", "scanner", "name", "karton",
+                                                            'box', 'aufnahme_datum', "ignore_unique"])
+        context["filter_fields"] = self.get_filter_fields(exclude=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
+                                                                   'box', 'aufnahme_datum', "ignore_unique"])
+
         if "table" in str(self.request.get_full_path()):
             context["title"] = "Lagerbestand"
             context["is_table"] = True
@@ -68,6 +73,27 @@ class StockListView(LoginRequiredMixin, ListView):
         # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
         context["extra_fields"] = [("name", "name"), ("GESAMT", "GESAMT")]
         return context
+
+    def get_verbose_names(self, exclude=None):
+        fields = Stock._meta.get_fields()
+        verbose_fields = []
+        for field in fields:
+            if hasattr(field, "verbose_name") is False:
+                continue
+            if field.attname not in exclude:
+                verbose_fields.append(field.verbose_name)
+        return verbose_fields
+
+
+    def get_filter_fields(self, exclude=None):
+        filter_fields = []
+        fields = Stock._meta.get_fields()
+        for field in fields:
+            if hasattr(field, "verbose_name") is False:
+                continue
+            if field.attname not in exclude:
+                filter_fields.append((field.attname, field.verbose_name))
+        return filter_fields
 
 
 class StockCreateView(LoginRequiredMixin, CreateView):

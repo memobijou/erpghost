@@ -37,6 +37,8 @@ urlpatterns = [
     url(r'^$', main_view, name="root"),
     url(r'^stock/', include("stock.urls", namespace="stock")),
     url(r'^mission/', include("mission.urls", namespace="mission")),
+    url(r'^supplier/', include("supplier.urls", namespace="supplier")),
+    url(r'^customer/', include("customer.urls", namespace="customer")),
 ]
 
 urlpatterns += staticfiles_urlpatterns()

@@ -70,10 +70,6 @@ app.controller('match_ctrl', function ($scope, $http) {
                 if (col.field_value) {
                     col.field_value = "";
                 }
-
-                if (col.name.includes("amount")) {
-                    col.field_value = "0";
-                }
             }
 
             table[new_count] = new_row;

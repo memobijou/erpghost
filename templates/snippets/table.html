@@ -2,32 +2,24 @@
 <div class="col-md-12">
     <table class="table table-bordered" style="background-color:white;">
         <thead>
-        <tr>
-            <th class="col-md-1"></th>
-            {% for field in field_names %}
-                <th>{{ field }}</th>
-            {% endfor %}
-            {% for extra_field, extra_label in extra_fields %}
-                <th>{{ extra_label }}</th>
-            {% endfor %}
-        </tr>
+            <tr>
+                <th></th>
+                {% for field in fields %}
+                    <th>{{field}}</th>
+                {% endfor %}
+            </tr>
         </thead>
 
         <tbody>
-        {% for object in object_list_as_json %}
-            <tr>
-                <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
-                    <a href="{{ object.id }}/edit">Bearbeiten</a>
-                </td>
-                {% for field in field_names %}
-                    <td> {{ object|getattr:field}} </td>
-                {% endfor %}
-
-                {% for extra_field, extra_label in extra_fields %}
-                    <td> {{ object|getattr:extra_field}} </td>
-                {% endfor %}
-            </tr>
-        {% endfor %}
+                {% if app == "order" %}
+                    {% include "order/table/object_list.html" %}
+                {% elif app == "mission" %}
+                    {% include "mission/table/object_list.html" %}
+                {% elif app == "stock" %}
+                    {% include "stock/table/object_list.html" %}
+                {% elif app == "supplier" %}
+                    {% include "supplier/table/object_list.html" %}
+                {% endif %}
         </tbody>
 
     </table>

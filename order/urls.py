@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from .views import OrderListView, OrderListAPIView, OrderDetailView, OrderCreateView, OrderUpdateView, \
-    ScanOrderUpdateView, search_positions, PositionProductOrderListAPIView, search_after_product_on_we
+    ScanOrderUpdateView, search_positions, PositionProductOrderListAPIView, search_after_product_on_we, OrderDeleteView
 
 urlpatterns = [
     url(r'^$', OrderListView.as_view(), name="list"),
@@ -13,4 +13,5 @@ urlpatterns = [
     url(r'^wareneingangSuche/$', search_after_product_on_we, name="suchewe"),
     url(r'^(?P<pk>\d+)/api/productorderposition/$', PositionProductOrderListAPIView.as_view(),
         name="apilistforProduct"),
+    url(r'^delete/$', OrderDeleteView.as_view(), name="delete"),
 ]

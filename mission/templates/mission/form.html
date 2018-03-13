@@ -2,20 +2,15 @@
 {% load utils %}
 
 {% block form %}
+        {% if object %}
+            <div class="pull-right">
+                <a href="{% url 'order:detail' pk=object.pk %}">Zur Ansicht</a>
+            </div>
+        {% endif %}
         {% for field in form %}
-            {% if field.name == "verified" %}
-                {% if request|has_group:"master" %}
-                    {% include "snippets/forms/field.html" %}
-                {% else %}
-                    <div style="display:none;">
-                        {% include "snippets/forms/field.html" %}
-                    </div>
-                {% endif %}
-            {% elif field.name == "pickable" %}
+            {% if field.name == "pickable" %}
                 {% if request|has_group:"master" or request|has_group:"accounting"%}
-                    {% if object.verified == True %}
                         {% include "snippets/forms/field.html" %}
-                    {% endif %}
                 {% endif %}
             {% else %}
                     {% include "snippets/forms/field.html" %}

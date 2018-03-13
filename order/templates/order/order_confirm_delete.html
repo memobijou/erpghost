@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <h4>Wollen Sie wirklich diesen Vorgang ausführen?  Diese Aktion kann nicht rückgängig gemacht werden.</h4>
+    <form method="POST" action="?{{ request.GET.urlencode }}">{% csrf_token %}
+        <input type="SUBMIT" class="btn btn-danger" value="Datensätze löschen">
+    </form>
+</div>
+{% endblock %}

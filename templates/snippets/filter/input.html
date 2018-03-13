@@ -4,7 +4,7 @@
         {% if request.GET %}
        value="{{ request.GET|get_from_GET:field}}"
         {% endif %}
-       placeholder="{{ field }}" name="{{ field }}"
+       placeholder="{{ verbose_name }}" name="{{ field }}"
         {% if field_datatypes|getattr:field == "DateField" %}
        class="form-control datepicker" readonly style="background-color:white;"
         {% else %}

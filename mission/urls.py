@@ -1,5 +1,6 @@
 from django.conf.urls import url
-from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionTemplateView
+from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionTemplateView, \
+    MissionDeleteView
 
 urlpatterns = [
     url(r'^$', MissionListView.as_view(), name="list"),
@@ -7,4 +8,5 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/$', MissionDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/edit/$', MissionUpdateView.as_view(), name="update"),
     url(r'^(?P<pk>\d+)/scan/$', ScanMissionTemplateView.as_view(), name="scan"),
+    url(r'^delete/$', MissionDeleteView.as_view(), name="delete"),
 ]

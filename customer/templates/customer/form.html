@@ -1,0 +1,13 @@
+{% extends 'snippets/forms/custom_form.html' %}
+{% load utils %}
+
+{% block form %}
+        {% if object %}
+            <div class="pull-right">
+                <a href="{% url 'customer:detail' pk=object.pk %}">Zur Ansicht</a>
+            </div>
+        {% endif %}
+        {% for field in form %}
+                    {% include "snippets/forms/field.html" %}
+        {% endfor %}
+{% endblock %}

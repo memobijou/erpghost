@@ -1,16 +1,18 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from order.models import Order, ProductOrder, PositionProductOrder
 from position.models import Position
-from order.forms import OrderForm, ProductOrderFormsetInline
+from order.forms import OrderForm,ProductOrderFormsetUpdate, ProductOrderFormsetCreate
 from utils.utils import set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, set_object_ondetailview, save_picklist, search_positions_for_order, \
-    search_all_wareneingang_products
+    search_all_wareneingang_products, get_verbose_names, get_filter_fields, \
+    filter_complete_and_uncomplete_order_or_mission
 from order.serializers import OrderSerializer, PositionProductOrderSerializer
 from rest_framework.generics import ListAPIView
 from django.forms import modelform_factory, inlineformset_factory
 from django.contrib.auth.mixins import LoginRequiredMixin
 from picklist.models import Picklist
+from django.urls import reverse_lazy
 
 
 # search position for product which are on Wareneingang
@@ -71,6 +73,7 @@ class ScanOrderUpdateView(UpdateView):
         product_orders = context["object"].productorder_set.all()
 
         context["product_orders"] = product_orders
+        context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id"])
 
         if product_orders.count() > 0:
             set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,
@@ -117,9 +120,9 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
         if self.request.POST:
-            formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
+            formset = ProductOrderFormsetUpdate(self.request.POST, self.request.FILES, instance=self.object)
         else:
-            formset = ProductOrderFormsetInline(instance=self.object)
+            formset = ProductOrderFormsetUpdate(instance=self.object)
         context["formset"] = formset
         return context
 
@@ -144,12 +147,11 @@ class OrderCreateView(CreateView):
         context = super(OrderCreateView, self).get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3,
-                                              exclude=["id", "missing_amount", "confirmed"])
+
         if self.request.POST:
-            formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
+            formset = ProductOrderFormsetCreate(self.request.POST, self.request.FILES, instance=self.object)
         else:
-            formset = formset_class(instance=self.object)
+            formset = ProductOrderFormsetCreate(instance=self.object)
         context["formset"] = formset
         return context
 
@@ -177,28 +179,40 @@ class OrderDetailView(DetailView):
         context["title"] = "Bestellung " + context["object"].ordernumber
         set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
+        context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id"])
+        context["fields"].insert(len(context["fields"])-1, "Gesamtpreis (Netto)")
         return context
 
 
 class OrderListView(ListView):
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Order)
+        queryset = filter_complete_and_uncomplete_order_or_mission(self.request, queryset, Order)
         return queryset
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderListView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung"
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,
                                exclude_fields=["id", "products", "verified"],
                                exclude_filter_fields=["id", "products", "verified"])
-
+        context["fields"] = get_verbose_names(Order, exclude=["id", "products", "invoice"])
+        context["fields"].insert(len(context["fields"])-1, "Gesamt (Netto)")
+        context["fields"].insert(len(context["fields"])-1, "Gesamt (Brutto)")
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
-
+        context["filter_fields"] = get_filter_fields(Order, exclude=["id", "products", "verified", "supplier_id", "invoice"])
         context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT", "ABGELEHNT",
-                                                "WARENEINGANG", "POSITIONIEREN"], }]
-
+                                                "WARENEINGANG", "POSITIONIEREN",] }]
+        context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
         return context
 
+class OrderDeleteView(DeleteView):
+    model = Order
+    success_url = reverse_lazy("order:list")
+    template_name = "order/order_confirm_delete.html"
+
+    def get_object(self, queryset=None):
+        return Order.objects.filter(id__in=self.request.GET.getlist('item'))
 
 class OrderListAPIView(ListAPIView):
     queryset = Order.objects.all()

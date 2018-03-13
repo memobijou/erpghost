@@ -4,9 +4,7 @@ register = template.Library()
 
 
 def getattribute(value, args):
-    # print("aaaa: : " + str(value) + " : " + str(args))
     if args in value:
-        print("kommentar*******" + str(value[args]))
         return value[args]
 
 
@@ -15,7 +13,6 @@ register.filter('getattr', getattribute)
 
 def callattr(value, args):
     if args in value:
-        print("CALLATTR*******" + str(value[args]()))
         return value[args]()
 
 
@@ -69,7 +66,6 @@ register.filter('get_q', get_q)
 
 
 def remove_param_from_q(q, remove_value):
-    print("!!!!!!!!: " + str(q))
     q = q.replace(remove_value, "")
     splitted_q = q.split("&")
     new_q = ""
@@ -139,3 +135,22 @@ def has_group(request, name):
         if group.name == name:
             return True
     return False
+
+
+@register.filter
+def multiply(value, arg):
+    return value*arg
+
+@register.filter
+def get_total_price_order_or_mission(order_or_mission_products):
+    total = 0
+    for product_order_or_mission in order_or_mission_products:
+        if product_order_or_mission.amount and product_order_or_mission.netto_price:
+            total = total + (product_order_or_mission.netto_price * product_order_or_mission.amount)
+    return total
+
+@register.filter
+def netto_to_brutto(netto):
+    if netto == 0:
+        return 0
+    return netto+(netto*0.19)

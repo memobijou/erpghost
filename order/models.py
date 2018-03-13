@@ -14,10 +14,10 @@ from datetime import date
 # Create your models here.
 
 class Order(models.Model):
-    ordernumber = models.CharField(max_length=13, blank=True)
-    delivery_date = models.DateField(default=datetime.date.today)
-    status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN")
-    supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order')
+    ordernumber = models.CharField(max_length=13, blank=True, verbose_name="Bestellnummer")
+    delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
+    status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN", verbose_name="Status")
+    supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order', verbose_name="Lieferant")
     products = models.ManyToManyField(Product, through="ProductOrder")
     invoice = models.ManyToManyField(Invoice, through="InvoiceOrder")
     CHOICES = (
@@ -25,7 +25,7 @@ class Order(models.Model):
         (True, "Ja"),
         (False, "Nein")
     )
-    verified = models.NullBooleanField(choices=CHOICES)
+    verified = models.NullBooleanField(choices=CHOICES, verbose_name="Akzeptiert")
 
     def __str__(self):
         return self.ordernumber
@@ -53,11 +53,12 @@ class Order(models.Model):
 
 
 class ProductOrder(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
     order = models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
-    amount = models.IntegerField(null=False, blank=False, default=0)
-    missing_amount = models.IntegerField(null=True, blank=True)
-    confirmed = models.NullBooleanField()
+    amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Menge")
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
+    netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
+    confirmed = models.NullBooleanField(verbose_name="Bestätigt")
 
     def __str__(self):
         return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)

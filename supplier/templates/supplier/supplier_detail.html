@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% load utils %}
+{% block content %}
+
+    <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+
+        <a style="float:right;" href="{% url 'supplier:update' pk=object.id %}">Bearbeiten</a>
+
+
+        <p><b>Name: </b> {{object.name}}</p>
+
+    </div>
+
+
+
+
+{% endblock %}
+
+
+

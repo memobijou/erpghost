@@ -1,11 +1,14 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
-from django.views.generic import ListView, CreateView, DetailView, UpdateView
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
+    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
+    get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission
-from mission.forms import MissionForm, ProductMissionFormsetInline
+from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import inlineformset_factory, modelform_factory
+from django.urls import reverse_lazy
+
 
 
 # Create your views here.
@@ -21,12 +24,15 @@ class MissionDetailView(DetailView):
         context["title"] = "Auftrag " + context["object"].mission_number
         set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"], \
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
+        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
+        context["fields"].insert(len(context["fields"])-1, "Gesamtpreis (Netto)")
         return context
 
 
 class MissionListView(ListView):
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Mission)
+        queryset = filter_complete_and_uncomplete_order_or_mission(self.request, queryset, Mission)
         return queryset
 
     def get_context_data(self, *args, **kwargs):
@@ -34,14 +40,18 @@ class MissionListView(ListView):
         context["title"] = "Auftrag"
 
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission, \
-                               exclude_fields=["id", "verified", "pickable"],
-                               exclude_filter_fields=["id", "verified", "pickable"])
-
+                               exclude_fields=["id", "pickable"],
+                               exclude_filter_fields=["id", "pickable"])
+        context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products"])
+        context["fields"].insert(len(context["fields"])-1, "Gesamt (Netto)")
+        context["fields"].insert(len(context["fields"])-1, "Gesamt (Brutto)")
         if context["object_list"].count() > 0:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
-
+        context["filter_fields"] = get_filter_fields(Mission, exclude=["id", "products", "supplier_id",
+                                                                   "invoice", "pickable"])
         context["option_fields"] = [
-            {"status": ["WARENAUSGANG", "AKZEPTIERT", "ABGELEHNT", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "VERSANDBEREIT"]}]
+            {"status": ["WARENAUSGANG", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "LIEFERUNG"]}]
+        context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
         return context
 
 
@@ -53,8 +63,7 @@ class MissionCreateView(CreateView):
         context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
         context["title"] = "Auftrag anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3,
-                                              exclude=["id", "missing_amount", "confirmed"])
+        formset_class = ProductMissionFormsetCreate
 
         if self.request.POST:
             formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
@@ -79,6 +88,14 @@ class MissionCreateView(CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
+class MissionDeleteView(DeleteView):
+    model = Mission
+    success_url = reverse_lazy("mission:list")
+    template_name = "mission/mission_confirm_delete.html"
+
+    def get_object(self, queryset=None):
+        return Mission.objects.filter(id__in=self.request.GET.getlist('item'))
+
 class MissionUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "mission/form.html"
     login_url = "/login/"
@@ -97,9 +114,9 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
         if self.request.POST:
-            formset = ProductMissionFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
+            formset = ProductMissionFormsetUpdate(self.request.POST, self.request.FILES, instance=self.object)
         else:
-            formset = ProductMissionFormsetInline(instance=self.object)
+            formset = ProductMissionFormsetUpdate(instance=self.object)
         context["formset"] = formset
         return context
 
@@ -131,6 +148,7 @@ class ScanMissionTemplateView(UpdateView):
         product_missions = context["object"].productmission_set.all()
 
         context["product_missions"] = product_missions
+        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
 
         if product_missions.count() > 0:
 

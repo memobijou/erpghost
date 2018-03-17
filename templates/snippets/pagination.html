@@ -7,7 +7,7 @@
                 <a {% if object_list.has_previous %}
 
                     {% with request.GET|get_q as q %}
-                        href="?page={{ current_page|add:"-1"}}&{{ q|remove_param_from_q:"page="}}"
+                        href="?page={{object_list.previous_page_number}}&{{ q|remove_param_from_q:"page="}}"
                     {% endwith %}
 
                 {% else %}
@@ -16,57 +16,53 @@
                     Zur&uuml;ck
                 </a>
             </li>
-            {% if pages_range.0 %}
-                {% if pages_range.0|slugify != current_page|slugify %}
-                    <li>
-                     {% with request.GET|get_q as q %}
-                        <a href="?page={{ pages_range.0 }}&{{ q|remove_param_from_q:"page="}}">{{ pages_range.0 }}</a>
-                        {% endwith %}
-                    </li>
+                {% if object_list.number|slugify != "1" %}
+                    {% if object_list.previous_page_number|slugify != "1" %}
+                        <li>
+                         {% with request.GET|get_q as q %}
+                            <a href="?page=1&{{ q|remove_param_from_q:"page="}}">1</a>
+                            {% endwith %}
+                        </li>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
 
-            {% if before_page %}
-                {% if before_page|slugify != page_ranges.0|slugify %}
+                {% if object_list.number|slugify != "1" %}
                     <li>
                         {% with request.GET|get_q as q %}
-                            <a href="?page={{ before_page }}&{{ q|remove_param_from_q:"page="}}">{{ before_page }}</a>
+                            <a href="?page={{ object_list.number|add:-1 }}&{{ q|remove_param_from_q:"page="}}">{{ object_list.number|add:-1 }}</a>
                         {% endwith %}
                     </li>
                 {% endif %}
-            {% endif %}
 
 
             <li class=active>
                 {% with request.GET|get_q as q %}
-                    <a href="?page={{ current_page }}&{{ q|remove_param_from_q:"page="}}">{{ current_page }}</a>
+                    <a href="?page={{ object_list.number }}&{{ q|remove_param_from_q:"page="}}">{{ object_list.number }}</a>
                 {% endwith %}
             </li>
 
-            {% if next_page %}
-                {% if next_page|slugify != last_page|slugify %}
-                    <li>
-                        {% with request.GET|get_q as q %}
-                            <a href="?page={{ next_page }}&{{ q|remove_param_from_q:"page="}}">{{ next_page }}</a>
-                        {% endwith %}
-                    </li>
+                {% if object_list.has_next %}
+                    {% if object_list.number|add:1|slugify != object_list.paginator.num_pages|slugify %}
+                        <li>
+                            {% with request.GET|get_q as q %}
+                                <a href="?page={{ object_list.number|add:1 }}&{{ q|remove_param_from_q:"page="}}">{{ object_list.number|add:1 }}</a>
+                            {% endwith %}
+                        </li>
+                    {% endif %}
                 {% endif %}
-            {% endif %}
 
-            {% if last_page %}
-                {% if last_page|slugify !=  current_page|slugify %}
+                {% if object_list.paginator.num_pages|slugify !=  object_list.number|slugify %}
                     <li>
                         {% with request.GET|get_q as q %}
-                            <a href="?page={{ last_page }}&{{ q|remove_param_from_q:"page="}}">{{ last_page }}</a>
+                            <a href="?page={{ object_list.paginator.num_pages }}&{{ q|remove_param_from_q:"page="}}">{{object_list.paginator.num_pages}}</a>
                         {% endwith %}
                     </li>
                 {% endif %}
-            {% endif %}
 
             <li>
                 <a {% if object_list.has_next %}
                     {% with request.GET|get_q as q %}
-                        href="?page={{ current_page|add:"1"}}&{{ q|remove_param_from_q:"page="}}"
+                        href="?page={{object_list.next_page_number}}&{{ q|remove_param_from_q:"page="}}"
                     {% endwith %}
                 {% else %}
                         style="color:black;"

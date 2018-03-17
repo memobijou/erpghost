@@ -12,7 +12,9 @@ from django.template.loader import get_template
 from picklist.models import Picklist
 from order.models import Order, ProductOrder,PositionProductOrder,PositionProductOrderPicklist
 from position.models import Position
-
+import pyexcel
+import collections
+from django.core.exceptions import ObjectDoesNotExist
 
 
 def search_all_wareneingang_products():
@@ -492,7 +494,7 @@ def filter_queryset_from_request(request, ModelClass):
     querystring = request.GET
 
     if len(querystring) == 0:
-        return ModelClass.objects.all()
+        return ModelClass.objects.all().order_by("-id")
 
     filter_dict = q_to_dict(querystring)
     filter_dict = trim_dict(filter_dict)
@@ -596,3 +598,105 @@ def get_filter_fields(model_class, exclude=None):
         if field.attname not in exclude:
             filter_fields.append((field.attname, field.verbose_name))
     return filter_fields
+
+def table_data_to_model(model, table, replace_header=None, limit=None, replace_header_key=None, related_models=None):
+    header = table.header
+    if replace_header:
+        header = replace_header
+
+    bulk_instances = []
+    for row in table.content:
+        dict_ = {}
+        for verbose_name, v in zip(header, row):
+            if replace_header_key:
+                if replace_header_key.get(verbose_name):
+                    print(f"{verbose_name} --- {replace_header_key} --- {get_attname_from_verbose(verbose_name, model)}")
+                    verbose_name = replace_header_key.get(verbose_name)
+
+            field_name = get_attname_from_verbose(verbose_name, model)
+
+            related_model = get_relation_from_verbose(verbose_name, model)
+            if related_model:
+                if related_models:
+                    related_model = related_models[verbose_name]
+                    new_instance = related_model.objects.create(**{"name": v})
+                    v = new_instance
+
+            if limit:
+                if verbose_name.lower() in limit:
+                    dict_[field_name] = v
+            if not limit:
+                dict_[field_name] = v
+        #print(f"{dict_}")
+        bulk_instances.append(model(**dict_))
+    model.objects.bulk_create(bulk_instances)
+
+
+def get_attname_from_verbose(verbose_name, model_class):
+    for field in model_class._meta.get_fields():
+        if not hasattr(field, "verbose_name"):
+            continue
+        if field.verbose_name == verbose_name:
+            if field.is_relation:
+                # model rel rel_class related_model
+                # _meta from_db
+                return field.attname.replace("_id", "")
+            return field.attname
+    return verbose_name
+
+def get_relation_from_verbose(verbose_name, model_class):
+    for field in model_class._meta.get_fields():
+        if not hasattr(field, "verbose_name"):
+            continue
+        if field.verbose_name == verbose_name:
+            if field.is_relation and field.related_model:
+                return field.related_model
+
+
+def is_empty_row(row):
+    for col in row:
+        if col != "":
+            return False
+    return True
+
+def get_table_excel(sheet):
+    Table = collections.namedtuple('Table', 'header content')
+    header = sheet.row[0]
+    sheet.name_columns_by_row(0)
+    content = []
+    for row in sheet.row:
+        if is_empty_row(row) is False:
+            content.append(row)
+    table = Table(header=header, content=content)
+    return table
+
+def get_table(content, filetype):
+    if filetype == "xlsx":
+        sheet = pyexcel.get_sheet(file_type="xlsx", file_content=content)
+        table = get_table_excel(sheet)
+    elif filetype == "xls":
+        sheet = pyexcel.get_sheet(file_type="xls", file_content=content)
+        table = get_table_excel(sheet)
+    else:
+        return
+    return table
+
+def compare_header_with_model_fields(header, model_class, limit=None):
+    error_fields = []
+    verbose_fields = []
+
+    if limit:
+        header = limit
+
+    for field in model_class._meta.get_fields():
+        if hasattr(field, "verbose_name"):
+            verbose_fields.append(field.verbose_name.lower())
+    for title in header:
+        if title.lower() in verbose_fields:
+            error_fields.append((title, "success"))
+        else:
+            error_fields.append((title, "error"))
+
+    for error_field, status in error_fields:
+        if status == "error":
+            return error_fields

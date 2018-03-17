@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <div class="container">
+        <div class="col-lg-9">
+            {% if duplicates %}
+                <br/>
+                <div style="color:red;">
+                    <h1>{{duplicate_message}}</h1>
+                </div>
+                <br/>
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                {% if duplicates.0.index %}
+                                    <td>Excel-Index</td>
+                                {% endif %}
+                                <td>Werte</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for duplicate in duplicates %}
+                                <tr>
+                                    {% if duplicate.index %}
+                                        <td>{{duplicate.index}}</td>
+                                    {% endif %}
+                                    <td>
+                                        {% for k,v in duplicate.dict_.items %}
+                                            <b>{{k}}: </b>{{v}}&nbsp;&nbsp;
+                                        {% endfor %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            {% for error_field, status in error_fields %}
+                                <th {% if status == 'error' %}style="color:red;"{% endif %}>
+                                    {{ error_field }}
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+            {{ form.non_field_errors }}
+            <form action="." method="POST" enctype="multipart/form-data">{% csrf_token %}
+                {% for field in form %}
+                    <div class="form-group">
+                        {{ field.errors }}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                        {{ field }}
+                    </div>
+                {% endfor %}
+                <div class="form-group">
+                    <button class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

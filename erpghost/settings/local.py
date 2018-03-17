@@ -59,7 +59,13 @@ INSTALLED_APPS = [
     'import_export',
     'picklist',
     'customer',
+    'djcelery',
+    'kombu.transport.django',
 ]
+
+import djcelery
+djcelery.setup_loader()
+BROKER_URL = "django://"
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',

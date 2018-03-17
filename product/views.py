@@ -18,9 +18,13 @@ from rest_framework import filters
 from rest_framework import generics
 from product.forms import ImportForm
 from django.urls import reverse_lazy
-from django.contrib import messages
-
+from celery.decorators import task
 # Create your views here.
+
+@task()
+def celery_test():
+    print("CELERY IS COOL")
+
 
 class ProductListView(ListView):
     def get_queryset(self):
@@ -30,7 +34,7 @@ class ProductListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Artikel"
-
+        celery_test.delay()
         context["fields"] = get_verbose_names(Product, exclude=["id"])
         context["object_list"] = self.set_pagination()
         context["filter_fields"] = get_filter_fields(Product, exclude=["id"])

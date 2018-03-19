@@ -60,12 +60,10 @@ INSTALLED_APPS = [
     'picklist',
     'customer',
     'djcelery',
-    'kombu.transport.django',
 ]
 
-import djcelery
-djcelery.setup_loader()
-BROKER_URL = "django://"
+CELERY_BROKER_URL = 'redis://localhost:6379'
+
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
@@ -139,6 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
+
 
 USE_I18N = True
 

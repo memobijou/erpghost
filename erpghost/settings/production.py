@@ -59,7 +59,10 @@ INSTALLED_APPS = [
     'import_export',
     'picklist',
     'customer',
+    'djcelery',
 ]
+
+CELERY_BROKER_URL = 'redis://localhost:6379'
 
 IMPORT_EXPORT_USE_TRANSACTIONS = True
 

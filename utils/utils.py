@@ -599,6 +599,7 @@ def get_filter_fields(model_class, exclude=None):
             filter_fields.append((field.attname, field.verbose_name))
     return filter_fields
 
+
 def table_data_to_model(model, table, replace_header=None, limit=None, replace_header_key=None, related_models=None):
     header = table.header
     if replace_header:
@@ -644,6 +645,7 @@ def get_attname_from_verbose(verbose_name, model_class):
             return field.attname
     return verbose_name
 
+
 def get_relation_from_verbose(verbose_name, model_class):
     for field in model_class._meta.get_fields():
         if not hasattr(field, "verbose_name"):
@@ -670,6 +672,7 @@ def get_table_excel(sheet):
     table = Table(header=header, content=content)
     return table
 
+
 def get_table(content, filetype):
     if filetype == "xlsx":
         sheet = pyexcel.get_sheet(file_type="xlsx", file_content=content)
@@ -680,6 +683,7 @@ def get_table(content, filetype):
     else:
         return
     return table
+
 
 def compare_header_with_model_fields(header, model_class, limit=None):
     error_fields = []

@@ -1,4 +1,5 @@
 amqp==2.2.2
+anyjson==0.3.3
 appnope==0.1.0
 attrs==17.4.0
 billiard==3.5.0.3
@@ -8,6 +9,7 @@ decorator==4.1.2
 diff-match-patch==20121119
 dj-database-url==0.4.2
 Django==1.11.2
+django-celery==3.2.2
 django-filter==1.1.0
 django-import-export==0.6.1
 djangorestframework==3.7.3
@@ -45,12 +47,14 @@ pytest==3.3.1
 pytest-cov==2.5.1
 pytest-django==2.8.0
 python-dateutil==2.6.1
-pytz==2017.3
+pytz==2018.3
 PyYAML==3.12
+redis==2.10.6
 reportlab==3.4.0
 selenium==3.8.0
 simplegeneric==0.8.1
 six==1.11.0
+SQLAlchemy==1.2.5
 tablib==0.12.1
 text-unidecode==1.1
 texttable==1.2.1

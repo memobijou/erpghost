@@ -144,7 +144,7 @@ class OrderCreateView(CreateView):
     form_class = OrderForm
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderCreateView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
 

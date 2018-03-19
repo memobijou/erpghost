@@ -64,6 +64,9 @@ INSTALLED_APPS = [
 
 CELERY_BROKER_URL = os.environ.get('REDIS_URL')
 CELERY_RESULT_BACKEND= os.environ.get('REDIS_URL')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
@@ -138,6 +141,7 @@ LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
 
+CELERY_TIMEZONE = TIME_ZONE
 
 USE_I18N = True
 

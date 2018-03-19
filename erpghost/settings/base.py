@@ -62,7 +62,7 @@ INSTALLED_APPS = [
     'djcelery',
 ]
 
-CELERY_BROKER_URL = 'redis://localhost:6379'
+CELERY_BROKER_URL = os.environ.get('REDIS_URL')
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',

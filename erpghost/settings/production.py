@@ -59,7 +59,10 @@ INSTALLED_APPS = [
     'import_export',
     'picklist',
     'customer',
+    'djcelery',
 ]
+
+CELERY_BROKER_URL = os.environ.get('REDIS_URL')
 
 IMPORT_EXPORT_USE_TRANSACTIONS = True
 

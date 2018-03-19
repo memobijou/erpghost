@@ -59,7 +59,11 @@ INSTALLED_APPS = [
     'import_export',
     'picklist',
     'customer',
+    'djcelery',
 ]
+
+CELERY_BROKER_URL = 'redis://localhost:6379'
+
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
@@ -133,6 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
+
 
 USE_I18N = True
 

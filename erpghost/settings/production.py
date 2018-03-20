@@ -6,7 +6,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', '9@ytnq8mgd75*q#b+5525)tqq$hk6eia+j*ep
 DEBUG = False
 
 CELERY_BROKER_URL = os.environ.get('REDIS_URL')
-CELERY_RESULT_BACKEND = os.environ.get('REDIS_URL')
+CELERY_RESULT_BACKEND = 'django-db'
 
 IMPORT_EXPORT_USE_TRANSACTIONS = True
 

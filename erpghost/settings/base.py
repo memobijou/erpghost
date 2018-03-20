@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     'import_export',
     'picklist',
     'customer',
-    'djcelery',
+    'django_celery_results',
 ]
 
 

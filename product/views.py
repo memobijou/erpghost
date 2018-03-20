@@ -23,6 +23,8 @@ from django.urls import reverse_lazy
 # Create your views here.
 from product.tasks import table_data_to_model_task
 import pyexcel as pe
+from django_celery_results.models import TaskResult
+from ast import literal_eval
 
 
 class ProductListView(ListView):
@@ -79,11 +81,20 @@ class ProductListAPIView(generics.ListAPIView):
 class ProductImportView(FormView):
     template_name = "product/import.html"
     form_class = ImportForm
-    success_url = reverse_lazy("product:list")
+    success_url = reverse_lazy("product:import")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
         context["title"] = "Artikelimport"
+        context["tasks_results"] = TaskResult.objects.all()
+        from erpghost import app
+        print(app.control.inspect().active())
+        active_tasks = []
+        for k, tasks in app.control.inspect().active().items():
+            for task in tasks:
+                active_tasks.append(task["id"])
+        print(active_tasks)
+        context["active_tasks"] = active_tasks
         return context
 
     def post(self, request, *args, **kwargs):
@@ -91,29 +102,18 @@ class ProductImportView(FormView):
         content = request.FILES["excel_field"].read()
         file_type = str(request.FILES["excel_field"]).split(".")[1]
 
-        # table = get_table(content, file_type)
-        # limit = ["ean", "hersteller", "herstellernummer"]
-        # error_fields = compare_header_with_model_fields(table.header, Product, limit=limit)
-        #
-        # if error_fields:
-        #     context["error_fields"] = error_fields
-        #     return render(request, self.template_name, context)
-        # table_data_to_model(Product, table, limit=limit, replace_header_key={"part_number": "Herstellernummer"},
-        #                     related_models={"Hersteller": Manufacturer})
-
         limit = ["ean", "hersteller", "part_number"]
         replace_dict = {"part_number": "Herstellernummer"}
 
         from collections import namedtuple
-        import json
         RelatedModel = namedtuple('RelatedModel', "app_label model_name verbose_name")
         related_models = {"manufacturer": RelatedModel(app_label="product", model_name="Manufacturer",
                                                        verbose_name="Hersteller")._asdict()}
-        print(related_models["manufacturer"]["app_label"])
         header = get_table_header(file_type, content)
-        print(header)
+
         records = pe.get_records(file_type=file_type, file_content=content)
         records_list = []
+
         for record in records:
             row = {}
             for attr in header:
@@ -123,6 +123,7 @@ class ProductImportView(FormView):
                     else:
                         row[attr] = record[attr]
             records_list.append(row)
+
         table_data_to_model_task.delay(records_list, ("product", "Product"), related_models)
         return super().post(request, *args, **kwargs)
 

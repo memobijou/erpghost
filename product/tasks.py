@@ -5,6 +5,7 @@ from django.apps import apps
 @shared_task
 def table_data_to_model_task(records_list, main_model, related_models):
     bulk_instances = []
+    current_row = 1
     model = apps.get_model(main_model[0], main_model[1])
     for record in records_list:
         create_dict = {}
@@ -12,19 +13,13 @@ def table_data_to_model_task(records_list, main_model, related_models):
             model_field_attr = get_field_from_verbose(k, model)
             create_dict[model_field_attr] = v
             related_instance = create_related_instance_from_verbose(k, model, related_models, v)
+            print(f"{current_row}: {k} : {v}")
             if related_instance:
-                # DEBUG #
-                print(f"Hersteller: {related_instance.name} {len(str(related_instance.name))}")
-                #########
                 create_dict[model_field_attr] = related_instance
-        ## DEBUG ##
-        # for a,b in create_dict.items():
-            # print(f"{a} - {b} - {len(str(b))}")
-
-        ###########
         bulk_instances.append(model(**create_dict))
+        current_row = current_row + 1
     model.objects.bulk_create(bulk_instances)
-    print(apps.get_model("product", "Manufacturer"))
+    print("FINISH EXECUTION")
 
 
 def get_field_from_verbose(verbose_name, model):

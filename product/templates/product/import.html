@@ -20,8 +20,8 @@
                 </style>
                 {% if active_tasks %}
                     <div class="col-md-12">
-                                    <h4>Ein Import wird gerade noch ausgeführt</h4>
-                                    <div class="loader"></div>
+                        <h4>Ein Import wird gerade noch ausgeführt</h4>
+                        <div class="loader"></div>
                     </div>
                 {% endif %}
         <div class="col-lg-9">
@@ -83,11 +83,25 @@
                 </div>
             </form>
             <div>
+                <h4>Letzte Aktivitäten: </h4>
                 <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Erledigt am</th>
+                        </tr>
+                    </thead>
                     <tbody>
                         {% for task in tasks_results %}
                             <tr>
-                                    <td>{{ task.status }}</td>
+                                    <td>
+                                        {% if task.status == "SUCCESS" %}
+                                            <span class="glyphicon glyphicon-ok" style="color:green;"></span>
+                                        {% elif task.status == "FAILURE" %}
+                                            <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.date_done }}</td>
                             </tr>
                         {% endfor %}
                     </tbody>

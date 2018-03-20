@@ -86,14 +86,13 @@ class ProductImportView(FormView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
         context["title"] = "Artikelimport"
-        context["tasks_results"] = TaskResult.objects.all()
+        context["tasks_results"] = TaskResult.objects.all().order_by("-id")[:10]
         from erpghost import app
-        print(app.control.inspect().active())
         active_tasks = []
-        for k, tasks in app.control.inspect().active().items():
-            for task in tasks:
-                active_tasks.append(task["id"])
-        print(active_tasks)
+        if app.control.inspect().active():
+            for k, tasks in app.control.inspect().active().items():
+                for task in tasks:
+                    active_tasks.append(task["id"])
         context["active_tasks"] = active_tasks
         return context
 

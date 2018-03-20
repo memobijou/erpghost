@@ -3,6 +3,27 @@
 {% block content %}
 <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
     <div class="container">
+                        <style>
+                    .loader {
+                        border: 16px solid #f3f3f3; /* Light grey */
+                        border-top: 16px solid #3498db; /* Blue */
+                        border-radius: 50%;
+                        width: 60px;
+                        height: 60px;
+                        animation: spin 2s linear infinite;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+                {% if active_tasks %}
+                    <div class="col-md-12">
+                        <h4>Ein Import wird gerade noch ausgeführt</h4>
+                        <div class="loader"></div>
+                    </div>
+                {% endif %}
         <div class="col-lg-9">
             {% if duplicates %}
                 <br/>
@@ -58,9 +79,34 @@
                     </div>
                 {% endfor %}
                 <div class="form-group">
-                    <button class="btn btn-primary">Speichern</button>
+                    <button class="btn btn-primary" {% if active_tasks %} disabled {% endif %}>Speichern</button>
                 </div>
             </form>
+            <div>
+                <h4>Letzte Aktivitäten: </h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Erledigt am</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks_results %}
+                            <tr>
+                                    <td>
+                                        {% if task.status == "SUCCESS" %}
+                                            <span class="glyphicon glyphicon-ok" style="color:green;"></span>
+                                        {% elif task.status == "FAILURE" %}
+                                            <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.date_done }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

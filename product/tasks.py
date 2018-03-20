@@ -13,11 +13,13 @@ def table_data_to_model_task(records_list, main_model, related_models):
             create_dict[model_field_attr] = v
             related_instance = create_related_instance_from_verbose(k, model, related_models, v)
             if related_instance:
+                # DEBUG #
+                print(f"Hersteller: {related_instance.name} {len(str(related_instance.name))}")
+                #########
                 create_dict[model_field_attr] = related_instance
         ## DEBUG ##
-
-        for a,b in create_dict.items():
-            print(f"{a} - {b} - {len(str(b))}")
+        # for a,b in create_dict.items():
+            # print(f"{a} - {b} - {len(str(b))}")
 
         ###########
         bulk_instances.append(model(**create_dict))

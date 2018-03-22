@@ -11,17 +11,17 @@ class Stock(models.Model):
         ('NOT_IGNORE', 'Nein'),
     )
 
-    ean_vollstaendig = models.CharField(max_length=250)
-    bestand = models.IntegerField(null=True, blank=True)
+    ean_vollstaendig = models.CharField(max_length=250, verbose_name="EAN")
+    bestand = models.IntegerField(null=True, blank=True, verbose_name="Bestand")
     ean_upc = models.CharField(max_length=250, null=True, blank=True)
-    lagerplatz = models.CharField(max_length=250, null=True, blank=True)
-    regal = models.CharField(max_length=250, null=True, blank=True)
-    zustand = models.CharField(max_length=250, null=True, blank=True)
-    scanner = models.IntegerField(null=True, blank=True)
-    name = models.CharField(max_length=250, null=True, blank=True)
-    karton = models.CharField(max_length=250, null=True, blank=True)
-    box = models.CharField(max_length=250, null=True, blank=True)
-    aufnahme_datum = models.CharField(max_length=250, null=True, blank=True)
+    lagerplatz = models.CharField(max_length=250, null=True, blank=True, verbose_name="Lagerplatz")
+    regal = models.CharField(max_length=250, null=True, blank=True, verbose_name="Regal")
+    zustand = models.CharField(max_length=250, null=True, blank=True, verbose_name="Zustand")
+    scanner = models.IntegerField(null=True, blank=True, verbose_name="Scanner")
+    name = models.CharField(max_length=250, null=True, blank=True, verbose_name="Person")
+    karton = models.CharField(max_length=250, null=True, blank=True, verbose_name="Karton")
+    box = models.CharField(max_length=250, null=True, blank=True, verbose_name="Box")
+    aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
 

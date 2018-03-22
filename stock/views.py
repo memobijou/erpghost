@@ -1,18 +1,27 @@
+import urllib
+
 from django.shortcuts import render, get_object_or_404
+from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django.forms import modelform_factory
+from django_celery_results.models import TaskResult
+from import_excel.funcs import get_table_header, check_excel_header_fields_not_in_header, \
+    compare_header_with_model_fields, \
+    get_records_as_list_with_dicts, check_excel_for_duplicates
+from import_excel.models import TaskDuplicates
 from .models import Stock, Stockdocument
 from .forms import StockdocumentForm
 from tablib import Dataset
-from tablib import formats
 from .resources import StockResource
-from django.shortcuts import redirect
-from django.core.urlresolvers import reverse
+from django.core.urlresolvers import reverse_lazy
 from django.http import HttpResponseRedirect
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from stock.forms import ImportForm
+from stock.tasks import table_data_to_model_task
+from erpghost import app
 
 
 # Create your views here.
@@ -48,8 +57,9 @@ class StockListView(LoginRequiredMixin, ListView):
 
         context["fields"] = self.get_verbose_names(exclude=["id", 'regal', "ean_upc", "scanner", "name", "karton",
                                                             'box', 'aufnahme_datum', "ignore_unique"])
-        context["filter_fields"] = self.get_filter_fields(exclude=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
-                                                                   'box', 'aufnahme_datum', "ignore_unique"])
+        context["filter_fields"] = self.get_filter_fields(
+            exclude=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
+                     'box', 'aufnahme_datum', "ignore_unique"])
 
         if "table" in str(self.request.get_full_path()):
             context["title"] = "Lagerbestand"
@@ -83,7 +93,6 @@ class StockListView(LoginRequiredMixin, ListView):
             if field.attname not in exclude:
                 verbose_fields.append(field.verbose_name)
         return verbose_fields
-
 
     def get_filter_fields(self, exclude=None):
         filter_fields = []
@@ -205,3 +214,63 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
             # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
             # else:
         return context
+
+
+class StockImportView(FormView):
+    template_name = "stock/import.html"
+    form_class = ImportForm
+    success_url = reverse_lazy("stock:import")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        context["title"] = "Lagerbestand Import"
+        context["tasks_results"] = TaskResult.objects.all().order_by("-id")[:10]
+        recent_task_duplicates_queryset = TaskDuplicates.objects.filter(
+            task_id=context["tasks_results"].first().task_id)
+
+        recent_duplicates = []
+        for duplicate in recent_task_duplicates_queryset:
+            query_dict = urllib.parse.parse_qs(duplicate.query_string)
+            query_dict = {k: v[0] for k, v in query_dict.items()}
+            recent_duplicates.append(query_dict)
+        context["recent_duplicates"] = recent_duplicates
+
+        active_tasks = []
+        if app.control.inspect().active():
+            for k, tasks in app.control.inspect().active().items():
+                for task in tasks:
+                    active_tasks.append(task["id"])
+        context["active_tasks"] = active_tasks
+        return context
+
+    def post(self, request, *args, **kwargs):
+        content = request.FILES["excel_field"].read()
+        file_type = str(request.FILES["excel_field"]).split(".")[1]
+
+        header = get_table_header(file_type, content)
+
+        excel_header_fields = ["ean_vollstaendig", "lagerplatz", "zustand"]
+        replace_header_fields = {"ean_vollstaendig": "EAN", "lagerplatz": "Lagerplatz",
+                                 "zustand": "Zustand"}  # replace excel_fields with verbose_names to map with model fields
+
+        excel_header_fields_not_in_header = check_excel_header_fields_not_in_header(header, excel_header_fields)
+
+        header_errors = compare_header_with_model_fields(header, Stock, excel_header_fields,
+                                                         replace_header_fields=replace_header_fields)
+
+        excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields,
+                                                    replace_header_fields=replace_header_fields)
+
+        excel_duplicates = check_excel_for_duplicates(excel_list)
+
+        if header_errors or excel_header_fields_not_in_header or excel_duplicates:
+            context = self.get_context_data(**kwargs)
+            context["header_errors"] = header_errors
+            context["excel_header_fields_not_in_header"] = excel_header_fields_not_in_header
+            context["excel_duplicates"] = excel_duplicates
+            return render(self.request, self.template_name, context)
+
+        unique_together = ["EAN", "Lagerplatz", "Zustand"]  # use vebose_names
+
+        table_data_to_model_task.delay(excel_list, ("stock", "Stock"), None, unique_together)
+        return super().post(request, *args, **kwargs)

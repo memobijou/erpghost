@@ -7,3 +7,7 @@ class StockdocumentForm(ModelForm):
     class Meta:
         model = Stockdocument
         exclude = ["id,"]
+
+
+class ImportForm(forms.Form):
+    excel_field = forms.FileField(label="Excel-Datei")

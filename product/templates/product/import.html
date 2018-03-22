@@ -25,50 +25,65 @@
                     </div>
                 {% endif %}
         <div class="col-lg-9">
-            {% if duplicates %}
+            {% if excel_duplicates %}
                 <br/>
                 <div style="color:red;">
-                    <h1>{{duplicate_message}}</h1>
+                    <h1>Doppelte Einträge innerhalb Excel-Datei</h1>
                 </div>
                 <br/>
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                {% if duplicates.0.index %}
-                                    <td>Excel-Index</td>
-                                {% endif %}
-                                <td>Werte</td>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for duplicate in duplicates %}
-                                <tr>
-                                    {% if duplicate.index %}
-                                        <td>{{duplicate.index}}</td>
-                                    {% endif %}
-                                    <td>
-                                        {% for k,v in duplicate.dict_.items %}
-                                            <b>{{k}}: </b>{{v}}&nbsp;&nbsp;
-                                        {% endfor %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-            {% endif %}
-            <div class="table-responsive">
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            {% for error_field, status in error_fields %}
-                                <th {% if status == 'error' %}style="color:red;"{% endif %}>
-                                    {{ error_field }}
-                                </th>
-                            {% endfor %}
+                            <th>Eintrag</th>
+                            <th>Excel Index</th>
                         </tr>
                     </thead>
+                    <tbody>
+                        {% for row, excel_index in excel_duplicates %}
+                            <tr>
+                                <td>
+                                    {% for k, v in row.items %}
+                                        <div>
+                                        <b>{{ k }}</b> : {{ v }}
+                                        </div>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ excel_index }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
                 </table>
-            </div>
+            {% endif %}
+            {% if excel_header_fields_not_in_header %}
+                <p style="color:red;">Folgende LIMITS nicht in Header vorhanden:</p>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            {% for excel_header_field in excel_header_fields_not_in_header %}
+                                <th>{{ excel_header_field }}</th>
+                            {% endfor %}
+                        </thead>
+                    </table>
+                </div>
+            {% endif %}
+            {% if header_errors %}
+                <p style="color:red;">Folgende Felder weisen Fehler auf:</p>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                {% for error_field, status in header_errors %}
+                                    <th {% if status == 'error' %}style="color:red;"{% endif %}
+                                        {% if status == 'success' %} style="color:green;"{% endif %}>
+                                        {{ error_field }}
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            {% endif %}
             {{ form.non_field_errors }}
             <form action="." method="POST" enctype="multipart/form-data">{% csrf_token %}
                 {% for field in form %}

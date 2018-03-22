@@ -1,30 +1,23 @@
-import binascii
-from celery import Celery
 from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.views.generic import ListView, FormView
-from .models import Product, Manufacturer
+
+from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
+    check_excel_header_fields_not_in_header, check_excel_for_duplicates
+from .models import Product
 from order.models import ProductOrder
-from django.http import JsonResponse
-from django.core import serializers
-import json
 from utils.utils import get_queries_as_json, set_field_names_onview, \
     handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request, \
-    get_and_condition_from_q, get_verbose_names, get_filter_fields, get_table, table_data_to_model, \
-    compare_header_with_model_fields
+    get_and_condition_from_q, get_verbose_names, get_filter_fields, get_table, table_data_to_model
 from .serializers import ProductSerializer, IncomeSerializer
 from rest_framework.generics import ListAPIView
-import django_filters.rest_framework
-from django.db.models import Q
-from rest_framework import filters
 from rest_framework import generics
 from product.forms import ImportForm
 from django.urls import reverse_lazy
 # Create your views here.
-from product.tasks import table_data_to_model_task
-import pyexcel as pe
+from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
-from ast import literal_eval
+from import_excel.models import TaskDuplicates
 
 
 class ProductListView(ListView):
@@ -97,38 +90,31 @@ class ProductImportView(FormView):
         return context
 
     def post(self, request, *args, **kwargs):
-        context = self.get_context_data(**kwargs)
         content = request.FILES["excel_field"].read()
         file_type = str(request.FILES["excel_field"]).split(".")[1]
 
-        limit = ["ean", "hersteller", "part_number"]
-        replace_dict = {"part_number": "Herstellernummer"}
+        excel_header_fields = ["ean", "hersteller", "part_number"]
+        replace_header_fields = {"part_number": "Herstellernummer"}
+        related_models = {
+            "hersteller": {"app_label": "product", "model_name": "Manufacturer", "verbose_name": "Hersteller"}
+        }
 
-        from collections import namedtuple
-        RelatedModel = namedtuple('RelatedModel', "app_label model_name verbose_name")
-        related_models = {"manufacturer": RelatedModel(app_label="product", model_name="Manufacturer",
-                                                       verbose_name="Hersteller")._asdict()}
         header = get_table_header(file_type, content)
 
-        records = pe.get_records(file_type=file_type, file_content=content)
-        records_list = []
+        excel_header_fields_not_in_header = check_excel_header_fields_not_in_header(header, excel_header_fields)
 
-        for record in records:
-            row = {}
-            for attr in header:
-                if attr.lower() in limit:
-                    if attr.lower() in replace_dict:
-                        row[replace_dict[attr.lower()]] = record[attr]
-                    else:
-                        row[attr] = record[attr]
-            records_list.append(row)
+        header_errors = compare_header_with_model_fields(header, Product, excel_header_fields, replace_header_fields=replace_header_fields)
 
-        table_data_to_model_task.delay(records_list, ("product", "Product"), related_models)
+        excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields,
+                                                    replace_header_fields=replace_header_fields)
+
+        if header_errors or excel_header_fields_not_in_header:
+            context = self.get_context_data(**kwargs)
+            if header_errors:
+                context["header_errors"] = header_errors
+            if excel_header_fields_not_in_header:
+                context["excel_header_fields_not_in_header"] = excel_header_fields_not_in_header
+            return render(self.request, self.template_name, context)
+
+        table_data_to_model_task.delay(excel_list, ("product", "Product"), related_models)
         return super().post(request, *args, **kwargs)
-
-
-def get_table_header(file_type, content):
-    sheet = pe.get_sheet(file_type=file_type, file_content=content)
-    header = sheet.row[0]
-    return header
-

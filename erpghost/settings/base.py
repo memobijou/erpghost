@@ -58,8 +58,11 @@ INSTALLED_APPS = [
     'stock',
     'import_export',
     'picklist',
-    'customer'
+    'customer',
+    'import_excel',
+    'django_celery_results',
 ]
+
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
@@ -73,6 +76,13 @@ MIDDLEWARE_CLASSES = [
 ]
 
 ROOT_URLCONF = 'erpghost.urls'
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+    }
+}
 
 TEMPLATES = [
     {
@@ -95,18 +105,6 @@ WSGI_APPLICATION = 'erpghost.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    }
-}
-
-import dj_database_url
-
-db_from_env = dj_database_url.config()
-DATABASES['default'].update(db_from_env)
-# DATABASES['default']['CONN_MAX_AGE'] = 500
 
 # Password validation
 # https://docs.djangoproject.com/en/1.11/ref/settings/#auth-password-validators
@@ -129,9 +127,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/1.11/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'  # de
+LANGUAGE_CODE = 'de-de'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Berlin'
 
 USE_I18N = True
 

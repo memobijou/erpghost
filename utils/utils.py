@@ -599,6 +599,7 @@ def get_filter_fields(model_class, exclude=None):
             filter_fields.append((field.attname, field.verbose_name))
     return filter_fields
 
+
 def table_data_to_model(model, table, replace_header=None, limit=None, replace_header_key=None, related_models=None):
     header = table.header
     if replace_header:
@@ -644,6 +645,7 @@ def get_attname_from_verbose(verbose_name, model_class):
             return field.attname
     return verbose_name
 
+
 def get_relation_from_verbose(verbose_name, model_class):
     for field in model_class._meta.get_fields():
         if not hasattr(field, "verbose_name"):
@@ -659,6 +661,7 @@ def is_empty_row(row):
             return False
     return True
 
+
 def get_table_excel(sheet):
     Table = collections.namedtuple('Table', 'header content')
     header = sheet.row[0]
@@ -670,6 +673,7 @@ def get_table_excel(sheet):
     table = Table(header=header, content=content)
     return table
 
+
 def get_table(content, filetype):
     if filetype == "xlsx":
         sheet = pyexcel.get_sheet(file_type="xlsx", file_content=content)
@@ -680,23 +684,3 @@ def get_table(content, filetype):
     else:
         return
     return table
-
-def compare_header_with_model_fields(header, model_class, limit=None):
-    error_fields = []
-    verbose_fields = []
-
-    if limit:
-        header = limit
-
-    for field in model_class._meta.get_fields():
-        if hasattr(field, "verbose_name"):
-            verbose_fields.append(field.verbose_name.lower())
-    for title in header:
-        if title.lower() in verbose_fields:
-            error_fields.append((title, "success"))
-        else:
-            error_fields.append((title, "error"))
-
-    for error_field, status in error_fields:
-        if status == "error":
-            return error_fields

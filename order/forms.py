@@ -15,7 +15,6 @@ class OrderForm(forms.ModelForm):
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
 
-
 class BaseProductOrderFormset(BaseInlineFormSet):
     def add_fields(self, form, index):
         super().add_fields(form, index)
@@ -23,11 +22,11 @@ class BaseProductOrderFormset(BaseInlineFormSet):
         form.fields["amount"].label = "Menge"
         form.fields["amount"].initial = ""
 
+
 ProductOrderFormsetUpdate = inlineformset_factory(Order, ProductOrder, can_delete=True, extra=1,
-                                                    exclude=["id", "missing_amount", "confirmed"], formset=BaseProductOrderFormset)
+                                                  exclude=["id", "missing_amount", "confirmed"],
+                                                  formset=BaseProductOrderFormset)
 
 ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3,
-                                              exclude=["id", "missing_amount", "confirmed"], formset=BaseProductOrderFormset)
-
-
-
+                                                  exclude=["id", "missing_amount", "confirmed"],
+                                                  formset=BaseProductOrderFormset)

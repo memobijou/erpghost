@@ -144,12 +144,12 @@ class OrderCreateView(CreateView):
     form_class = OrderForm
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderCreateView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
         context["matching_"] = "Product"  # Hier Modelname übergbenen
 
         if self.request.POST:
-            formset = ProductOrderFormsetCreate(self.request.POST, self.request.FILES, instance=self.object)
+            formset = ProductOrderFormsetCreate(self.request.POST, instance=self.object)
         else:
             formset = ProductOrderFormsetCreate(instance=self.object)
         context["formset"] = formset
@@ -206,6 +206,7 @@ class OrderListView(ListView):
         context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
         return context
 
+
 class OrderDeleteView(DeleteView):
     model = Order
     success_url = reverse_lazy("order:list")
@@ -213,6 +214,7 @@ class OrderDeleteView(DeleteView):
 
     def get_object(self, queryset=None):
         return Order.objects.filter(id__in=self.request.GET.getlist('item'))
+
 
 class OrderListAPIView(ListAPIView):
     queryset = Order.objects.all()

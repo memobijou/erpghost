@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <div class="container">
+                        <style>
+                    .loader {
+                        border: 16px solid #f3f3f3; /* Light grey */
+                        border-top: 16px solid #3498db; /* Blue */
+                        border-radius: 50%;
+                        width: 60px;
+                        height: 60px;
+                        animation: spin 2s linear infinite;
+                    }
+
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                </style>
+                {% if active_tasks %}
+                    <div class="col-md-12">
+                        <h4>Ein Import wird gerade noch ausgeführt</h4>
+                        <div class="loader"></div>
+                    </div>
+                {% endif %}
+        <div class="col-lg-9">
+            {% if recent_duplicates %}
+                <h1 style="color:red;">Einträge schon in Datenbank vorhanden</h1>
+                <table class="table table-bordered">
+                    <tbody>
+                        {% for duplicate in recent_duplicates %}
+                            <tr>
+                                {% for k, v in duplicate.items %}
+                                    <td>
+                                        <b>{{ k }}</b>: {{ v }}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            {% if excel_duplicates %}
+                <br/>
+                <div style="color:red;">
+                    <h1>Doppelte Einträge innerhalb Excel-Datei</h1>
+                </div>
+                <br/>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Eintrag</th>
+                            <th>Excel Index</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row, excel_index in excel_duplicates %}
+                            <tr>
+                                <td>
+                                    {% for k, v in row.items %}
+                                        <div>
+                                        <b>{{ k }}</b> : {{ v }}
+                                        </div>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ excel_index }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+            {% if excel_header_fields_not_in_header %}
+                <p style="color:red;">Folgende LIMITS nicht in Header vorhanden:</p>
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            {% for excel_header_field in excel_header_fields_not_in_header %}
+                                <th>{{ excel_header_field }}</th>
+                            {% endfor %}
+                        </thead>
+                    </table>
+                </div>
+            {% endif %}
+            {% if header_errors %}
+                <p style="color:red;">Folgende Felder weisen Fehler auf:</p>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                {% for error_field, status in header_errors %}
+                                    <th {% if status == 'error' %}style="color:red;"{% endif %}
+                                        {% if status == 'success' %} style="color:green;"{% endif %}>
+                                        {{ error_field }}
+                                    </th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
+            {% endif %}
+            {{ form.non_field_errors }}
+            <form action="." method="POST" enctype="multipart/form-data">{% csrf_token %}
+                {% for field in form %}
+                    <div class="form-group">
+                        {{ field.errors }}
+                        <label for="{{ field.id_for_label }}">{{ field.label }}:</label>
+                        {{ field }}
+                    </div>
+                {% endfor %}
+                <div class="form-group">
+                    <button class="btn btn-primary" {% if active_tasks %} disabled {% endif %}>Speichern</button>
+                </div>
+            </form>
+            <div>
+                <h4>Letzte Aktivitäten: </h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Erledigt am</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks_results %}
+                            <tr>
+                                    <td>
+                                        {% if task.status == "SUCCESS" %}
+                                            <span class="glyphicon glyphicon-ok" style="color:green;"></span>
+                                        {% else %}
+                                            <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ task.date_done }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

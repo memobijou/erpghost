@@ -1,6 +1,7 @@
 from django.core.paginator import Paginator
 from django.shortcuts import render
-from django.views.generic import ListView, FormView
+from django.views.generic import DetailView
+from django.views.generic import ListView, FormView, UpdateView
 
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
@@ -12,7 +13,7 @@ from utils.utils import get_queries_as_json, set_field_names_onview, \
 from .serializers import ProductSerializer, IncomeSerializer
 from rest_framework.generics import ListAPIView
 from rest_framework import generics
-from product.forms import ImportForm
+from product.forms import ImportForm, ProductForm
 from django.urls import reverse_lazy
 # Create your views here.
 from import_excel.tasks import table_data_to_model_task
@@ -40,6 +41,21 @@ class ProductListView(ListView):
             page = 1
         current_page_object = paginator.page(page)
         return current_page_object
+
+
+class ProductUpdateView(UpdateView):
+    form_class = ProductForm
+
+    def get_object(self):
+        return Product.objects.get(pk=self.kwargs.get("pk"))
+
+    def get_success_url(self):
+        return reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")})
+
+
+class ProductDetailView(DetailView):
+    def get_object(self):
+        return Product.objects.get(pk=self.kwargs.get("pk"))
 
 
 class IncomeListView(ListAPIView):

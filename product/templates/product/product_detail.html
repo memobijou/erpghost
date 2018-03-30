@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% load utils %}
+
+{% block content %}
+        <div class="panel panel-default">
+            <div class="panel-body">
+                {% if object %}
+                    <div class="pull-right">
+                        <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
+                    </div>
+                {% endif %}
+                <div class="col-md-6">
+                    <p>
+                        <b>EAN: </b> {{ object.ean }}
+                    </p>
+                    <p>
+                        <b>Artikelname: </b> {{ object.title }}
+                    </p>
+                    <p>
+                        <b>Kurzbeschreibung: </b> {{ object.short_description }}
+                    </p>
+                    <p>
+                         <img class="img-responsive" src="{{ object.main_image.url }}">
+                    </p>
+                    <p>
+                        <b>Beschreibung: </b> {{ object.description }}
+                    </p>
+                </div>
+            </div>
+        </div>
+{% endblock %}

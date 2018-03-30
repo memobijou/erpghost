@@ -19,9 +19,11 @@
                     <p>
                         <b>Kurzbeschreibung: </b> {{ object.short_description }}
                     </p>
-                    <p>
-                         <img class="img-responsive" src="{{ object.main_image.url }}">
-                    </p>
+                    {% if object.main_image %}
+                        <p>
+                             <img class="img-responsive" src="{{ object.main_image.url }}">
+                        </p>
+                    {% endif %}
                     <p>
                         <b>Beschreibung: </b> {{ object.description }}
                     </p>

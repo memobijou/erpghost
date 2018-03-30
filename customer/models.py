@@ -4,6 +4,7 @@ from django.core.urlresolvers import reverse
 
 # Create your models here.
 
+
 class Customer(models.Model):
     name = models.CharField(blank=True, null=False, max_length=13)
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='customer', verbose_name="Kontaktdaten")

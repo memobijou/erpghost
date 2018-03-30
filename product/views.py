@@ -19,6 +19,7 @@ from django.urls import reverse_lazy
 from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
 from import_excel.models import TaskDuplicates
+import pyexcel
 
 
 class ProductListView(ListView):
@@ -148,3 +149,20 @@ class ProductImportView(FormView):
         print(AsyncResult("was???").state)
         print(task.state)
         return super().post(request, *args, **kwargs)
+
+
+class ProductImageImportView(FormView):
+    template_name = "product/import.html"
+    form_class = ImportForm
+    success_url = reverse_lazy("product:import_images")
+
+    def post(self, request, *args, **kwargs):
+        bytes = self.request.FILES["excel_field"].read()
+        file_type = str(request.FILES["excel_field"]).split(".")[1]
+        records = pyexcel.get_records(file_type=file_type, file_content=bytes)
+        product_list = []
+        for record in records:
+            product_list.append((record["EAN"], record["Artikelname"], record["Bild"]))
+        print(product_list)
+        from product.tasks import upload_images_to_matching_products_task
+        upload_images_to_matching_products_task.delay(product_list)

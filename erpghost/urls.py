@@ -22,6 +22,8 @@ from django.contrib.auth.views import LoginView
 from main.views import main_view
 from django.conf import settings
 from django.contrib.auth.views import logout
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -39,6 +41,6 @@ urlpatterns = [
     url(r'^mission/', include("mission.urls", namespace="mission")),
     url(r'^supplier/', include("supplier.urls", namespace="supplier")),
     url(r'^customer/', include("customer.urls", namespace="customer")),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 urlpatterns += staticfiles_urlpatterns()

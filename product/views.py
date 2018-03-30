@@ -93,28 +93,42 @@ class ProductImportView(FormView):
         content = request.FILES["excel_field"].read()
         file_type = str(request.FILES["excel_field"]).split(".")[1]
 
-        excel_header_fields = ["ean", "hersteller", "part_number"]
-        replace_header_fields = {"part_number": "Herstellernummer"}
+        excel_header_fields = ["ean", "Hersteller", "part_number", "Artikelname", "short_description", "description",
+                               "Markenname"]
+        replace_header_fields = {"part_number": "Herstellernummer", "Artikelname": "Titel",
+                                 "short_description": "Kurzbeschreibung", "description": "Beschreibung"}
         related_models = {
-            "hersteller": {"app_label": "product", "model_name": "Manufacturer", "verbose_name": "Hersteller"}
+            #"Hersteller": {"app_label": "product", "model_name": "Manufacturer", "verbose_name": "Hersteller"},
         }
+
+        main_model_related_names = {
+            # "Manufacturer": "manufacturer"
+        }
+
+        verbose_fields = {"ean": "EAN", "Hersteller": "Hersteller", "part_number": "Herstellernummer",
+                          "Artikelname": "Titel", "short_description": "Kurzbeschreibung", "description": "Beschreibung"
+                          }
 
         header = get_table_header(file_type, content)
 
-        excel_header_fields_not_in_header = check_excel_header_fields_not_in_header(header, excel_header_fields)
-
-        header_errors = compare_header_with_model_fields(header, Product, excel_header_fields, replace_header_fields=replace_header_fields)
+        # header_errors = compare_header_with_model_fields(header, Product, excel_header_fields,
+        #                                                  replace_header_fields=replace_header_fields)
 
         excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields,
                                                     replace_header_fields=replace_header_fields)
 
-        if header_errors or excel_header_fields_not_in_header:
-            context = self.get_context_data(**kwargs)
-            if header_errors:
-                context["header_errors"] = header_errors
-            if excel_header_fields_not_in_header:
-                context["excel_header_fields_not_in_header"] = excel_header_fields_not_in_header
-            return render(self.request, self.template_name, context)
+        # print(f"{header_errors}")
 
-        table_data_to_model_task.delay(excel_list, ("product", "Product"), related_models)
+        # if header_errors:
+        #     context = self.get_context_data(**kwargs)
+        #     if header_errors:
+        #         context["header_errors"] = header_errors
+        #     return render(self.request, self.template_name, context)
+
+        task = table_data_to_model_task.delay(excel_list, ("product", "Product"), related_models, verbose_fields,
+                                              main_model_related_names)
+        print(task)
+        from celery.result import AsyncResult
+        print(AsyncResult("was???").state)
+        print(task.state)
         return super().post(request, *args, **kwargs)

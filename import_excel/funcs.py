@@ -112,23 +112,72 @@ def check_excel_for_duplicates(excel_list):
     return duplicates
 
 
-def bulk_create_excel_list(excel_list, model, related_models):
+def bulk_create_excel_list(excel_list, model, related_models, verbose_fields, main_model_related_names):
     bulk_instances = []
     current_row = 1
 
     for row in excel_list:
         create_dict = {}
+        row_model_objects = {}
         for k, v in row.items():
             model_field_attr = get_field_from_verbose(k, model)
-            create_dict[model_field_attr] = v
-            related_instance = create_related_instance_from_verbose(k, model, related_models, v)
-            #print(f"{current_row}: {k} : {v}")
-            if related_instance:
-                create_dict[model_field_attr] = related_instance
-        bulk_instances.append(model(**create_dict))
+            print(f"ATTR: {model_field_attr}")
+            if k not in related_models:
+                create_dict[model_field_attr] = v
+            else:
+                row_model_objects = \
+                    apply_field_value_to_row_model_objects_dict(row_model_objects, model, k, v, related_models,
+                                                                verbose_fields)
+        print(create_dict)
+        if row_model_objects is not False:
+            create_dict = model_objects_to_create_dict(create_dict, row_model_objects, main_model_related_names)
+        new_model_row_object = model(**create_dict)
+        print(f"{row_model_objects}")
+        bulk_instances.append(new_model_row_object)
         current_row = current_row + 1
     model.objects.bulk_create(bulk_instances)
+
+    for instance in bulk_instances:
+        for _,related_name in main_model_related_names.items():
+            if f"{related_name}_id" not in dir(instance):
+                related = getattr(instance, related_name)
+                related_main_model_name = get_related_attribute_from_fields(related, model)
+                setattr(related, related_main_model_name, instance)
+                related.save()
     print("FINISH EXECUTION")
+
+
+def get_related_attribute_from_fields(related_instance, main_model):
+    fields = related_instance._meta.get_fields()
+    for field in fields:
+        if not field.related_model:
+            continue
+        if field.related_model._meta.model_name == main_model._meta.model_name:
+            return field.attname
+
+
+def apply_field_value_to_row_model_objects_dict(row_model_objects, model, k, v, related_models, verbose_fields):
+    related_model_name = related_models[k]["model_name"]
+    if related_model_name in row_model_objects:
+        related_model = row_model_objects[related_model_name]
+        field = get_field_from_verbose(verbose_fields[k], related_model)
+        setattr(related_model, field, v)
+        related_model.save()
+    else:
+        related_model = apps.get_model(related_models[k]["app_label"],
+                                       related_model_name)
+        field = get_field_from_verbose(verbose_fields[k], related_model)
+        #setattr(related_model, field, v)
+        found, created = related_model.objects.get_or_create(**{field: v})
+        print(f"{field} : {v} : {found}")
+        row_model_objects[related_model_name] = found
+    return row_model_objects
+
+
+def model_objects_to_create_dict(create_dict, model_objects, main_model_related_names):
+    for model_name, model_instance in model_objects.items():
+        create_dict[main_model_related_names[model_name]] = model_instance
+    return create_dict
 
 
 def get_field_from_verbose(verbose_name, model):
@@ -145,9 +194,11 @@ def create_related_instance_from_verbose(verbose_name, model, related_models, va
         if field.is_relation and field.related_model:
             if hasattr(field, "verbose_name"):
                 if field.verbose_name == verbose_name:
-                        related_model = apps.get_model(related_models[verbose_name.lower()]["app_label"],
-                                                       related_models[verbose_name.lower()]["model_name"])
-                        related_verbose_name = related_models[verbose_name.lower()]["verbose_name"]
+                    related_model = apps.get_model(related_models[verbose_name.lower()]["app_label"],
+                                                   related_models[verbose_name.lower()]["model_name"])
+                    related_verbose_name_list = related_models[verbose_name.lower()]["verbose_names"]
+                    if len(related_verbose_name_list) == 1:
+                        related_verbose_name = related_verbose_name_list[0]
                         related_attr = get_field_from_verbose(related_verbose_name, related_model)
 
                         new_instance = related_model.objects.create(**{related_attr: value})

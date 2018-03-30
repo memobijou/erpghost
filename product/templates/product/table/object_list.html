@@ -9,10 +9,21 @@
             <a href="{{ object.id }}/edit">Bearbeiten</a>
             <input type="checkbox" name="item" value="{{object.pk}}">
         </td>
+            <td>
+                {% if object.main_image %}
+                    <img src="{{ object.main_image.url|default:''}}" width="50px" height="50px">
+                {% endif %}
+            </td>
             <td> {{ object.ean}} </td>
-            <td> {{ object.manufacturer.name}} </td>
+            <td> {{ object.manufacturer}} </td>
+            <td> {{ object.brandname}} </td>
             <td> {{ object.part_number}} </td>
-
+            <td> {{ object.title}} </td>
+            <td> {{ object.short_description}} </td>
+            <td> {{ object.description}} </td>
+            <td> {{ object.height|default:''}} </td>
+            <td> {{ object.width|default:''}} </td>
+            <td> {{ object.length|default:''}} </td>
     </tr>
 {% endfor %}
 </form>

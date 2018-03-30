@@ -1,33 +1,35 @@
 {% load utils %}
 <div class="col-md-12">
-    <table class="table table-bordered" style="background-color:white;">
-        <thead>
-            <tr>
-                <th></th>
-                {% for field in fields %}
-                    <th>{{field}}</th>
-                {% endfor %}
-            </tr>
-        </thead>
+    <div class="table-responsive">
+        <table class="table table-bordered" style="background-color:white;">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for field in fields %}
+                        <th>{{field}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
 
-        <tbody>
-                {% if app == "order" %}
-                    {% include "order/table/object_list.html" %}
-                {% elif app == "mission" %}
-                    {% include "mission/table/object_list.html" %}
-                {% elif app == "stock" %}
-                    {% include "stock/table/object_list.html" %}
-                {% elif app == "supplier" %}
-                    {% include "supplier/table/object_list.html" %}
-                {% elif app == "product" %}
-                    {% include "product/table/object_list.html" %}
-                {% endif %}
-        </tbody>
+            <tbody>
+                    {% if app == "order" %}
+                        {% include "order/table/object_list.html" %}
+                    {% elif app == "mission" %}
+                        {% include "mission/table/object_list.html" %}
+                    {% elif app == "stock" %}
+                        {% include "stock/table/object_list.html" %}
+                    {% elif app == "supplier" %}
+                        {% include "supplier/table/object_list.html" %}
+                    {% elif app == "product" %}
+                        {% include "product/table/object_list.html" %}
+                    {% endif %}
+            </tbody>
 
-    </table>
+        </table>
 
-    <script>
+        <script>
 
 
-    </script>
+        </script>
+    </div>
 </div>

@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'customer',
     'import_excel',
     'django_celery_results',
+    'storages',
 ]
 
 

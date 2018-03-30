@@ -23,7 +23,7 @@ from import_excel.models import TaskDuplicates
 
 class ProductListView(ListView):
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Product)
+        queryset = filter_queryset_from_request(self.request, Product).order_by("-id")
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -39,7 +39,7 @@ class ProductListView(ListView):
         paginator = Paginator(self.get_queryset(), 15)
         if not page:
             page = 1
-        current_page_object = paginator.page(page)
+        current_page_object = paginator.page(int(page))
         return current_page_object
 
 

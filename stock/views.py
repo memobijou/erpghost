@@ -31,7 +31,7 @@ class StockListView(LoginRequiredMixin, ListView):
     login_url = "/login/"
 
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Stock)
+        queryset = filter_queryset_from_request(self.request, Stock).order_by("-id")
         return queryset
 
     def get_context_data(self, *args, **kwargs):

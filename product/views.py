@@ -33,9 +33,7 @@ class ProductListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Artikel"
-        context["fields"] = get_verbose_names(Product, exclude=["id"])
-        context.get("fields").append("Bestand")
-        context["fields"] = [""] + context["fields"]
+        context["fields"] = self.build_fields()
         context["object_list"] = self.get_queryset()
         context["object_list_zip"] = zip(context["object_list"], self.get_product_stocks())
         print(context["object_list"])
@@ -59,8 +57,15 @@ class ProductListView(ListView):
                 total = stock.total_amount_ean()
                 total_stocks.append(total)
             else:
-                total_stocks.append(0)
+                total_stocks.append("/")
         return total_stocks
+
+    def build_fields(self):
+        fields = get_verbose_names(Product, exclude=["id", "short_description", "description", "height", "width",
+                                                     "length"])
+        fields.append("Bestand")
+        fields = [""] + fields
+        return fields
 
 
 class ProductUpdateView(UpdateView):

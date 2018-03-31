@@ -5,6 +5,7 @@ from django.views.generic import ListView, FormView, UpdateView
 
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
+from stock.models import Stock
 from .models import Product
 from order.models import ProductOrder
 from utils.utils import get_queries_as_json, set_field_names_onview, \
@@ -23,25 +24,43 @@ import pyexcel
 
 
 class ProductListView(ListView):
+    template_name = "product/product_list.html"
+
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Product).order_by("-id")
-        return queryset
+        return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Artikel"
         context["fields"] = get_verbose_names(Product, exclude=["id"])
-        context["object_list"] = self.set_pagination()
+        context.get("fields").append("Bestand")
+        context["fields"] = [""] + context["fields"]
+        context["object_list"] = self.get_queryset()
+        context["object_list_zip"] = zip(context["object_list"], self.get_product_stocks())
+        print(context["object_list"])
         context["filter_fields"] = get_filter_fields(Product, exclude=["id"])
         return context
 
-    def set_pagination(self):
+    def set_pagination(self, queryset):
         page = self.request.GET.get("page")
-        paginator = Paginator(self.get_queryset(), 15)
+        paginator = Paginator(queryset, 15)
         if not page:
             page = 1
         current_page_object = paginator.page(int(page))
         return current_page_object
+
+    def get_product_stocks(self):
+        queryset = self.get_queryset()
+        total_stocks = []
+        for q in queryset:
+            stock = Stock.objects.filter(ean_vollstaendig=q.ean).first()
+            if stock is not None:
+                total = stock.total_amount_ean()
+                total_stocks.append(total)
+            else:
+                total_stocks.append(0)
+        return total_stocks
 
 
 class ProductUpdateView(UpdateView):

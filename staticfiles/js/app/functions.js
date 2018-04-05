@@ -1,4 +1,4 @@
-var get_ = function (url, f, args=[]) {
+var get_ = function (url, f, args) {
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url);
     xhr.onreadystatechange = function () {
@@ -8,9 +8,9 @@ var get_ = function (url, f, args=[]) {
                 f.apply(this, args);
             }
         }
-    }
+    };
     xhr.send();
-}
+};
 
 
 var prepend_array = function (el, arr) {
@@ -20,7 +20,7 @@ var prepend_array = function (el, arr) {
         new_arr.push(arr[i]);
     }
     return new_arr;
-}
+};
 
 
 var get_field_names_from_json = function (response) {

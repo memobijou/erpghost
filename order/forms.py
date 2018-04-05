@@ -1,6 +1,7 @@
 from django import forms
 from .models import Order, ProductOrder
-from django.forms import modelform_factory, inlineformset_factory, BaseFormSet, BaseInlineFormSet
+from django.forms import modelform_factory, inlineformset_factory, BaseFormSet, BaseInlineFormSet, CharField, FloatField, \
+    IntegerField
 
 
 class OrderForm(forms.ModelForm):
@@ -27,6 +28,32 @@ ProductOrderFormsetUpdate = inlineformset_factory(Order, ProductOrder, can_delet
                                                   exclude=["id", "missing_amount", "confirmed"],
                                                   formset=BaseProductOrderFormset)
 
-ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, can_delete=False, extra=3,
+ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, extra=3,
                                                   exclude=["id", "missing_amount", "confirmed"],
                                                   formset=BaseProductOrderFormset)
+
+
+class CommonProductOrderForm(forms.Form):
+    ean = forms.CharField(label='EAN', max_length=13)
+    amount = forms.IntegerField(label='Menge')
+    netto_price = forms.FloatField(label="Einzelpreis (Netto)")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+    class Meta:
+        abstract = True
+
+
+class ProductOrderForm(CommonProductOrderForm):
+    pass
+
+
+class ProductOrderUpdateForm(CommonProductOrderForm):
+    #delete = forms.BooleanField(label="Löschen", required=False)
+    pass

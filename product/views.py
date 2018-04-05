@@ -103,11 +103,11 @@ class ProductListAPIView(generics.ListAPIView):
         """ allow rest api to filter by submissions """
         queryset = Product.objects.all()
         ean = self.request.query_params.get('ean', None)
-        myid = self.request.query_params.get('id', None)
+        pk = self.request.query_params.get('id', None)
         if ean is not None:
             queryset = queryset.filter(ean=ean)
-        if myid is not None:
-            queryset = queryset.filter(id=myid)
+        if pk is not None:
+            queryset = queryset.filter(id=pk)
 
         return queryset
 

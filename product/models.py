@@ -31,4 +31,5 @@ class Product(models.Model):
 
     @property
     def calc_volume(self):
-        return self.height * self.width * self.length
+        if self.height and self.width and self.length:
+            return self.height * self.width * self.length

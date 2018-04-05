@@ -8,11 +8,14 @@ from reportlab.platypus import PageTemplate
 from reportlab.platypus import SimpleDocTemplate
 from reportlab.platypus import XPreformatted
 
+from product.order_mission import validate_product_order_or_mission_from_post, \
+    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission
-from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate
+from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
+    ProductMissionUpdateForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import inlineformset_factory, modelform_factory
 from django.urls import reverse_lazy
@@ -23,6 +26,7 @@ from reportlab.graphics.shapes import Drawing, Line
 from reportlab.platypus.tables import Table, TableStyle
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import Frame, NextPageTemplate, PageBreak
+from django.forms.models import model_to_dict
 
 
 class MissionDetailView(DetailView):
@@ -69,32 +73,43 @@ class MissionListView(ListView):
 class MissionCreateView(CreateView):
     template_name = "mission/form.html"
     form_class = MissionForm
+    amount_product_mission_forms = 1
 
     def get_context_data(self, *args, **kwargs):
         context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
         context["title"] = "Auftrag anlegen"
-        context["matching_"] = "Product"  # Hier Modelname übergbenen
-        formset_class = ProductMissionFormsetCreate
-
-        if self.request.POST:
-            formset = formset_class(self.request.POST, self.request.FILES, instance=self.object)
-        else:
-            formset = formset_class(instance=self.object)
-
-        context["formset"] = formset
+        context["ManyToManyForms"] = self.build_product_mission_forms(self.amount_product_mission_forms)
 
         return context
+
+    def build_product_mission_forms(self, amount):
+        product_mission_forms_list = []
+        for i in range(0, amount):
+            if self.request.POST:
+                data = {}
+                for k in self.request.POST:
+                    if k in ProductMissionForm.base_fields:
+                        data[k] = self.request.POST.getlist(k)[i]
+                print(data)
+                product_mission_forms_list.append(ProductMissionForm(data=data))
+            else:
+                product_mission_forms_list.append(ProductMissionForm())
+        return product_mission_forms_list
 
     def form_valid(self, form, *args, **kwargs):
         self.object = form.save()
 
-        context = self.get_context_data(*args, **kwargs)
-        formset = context["formset"]
+        valid_product_mission_forms = \
+            validate_product_order_or_mission_from_post(ProductMissionForm, self.amount_product_mission_forms,
+                                                        self.request)
 
-        if formset.is_valid():
-            formset.save()
-        else:
+        if valid_product_mission_forms is False:
+            context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
+        else:
+            create_product_order_or_mission_forms_from_post(ProductMission, ProductMissionForm,
+                                                            self.amount_product_mission_forms, "mission", self.object,
+                                                            self.request, 0)
 
         return HttpResponseRedirect(self.get_success_url())
 
@@ -117,36 +132,50 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         object = Mission.objects.get(id=self.kwargs.get("pk"))
         return object
 
-    def dispatch(self, request, *args, **kwargs):
-        # request.user = AnonymousUser()
-        return super(MissionUpdateView, self).dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, *args, **kwargs):
-        context = super(MissionUpdateView, self).get_context_data(*args, **kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
-        context["matching_"] = "Product"  # Hier Modelname übergbenen
-        if self.request.POST:
-            formset = ProductMissionFormsetUpdate(self.request.POST, self.request.FILES, instance=self.object)
-        else:
-            formset = ProductMissionFormsetUpdate(instance=self.object)
-        context["formset"] = formset
+        context["ManyToManyForms"] = self.build_product_mission_forms()
         return context
 
-    def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
-        context = self.get_context_data(*args, **kwargs)
-        formset = context["formset"]
+    def build_product_mission_forms(self):
+        product_mission_forms_list = []
+        product_missions = self.object.productmission_set.all()
+        i = 0
+        for product_mission in product_missions:
+            if self.request.POST:
+                data = {}
+                for k in self.request.POST:
+                    if k in ProductMissionForm.base_fields:
+                        data[k] = self.request.POST.getlist(k)[i]
+                print(data)
+                product_mission_forms_list.append(ProductMissionUpdateForm(data=data))
+            else:
+                data = model_to_dict(product_mission)
+                data["ean"] = product_mission.product.ean
+                product_mission_forms_list.append(ProductMissionUpdateForm(data=data))
+            i += 1
+        return product_mission_forms_list
 
-        if formset.is_valid():
-            formset.save()
-        else:
+    def form_valid(self, form, **kwargs):
+        self.object = form.save()
+
+        valid_product_mission_forms = \
+            validate_product_order_or_mission_from_post(ProductMissionUpdateForm,
+                                                        self.object.productmission_set.all().count(), self.request)
+
+        if valid_product_mission_forms is False:
+            context = self.get_context_data(**kwargs)
             return render(self.request, self.template_name, context)
+        else:
+            update_product_order_or_mission_forms_from_post("productmission_set", ProductMissionUpdateForm, "mission",
+                                                            self.object, self.request, ProductMission)
 
         return HttpResponseRedirect(self.get_success_url())
 
 
-class ScanMissionTemplateView(UpdateView):
-    template_name = "mission/scan_mission.html"
+class ScanMissionUpdateView(UpdateView):
+    template_name = "scan/scan.html"
     form_class = modelform_factory(ProductMission, fields=("confirmed",))
 
     def get_object(self, *args, **kwargs):
@@ -154,40 +183,25 @@ class ScanMissionTemplateView(UpdateView):
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(ScanMissionTemplateView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(**kwargs)
         context["object"] = self.get_object(*args, **kwargs)
-
-        product_missions = context["object"].productmission_set.all()
-
-        context["product_missions"] = product_missions
-        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
-
-        if product_missions.count() > 0:
-
-            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Mission,
-                                   exclude_fields=["id"], exclude_filter_fields=["id"])
-
-            set_field_names_onview(queryset=product_missions, context=context, ModelClass=ProductMission,
-                                   exclude_fields=["id", "mission"], exclude_filter_fields=["id", "mission"],
-                                   template_tagname="product_mission_field_names",
-                                   allow_related=True)
-        else:
-            context["product_missions"] = None
-
+        context["title"] = "Warenausgang"
+        product_missions = context.get("object").productmission_set.all()
+        context["product_orders_or_missions"] = product_missions
+        context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         return context
 
     def form_valid(self, form, *args, **kwargs):
-        object = form.save()
+        object_ = form.save()
+        self.update_scanned_product_mission(object_)
+        self.store_last_checked_checkbox_in_session()
+        return HttpResponseRedirect("")
+
+    def update_scanned_product_mission(self, object_):
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
-
-        for product_mission in object.productmission_set.all():
-
-            if str(product_mission.pk) == str(product_id):
-                product_mission.confirmed = confirmed_bool
-                product_mission.save()
-
+        for product_mission in object_.productmission_set.all():
             if str(product_mission.pk) == str(product_id):
                 if confirmed_bool == "0":
                     product_mission.missing_amount = missing_amount
@@ -195,7 +209,9 @@ class ScanMissionTemplateView(UpdateView):
                     product_mission.missing_amount = None
                 product_mission.confirmed = confirmed_bool
                 product_mission.save()
-        return HttpResponseRedirect("")
+
+    def store_last_checked_checkbox_in_session(self):
+        self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
 
 
 size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)

@@ -30,3 +30,8 @@ DATABASES = {
         'PORT': os.environ.get("PG_PORT"),
     }
 }
+
+
+# DEBUG TOOLBAR
+
+#INTERNAL_IPS = ('127.0.0.1',)

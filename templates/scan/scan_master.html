@@ -1,0 +1,54 @@
+<div class="table-responsive col-md-12">
+    <table class="table table-bordered table-condensed">
+        <thead>
+            <th></th>
+            <th>Bild</th>
+            <th>EAN</th>
+            <th>SKU</th>
+            <th>Menge</th>
+            <th>Fehlende Menge</th>
+            <th>Einzelpreis (Netto)</th>
+        </thead>
+        <tbody>
+            {% for product_order_or_mission in product_orders_or_missions %}
+                <tr
+                    {% if product_order_or_mission.confirmed == True %}
+                        class="success"
+                    {% elif product_order_or_mission.confirmed == False %}
+                        class="danger"
+                    {% endif %}
+                >
+                    <td  style="cursor: pointer;" class="collapse_click"
+                         collapse_id="{{ forloop.counter }}">
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                    </td>
+                    <td>
+                        {% if product_order_or_mission.product.main_image %}
+                            <img src="{{ product_order_or_mission.product.main_image.url }}"
+                                            style="width:50px; height:50px;">
+                        {% endif %}
+                    </td>
+                    <td>{{ product_order_or_mission.product.ean }}</td>
+                    <td>{{ product_order_or_mission.product.sku }}</td>
+                    <td>{{ product_order_or_mission.amount }}</td>
+                    <td>{{ product_order_or_mission.missing_amount|default:"" }}</td>
+                    <td>{{ product_order_or_mission.netto_price }}</td>
+                </tr>
+                <tr id="collapse_{{ forloop.counter }}"
+                    {% if product_order_or_mission.confirmed == True %}
+                        class="collapse success"
+                    {% elif product_order_or_mission.confirmed == False %}
+                        class="collapse danger"
+                    {% else %}
+                        class="collapse"
+                    {% endif %}
+                >
+                    <td colspan="8">
+                        <p><b>Artikelname: </b>{{ product_order_or_mission.product.title }}</p>
+                        <p><b>Kurzbeschreibung: </b>{{ product_order_or_mission.product.short_description }}</p>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

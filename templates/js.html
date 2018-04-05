@@ -1,20 +1,22 @@
 {% load static %}
-<!-- <script data-main="{% static 'js/app/main.js' %}" src="{% static 'js/vendor/require.js' %}"></script> -->
 
-<!-- <script data-main="{static "js/app/main.js"}" src="{% static "js/vendor/require.js" %}"></script> -->
+<link rel="stylesheet" href="{% static "css/bootstrap.min.css" %}">
 
 <script type="text/javascript" src="{% static "js/vendor/jquery.js" %}"></script>
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="{% static "css/bootstrap-theme.min.css" %}">
+
 <!-- Latest compiled and minified JavaScript -->
 <script src="{% static "js/vendor/bootstrap.min.js" %}"></script>
 
-<script src="{% static "js/vendor/angular.min.js" %}"></script>
 
 <link rel="stylesheet" href="{% static "css/jquery-ui.css" %}">
 <script src="{% static "js/vendor/jquery-ui.js" %}"></script>
 <script>
     $(function () {
         $(".datepicker").datepicker({
-            dateFormat: 'dd/mm/yy',
+            dateFormat: 'dd/mm/yy'
         });
     });
 </script>

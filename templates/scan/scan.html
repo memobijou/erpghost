@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body" style="padding-top: 60px;">
+            <div class="col-md-12" style="padding-bottom: 20px;">
+                <div class="col-md-6">
+                    {% include "scan/scan_master.html" %}
+                </div>
+
+                <div class="col-md-6">
+                    {% include "scan/scan_detail.html" %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "scan/scan_script.html" %}
+
+<style>
+    .table-borderless > tbody > tr > td,
+    .table-borderless > tbody > tr > th,
+    .table-borderless > tfoot > tr > td,
+    .table-borderless > tfoot > tr > th,
+    .table-borderless > thead > tr > td,
+    .table-borderless > thead > tr > th {
+        border: none;
+    }
+
+</style>
+{% endblock %}

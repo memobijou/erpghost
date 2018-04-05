@@ -1,23 +1,252 @@
-<div ng-app="ng_matchproduct" ng-controller="match_ctrl as m_ctrl">
-    <form method="POST" id="main_form"> {% csrf_token %}
-        <div class="table-bordered" style="padding:25px;background-color:white;">
-            {% for field in form %}
-                <div style="color:red">{{ field.errors }}</div>
-                {{ field.label_tag }} {{ field }}
-            {% endfor %}
+<div class="panel">
+    <form method="POST">{% csrf_token %}
+        <div class="panel-body">
+            <div class="col-md-8">
+                {{ form.as_p }}
+                <span class="glyphicon glyphicon-plus" style="cursor:pointer;" id="add_row_btn"></span><br/><br/>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>EAN</th>
+                            <th>Menge</th>
+                            <th>Einzelpreis(Netto)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="entries_table">
+                            {% for many_to_many_form in ManyToManyForms %}
 
-            {% include "./formset_table.html" %}
-            <button class="btn btn-primary" ng-submit="submit()" id="submit_btn" ng-disabled="has_exception">Speichern
-            </button>
+                                <tr class="entry_row">
+                                    {% for field in many_to_many_form %}
+                                        <td>
+                                            <div class="form-group">
+                                                {{ field.errors }}
+                                                {{ field }}
+                                                {% if field.help_text %}
+                                                <p class="help">{{ field.help_text|safe }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    {% endfor %}
+                                    {% if object %}
+                                        <td>
+                                            <div class="checkbox">
+                                                <label><input type="checkbox" value="True"
+                                                              style="cursor:pointer;"
+                                                              class="delete_checkbox">Löschen</label>
+                                                <input type="hidden" value="off" name="delete">
+                                            </div>
+                                        </td>
+                                    {% else %}
+                                        <td>
+                                            <span class="glyphicon glyphicon-trash delete-trash"
+                                                  style="color:red; cursor:pointer;font-size:15px;"></span>
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                    </tbody>
+                </table>
+                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary" id="main_form_submit_btn">
+            </div>
+            <div class="col-md-4" id="product_content">
+                <h1>Artikel</h1>
+            </div>
         </div>
     </form>
 </div>
-
 <script>
-    var submit_btn = document.getElementById("submit_btn");
-    var main_form = document.getElementById("main_form");
+    var main_form_submit_btn = document.getElementById("main_form_submit_btn");
+    var ean_elements = document.getElementsByName("ean");
 
-    submit_btn.onclick = function () {
-        main_form.submit();
+    for(var i = 0; i<ean_elements.length; i++){
+        var ean_element = ean_elements[i];
+        ean_element.oninput = function(){
+            GET_(this.value, this);
+        }
+    }
+
+    var GET_ = function (value, input) {
+      var xhr = new XMLHttpRequest();
+      var url = "/product/api?ean=" + value.toString();
+
+      xhr.onreadystatechange = function(){
+          if(xhr.readyState == 4 && xhr.status >= 200 && xhr.status <= 299){
+            var response = JSON.parse(xhr.responseText);
+
+            set_error_or_success_for_input(input, response);
+            disable_or_enable_form_submit_btn(ean_elements);
+
+            if(response.length > 0){
+                  response = response[0];
+            }
+
+            var product_content_element = document.getElementById("product_content");
+
+            while(product_content_element.firstChild){
+              product_content_element.removeChild(product_content_element.firstChild);
+            }
+
+            if(value == ""){
+                return;
+            }
+
+            for(var key in response){
+                value = response[key];
+                if(value != null && value != ""){
+                    if(key == "id" || key == "verbose_names" || key == "description"){
+                        continue;
+                    }
+                    var p = document.createElement("p");
+                    p.innerHTML = "<b>" + response["verbose_names"][key] + ": </b>" + value;
+
+                    if(response["verbose_names"][key] == "Bild"){
+                        p.innerHTML = "<b>" + response["verbose_names"][key] + ": </b>" +
+                            '<img src="' + value + '" class="img-responsive">';
+                    }
+
+                    product_content_element.appendChild(p);
+                }
+            }
+          }
+      };
+
+      xhr.open("GET", url, true);
+      xhr.send()
     };
+
+    var disable_or_enable_form_submit_btn = function(ean_elements){
+        var is_success = true;
+        for(var i=0; i< ean_elements.length; i++){
+          var input = ean_elements[i];
+          var parent = input.parentElement;
+
+          if(parent.className.includes("has-error")){
+              is_success = false;
+              break;
+          }
+        }
+        if(is_success == false){
+            main_form_submit_btn.setAttribute("disabled", "");
+        }else{
+            main_form_submit_btn.removeAttribute("disabled");
+        }
+    };
+
+    var set_error_or_success_for_input = function(input, response){
+        var parent_element = input.parentElement;
+        if(input.value == ""){
+            parent_element.className=parent_element.className.replace("has-error", "");
+            parent_element.className=parent_element.className.replace("has-success", "");
+            return;
+        }
+
+        if(response.length == 0){
+                  if(parent_element.className.includes("has-success")){
+                    parent_element.className = parent_element.className.replace("has-success", "has-error")
+                  }else{
+                    if(!parent_element.className.includes("has-error")) {
+                        parent_element.className += " has-error";
+                    }
+                  }
+        }else{
+              if(parent_element.className.includes("has-error")){
+                parent_element.className = parent_element.className.replace("has-error", "has-success");
+              }else{
+                  if(!parent_element.className.includes("has-success")) {
+                    parent_element.className += " has-success";
+                }
+              }
+        }
+    };
+
+    var set_checkboxes_hidden_values = function(){
+        var delete_hidden_input_elements = document.getElementsByName("delete");
+        for(var i = 0; i<delete_hidden_input_elements.length; i++){
+            var hidden_input = delete_hidden_input_elements[i];
+            var checkbox = hidden_input.parentElement.getElementsByClassName("delete_checkbox")[0];
+            (function(hidden_input){
+                checkbox.onclick = function(){
+                    if(this.checked == true){
+                        hidden_input.value = "on";
+                    }else{
+                        hidden_input.value = "off";
+                    }
+                };
+            })(hidden_input);
+        }
+    };
+
+    set_checkboxes_hidden_values();
+
+    var sample_row = document.getElementsByClassName("entry_row")[0];
+    var tbody = document.getElementById("entries_table");
+
+    var add_new_row_on_plus_click = function(){
+        var add_row_btn = document.getElementById("add_row_btn");
+
+        add_row_btn.onclick = function(){
+            var table_row_clone = sample_row.cloneNode(true);
+            var table_row_clone_inputs = table_row_clone.getElementsByTagName("input");
+
+            for(var i = 0; i<table_row_clone_inputs.length; i++){
+                var row_input = table_row_clone_inputs[i];
+                row_input.value = "";
+                if(row_input.className == "delete_checkbox"){
+                    var row_input_parent = row_input.parentElement;
+                    while(row_input_parent.firstChild){
+                        row_input_parent.removeChild(row_input_parent.firstChild);
+                    }
+                    var new_delete_btn = document.createElement("span");
+                    new_delete_btn.className = "glyphicon glyphicon-trash";
+                    new_delete_btn.style.cursor = "pointer";
+                    new_delete_btn.style.color = "red";
+                    new_delete_btn.style.fontSize = "15px";
+
+
+                    delete_row_on_click(table_row_clone, new_delete_btn);
+
+
+
+                    row_input_parent.appendChild(new_delete_btn);
+
+                }
+                else if(row_input.name == "ean"){
+                    row_input.parentElement.className = row_input.parentElement.className.replace("has-error", "");
+                    row_input.parentElement.className = row_input.parentElement.className.replace("has-success", "");
+
+                    row_input.oninput = function(){
+                        GET_(this.value, this);
+                    };
+                }
+            }
+
+            var trash_btn_on_create_view = table_row_clone.getElementsByClassName("delete-trash")[0];
+            if(trash_btn_on_create_view){
+                delete_row_on_click(table_row_clone, trash_btn_on_create_view);
+            }
+            tbody.appendChild(table_row_clone);
+        };
+    };
+
+    var delete_row_on_click = function(to_delete_row, click_element){
+        click_element.onclick = function () {
+            to_delete_row.parentElement.removeChild(to_delete_row);
+        };
+    };
+
+    var add_delete_row_on_click_to_initial_trash_butttons = function(){
+        var table_rows = document.getElementsByClassName("entry_row");
+        for(var i = 0; i<table_rows.length; i++){
+            var table_row = table_rows[i];
+            var trash_btn = table_row.getElementsByClassName("delete-trash")[0];
+            if(trash_btn){
+                delete_row_on_click(table_row, trash_btn);
+            }
+        }
+    };
+
+    add_delete_row_on_click_to_initial_trash_butttons();
+
+    add_new_row_on_plus_click();
+
 </script>

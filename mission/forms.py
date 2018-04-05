@@ -1,6 +1,7 @@
 from django import forms
 from .models import Mission, ProductMission
-from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet
+from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
+    IntegerField
 
 
 class MissionForm(forms.ModelForm):
@@ -27,3 +28,29 @@ ProductMissionFormsetUpdate = inlineformset_factory(Mission, ProductMission, can
 
 ProductMissionFormsetCreate = inlineformset_factory(Mission, ProductMission, can_delete=False, extra=3,
                                               exclude=["id", "missing_amount", "confirmed"], formset=BaseProductMissionFormset)
+
+
+class CommonProductMissionForm(forms.Form):
+    ean = forms.CharField(label='EAN', max_length=50)
+    amount = forms.IntegerField(label='Menge')
+    netto_price = forms.FloatField(label="Einzelpreis (Netto)")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+    class Meta:
+        abstract = True
+
+
+class ProductMissionForm(CommonProductMissionForm):
+    pass
+
+
+class ProductMissionUpdateForm(CommonProductMissionForm):
+    # delete = forms.BooleanField(label="Löschen", required=False)
+    pass

@@ -1,5 +1,7 @@
 from django.shortcuts import render
 from django.views.generic import ListView
+
+from product.models import Product
 from .models import Warehouse
 from django.http import JsonResponse
 from django.core import serializers

@@ -2,7 +2,9 @@ from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from order.models import Order, ProductOrder, PositionProductOrder
 from position.models import Position
-from order.forms import OrderForm,ProductOrderFormsetUpdate, ProductOrderFormsetCreate
+from order.forms import OrderForm,ProductOrderFormsetUpdate, ProductOrderFormsetCreate, ProductOrderForm, \
+    ProductOrderUpdateForm
+from product.models import Product
 from utils.utils import set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, set_object_ondetailview, save_picklist, search_positions_for_order, \
     search_all_wareneingang_products, get_verbose_names, get_filter_fields, \
@@ -13,6 +15,9 @@ from django.forms import modelform_factory, inlineformset_factory
 from django.contrib.auth.mixins import LoginRequiredMixin
 from picklist.models import Picklist
 from django.urls import reverse_lazy
+from product.order_mission import validate_product_order_or_mission_from_post, \
+    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post
+from django.forms.models import model_to_dict
 
 
 # search position for product which are on Wareneingang
@@ -59,7 +64,7 @@ def search_positions(request, ordernummer):
 
 
 class ScanOrderUpdateView(UpdateView):
-    template_name = "order/scan_order.html"
+    template_name = "scan/scan.html"
     form_class = modelform_factory(ProductOrder, fields=("confirmed",))
 
     def get_object(self, *args, **kwargs):
@@ -67,35 +72,25 @@ class ScanOrderUpdateView(UpdateView):
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(ScanOrderUpdateView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context["object"] = self.get_object(*args, **kwargs)
-
-        product_orders = context["object"].productorder_set.all()
-
-        context["product_orders"] = product_orders
-        context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id"])
-
-        if product_orders.count() > 0:
-            set_field_names_onview(queryset=context["object"], context=context, ModelClass=Order,
-                                   exclude_fields=["id"], exclude_filter_fields=["id"])
-
-            set_field_names_onview(queryset=product_orders, context=context, ModelClass=ProductOrder,
-                                   exclude_fields=["id", "order", "positionproductorder"],
-                                   exclude_filter_fields=["id", "order"],
-                                   template_tagname="product_order_field_names",
-                                   allow_related=True)
-        else:
-            context["product_orders"] = None
+        context["title"] = "Wareneingang"
+        product_orders = context.get("object").productorder_set.all()
+        context["product_orders_or_missions"] = product_orders
+        context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         return context
 
     def form_valid(self, form, *args, **kwargs):
-        object = form.save()
+        object_ = form.save()
+        self.update_scanned_product_order(object_)
+        self.store_last_checked_checkbox_in_session()
+        return HttpResponseRedirect("")
 
+    def update_scanned_product_order(self, object_):
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
-
-        for product_order in object.productorder_set.all():
+        for product_order in object_.productorder_set.all():
             if str(product_order.pk) == str(product_id):
                 if confirmed_bool == "0":
                     product_order.missing_amount = missing_amount
@@ -103,7 +98,9 @@ class ScanOrderUpdateView(UpdateView):
                     product_order.missing_amount = None
                 product_order.confirmed = confirmed_bool
                 product_order.save()
-        return HttpResponseRedirect("")
+
+    def store_last_checked_checkbox_in_session(self):
+        self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
 
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):
@@ -118,53 +115,83 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, *args, **kwargs):
         context = super(OrderUpdateView, self).get_context_data(**kwargs)
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
-        context["matching_"] = "Product"  # Hier Modelname übergbenen
-        if self.request.POST:
-            formset = ProductOrderFormsetUpdate(self.request.POST, self.request.FILES, instance=self.object)
-        else:
-            formset = ProductOrderFormsetUpdate(instance=self.object)
-        context["formset"] = formset
+        context["ManyToManyForms"] = self.build_product_order_forms()
         return context
+
+    def build_product_order_forms(self):
+        product_order_forms_list = []
+        product_orders = self.object.productorder_set.all()
+        i = 0
+        for product_order in product_orders:
+            if self.request.POST:
+                data = {}
+                for k in self.request.POST:
+                    if k in ProductOrderForm.base_fields:
+                        data[k] = self.request.POST.getlist(k)[i]
+                print(data)
+                product_order_forms_list.append(ProductOrderUpdateForm(data=data))
+            else:
+                data = model_to_dict(product_order)
+                data["ean"] = product_order.product.ean
+                product_order_forms_list.append(ProductOrderUpdateForm(data=data))
+            i += 1
+        return product_order_forms_list
 
     def form_valid(self, form, *args, **kwargs):
         self.object = form.save()
-        context = self.get_context_data(*args, **kwargs)
-        formset = context["formset"]
 
-        if formset.is_valid():
-            formset.save()
-        else:
+        valid_product_order_forms = \
+            validate_product_order_or_mission_from_post(ProductOrderUpdateForm,
+                                                        self.object.productorder_set.all().count(), self.request)
+
+        if valid_product_order_forms is False:
+            context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
-
+        else:
+            update_product_order_or_mission_forms_from_post("productorder_set", ProductOrderUpdateForm, "order",
+                                                            self.object, self.request, ProductOrder)
         return HttpResponseRedirect(self.get_success_url())
 
 
 class OrderCreateView(CreateView):
     template_name = "order/form.html"
     form_class = OrderForm
+    amount_product_order_forms = 1
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
-        context["matching_"] = "Product"  # Hier Modelname übergbenen
 
-        if self.request.POST:
-            formset = ProductOrderFormsetCreate(self.request.POST, instance=self.object)
-        else:
-            formset = ProductOrderFormsetCreate(instance=self.object)
-        context["formset"] = formset
+        context["ManyToManyForms"] = self.build_product_order_forms(self.amount_product_order_forms)
         return context
+
+    def build_product_order_forms(self, amount):
+        product_order_forms_list = []
+        for i in range(0, amount):
+            if self.request.POST:
+                data = {}
+                for k in self.request.POST:
+                    if k in ProductOrderForm.base_fields:
+                        data[k] = self.request.POST.getlist(k)[i]
+                print(data)
+                product_order_forms_list.append(ProductOrderForm(data=data))
+            else:
+                product_order_forms_list.append(ProductOrderForm())
+        return product_order_forms_list
 
     def form_valid(self, form, *args, **kwargs):
         self.object = form.save()
 
-        context = self.get_context_data(*args, **kwargs)
-        formset = context["formset"]
+        valid_product_order_forms = \
+            validate_product_order_or_mission_from_post(ProductOrderForm, self.amount_product_order_forms, self.request)
 
-        if formset.is_valid():
-            formset.save()
-        else:
+        if valid_product_order_forms is False:
+            context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
+        else:
+            create_product_order_or_mission_forms_from_post(ProductOrder, ProductOrderForm,
+                                                            self.amount_product_order_forms, "order", self.object,
+                                                            self.request, 0)
 
         return HttpResponseRedirect(self.get_success_url())
 

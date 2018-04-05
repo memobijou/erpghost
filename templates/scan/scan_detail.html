@@ -1,0 +1,70 @@
+<div class="input-group col-md-12">
+    <span class="input-group-addon">
+        EAN
+    </span>
+    <input class="form-control scan_input" id="scan_ean">
+    <span class="input-group-addon">
+        <input type="checkbox" class="focus" id="ean_checkbox"
+               {% if last_checked_checkbox == 'ean_checkbox'%}
+                    checked
+                {% endif %}
+               style="cursor: pointer;width: 20px; height: 20px;">
+    </span>
+</div>
+
+<br/>
+
+<div class="input-group col-md-12">
+    <span class="input-group-addon">
+        SKU
+    </span>
+    <input class="form-control scan_input" id="scan_sku">
+    <span class="input-group-addon">
+        <input type="checkbox" class="focus" id="sku_checkbox"
+                {% if last_checked_checkbox == 'sku_checkbox'%}
+                    checked
+                {% endif %}
+               style="cursor: pointer;width: 20px; height: 20px;">
+    </span>
+</div>
+
+<div style="display:none;padding-top:30px;" id="confirm_detail_view">
+        <p id="match_title"></p>
+
+        <div style="max-height: 200px;max-width:200px;">
+            <img src="" id="match_img" class="img-responsive">
+        </div>
+
+        <table class="table table-bordered">
+            <tbody>
+                <tr>
+                    <th>EAN</th>
+                    <td id="match_ean"></td>
+                </tr>
+                <tr>
+                    <th>SKU</th>
+                    <td id="match_sku"></td>
+                </tr>
+
+                <tr>
+                    <th>Menge</th>
+                    <td id="match_amount"></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <table class="table table-borderless">
+            <tbody>
+                <tr>
+                    <form method="POST" id="confirm_form">{% csrf_token %}
+                        <td><input type="submit" class="btn btn-success btn-lg" style="width:100%;" value="Ja" id="confirm_btn"></td>
+                        <td><input type="submit" class="btn btn-danger btn-lg" style="width:100%;" value="Nein" id="reject_btn"></td>
+                        <input name="confirmed" type="hidden">
+                        <input name="product_id" type="hidden">
+                        <input name="missing_amount" type="hidden">
+                        <input name="last_checked" type="hidden">
+                    </form>
+                </tr>
+            </tbody>
+        </table>
+</div>

@@ -5,18 +5,18 @@ from rest_framework.serializers import ModelSerializer
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    str = serializers.SerializerMethodField("name")
-    str1 = serializers.SerializerMethodField("nameF")
+    verbose_names = serializers.SerializerMethodField("verbose_names_function")
 
-    def name(self, object):
-        return (str(object))
-
-    def nameF(self, object):
-        return (str(object))
+    def verbose_names_function(self, object):
+        verbose_names = {}
+        for field in object._meta.get_fields():
+            if hasattr(field, "verbose_name"):
+                verbose_names[field.attname] = field.verbose_name
+        return verbose_names
 
     class Meta:
         model = Product
-        fields = ("id", "ean", "str", "str1")  # ("ean", ... )
+        fields = "__all__"
 
 
 class IncomeSerializer(ModelSerializer):

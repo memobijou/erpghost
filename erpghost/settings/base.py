@@ -61,10 +61,12 @@ INSTALLED_APPS = [
     'import_excel',
     'django_celery_results',
     'storages',
+    'debug_toolbar',
 ]
 
 
 MIDDLEWARE_CLASSES = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

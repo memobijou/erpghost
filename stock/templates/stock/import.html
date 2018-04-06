@@ -70,36 +70,8 @@
                     </tbody>
                 </table>
             {% endif %}
-            {% if excel_header_fields_not_in_header %}
-                <p style="color:red;">Folgende LIMITS nicht in Header vorhanden:</p>
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead>
-                            {% for excel_header_field in excel_header_fields_not_in_header %}
-                                <th>{{ excel_header_field }}</th>
-                            {% endfor %}
-                        </thead>
-                    </table>
-                </div>
-            {% endif %}
-            {% if header_errors %}
-                <p style="color:red;">Folgende Felder weisen Fehler auf:</p>
 
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                {% for error_field, status in header_errors %}
-                                    <th {% if status == 'error' %}style="color:red;"{% endif %}
-                                        {% if status == 'success' %} style="color:green;"{% endif %}>
-                                        {{ error_field }}
-                                    </th>
-                                {% endfor %}
-                            </tr>
-                        </thead>
-                    </table>
-                </div>
-            {% endif %}
+
             {{ form.non_field_errors }}
             <form action="." method="POST" enctype="multipart/form-data">{% csrf_token %}
                 {% for field in form %}

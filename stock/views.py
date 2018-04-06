@@ -7,7 +7,8 @@ from django.forms import modelform_factory
 from django_celery_results.models import TaskResult
 from import_excel.funcs import get_table_header, check_excel_header_fields_not_in_header, \
     compare_header_with_model_fields, \
-    get_records_as_list_with_dicts, check_excel_for_duplicates
+    check_excel_for_duplicates
+from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
 from product.models import Product
 from .models import Stock, Stockdocument
@@ -203,11 +204,6 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
             context["object"] = self.get_object(*args, **kwargs)
 
             context["title"] = "Inventar bearbeiten"
-
-            # context["matching_"] = "Product" # Hier Modelname übergbenen
-            # if self.request.POST:
-            # 	formset = ProductOrderFormsetInline(self.request.POST, self.request.FILES, instance=self.object)
-            # else:
         return context
 
 
@@ -244,28 +240,19 @@ class StockImportView(FormView):
 
         header = get_table_header(file_type, content)
 
-        excel_header_fields = ["ean_vollstaendig", "lagerplatz", "zustand"]
-        replace_header_fields = {"ean_vollstaendig": "EAN", "lagerplatz": "Lagerplatz",
-                                 "zustand": "Zustand"}  # replace excel_fields with verbose_names to map with model fields
+        excel_header_fields = ["ean_vollstaendig", "lagerplatz", "zustand", "bestand", "regal", "scanner",
+                               "name", "karton", "box", "aufnahme_datum"]
 
-        excel_header_fields_not_in_header = check_excel_header_fields_not_in_header(header, excel_header_fields)
-
-        header_errors = compare_header_with_model_fields(header, Stock, excel_header_fields,
-                                                         replace_header_fields=replace_header_fields)
-
-        excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields,
-                                                    replace_header_fields=replace_header_fields)
-
+        excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields)
+        #print(excel_list)
         excel_duplicates = check_excel_for_duplicates(excel_list)
 
-        if header_errors or excel_header_fields_not_in_header or excel_duplicates:
+        if excel_duplicates:
             context = self.get_context_data(**kwargs)
-            context["header_errors"] = header_errors
-            context["excel_header_fields_not_in_header"] = excel_header_fields_not_in_header
             context["excel_duplicates"] = excel_duplicates
             return render(self.request, self.template_name, context)
 
-        unique_together = ["EAN", "Lagerplatz", "Zustand"]  # use vebose_names
+        unique_together = ["ean_vollstaendig", "lagerplatz", "zustand"]  # use vebose_names
 
-        table_data_to_model_task.delay(excel_list, ("stock", "Stock"), None, unique_together)
+        table_data_to_model_task.delay(excel_list, ("stock", "Stock"), unique_together)
         return super().post(request, *args, **kwargs)

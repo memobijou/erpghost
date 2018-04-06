@@ -79,7 +79,7 @@ class MissionCreateView(CreateView):
         context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
         context["title"] = "Auftrag anlegen"
         context["ManyToManyForms"] = self.build_product_mission_forms(self.amount_product_mission_forms)
-
+        context["detail_url"] = reverse_lazy("mission:list")
         return context
 
     def build_product_mission_forms(self, amount):
@@ -136,6 +136,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["ManyToManyForms"] = self.build_product_mission_forms()
+        context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
     def build_product_mission_forms(self):
@@ -189,6 +190,7 @@ class ScanMissionUpdateView(UpdateView):
         product_missions = context.get("object").productmission_set.all()
         context["product_orders_or_missions"] = product_missions
         context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
+        context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
     def form_valid(self, form, *args, **kwargs):

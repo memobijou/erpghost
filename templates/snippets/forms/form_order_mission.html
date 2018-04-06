@@ -1,6 +1,9 @@
-<div class="panel">
+<div class="panel panel-default">
     <form method="POST">{% csrf_token %}
         <div class="panel-body">
+            <div class="pull-right">
+                <p><a href="{{ detail_url }}">Zur Ansicht</a></p>
+            </div>
             <div class="col-md-8">
                 {{ form.as_p }}
                 <span class="glyphicon glyphicon-plus" style="cursor:pointer;" id="add_row_btn"></span><br/><br/>
@@ -22,7 +25,7 @@
                                                 {{ field.errors }}
                                                 {{ field }}
                                                 {% if field.help_text %}
-                                                <p class="help">{{ field.help_text|safe }}</p>
+                                                    <p class="help">{{ field.help_text|safe }}</p>
                                                 {% endif %}
                                             </div>
                                         </td>
@@ -49,7 +52,6 @@
                 <br/><br/><input type="submit" value="Speichern" class="btn btn-primary" id="main_form_submit_btn">
             </div>
             <div class="col-md-4" id="product_content">
-                <h1>Artikel</h1>
             </div>
         </div>
     </form>
@@ -58,14 +60,7 @@
     var main_form_submit_btn = document.getElementById("main_form_submit_btn");
     var ean_elements = document.getElementsByName("ean");
 
-    for(var i = 0; i<ean_elements.length; i++){
-        var ean_element = ean_elements[i];
-        ean_element.oninput = function(){
-            GET_(this.value, this);
-        }
-    }
-
-    var GET_ = function (value, input) {
+        var GET_ = function (value, input) {
       var xhr = new XMLHttpRequest();
       var url = "/product/api?ean=" + value.toString();
 
@@ -114,6 +109,15 @@
       xhr.send()
     };
 
+    for(var i = 0; i<ean_elements.length; i++){
+        var ean_element = ean_elements[i];
+        ean_element.oninput = function(){
+            GET_(this.value.replace(/ /g,''), this);
+        };
+        GET_(ean_element.value.replace(/ /g,''), ean_element);
+
+    }
+
     var disable_or_enable_form_submit_btn = function(ean_elements){
         var is_success = true;
         for(var i=0; i< ean_elements.length; i++){
@@ -127,8 +131,13 @@
         }
         if(is_success == false){
             main_form_submit_btn.setAttribute("disabled", "");
+            main_form_submit_btn.setAttribute("data-toggle", "tooltip");
+            main_form_submit_btn.setAttribute("title", "Die eingegebene EAN ist im System nicht vorhanden");
         }else{
             main_form_submit_btn.removeAttribute("disabled");
+            main_form_submit_btn.removeAttribute("data-toggle");
+            main_form_submit_btn.removeAttribute("title");
+
         }
     };
 
@@ -245,8 +254,11 @@
         }
     };
 
+
+
     add_delete_row_on_click_to_initial_trash_butttons();
 
     add_new_row_on_plus_click();
+
 
 </script>

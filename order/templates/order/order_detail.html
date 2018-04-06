@@ -28,8 +28,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for product in object.products.all %}
-                    {% for productorder in product.productorder_set.all %}
+                    {% for productorder in object.productorder_set.all %}
                     {% if object.id == productorder.order.id %}
                     <tr>
                         <td>{{productorder.product}}</td>
@@ -55,10 +54,9 @@
                     </tr>
                     {% endif %}
                     {% endfor %}
-                {% endfor %}
             </tbody>
         </table>
-        {% if object.status != "OFFEN" %}
+        {% if object.status != "OFFEN" and object.status != "ABGELEHNT" %}
             <a href="{% url 'order:scan' pk=object.id %}" class="btn btn-success" id="scan_btn">SCAN<a>
         {% endif %}
     </div>

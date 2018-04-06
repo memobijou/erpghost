@@ -3,7 +3,11 @@
 
 {% block content %}
     <div class="panel panel-default">
-        <div class="panel-body" style="padding-top: 60px;">
+        <div class="panel-body">
+            <div class="pull-right" style="padding-bottom:20px;">
+                <p><a href="{{ detail_url }}">Zur Ansicht</a></p>
+            </div>
+
             <div class="col-md-12" style="padding-bottom: 20px;">
                 <div class="col-md-6">
                     {% include "scan/scan_master.html" %}

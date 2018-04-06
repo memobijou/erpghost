@@ -34,7 +34,7 @@ ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, extra=3,
 
 
 class CommonProductOrderForm(forms.Form):
-    ean = forms.CharField(label='EAN', max_length=13)
+    ean = forms.CharField(label='EAN', max_length=200)
     amount = forms.IntegerField(label='Menge')
     netto_price = forms.FloatField(label="Einzelpreis (Netto)")
 

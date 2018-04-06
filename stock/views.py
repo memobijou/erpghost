@@ -9,6 +9,7 @@ from import_excel.funcs import get_table_header, check_excel_header_fields_not_i
     compare_header_with_model_fields, \
     get_records_as_list_with_dicts, check_excel_for_duplicates
 from import_excel.models import TaskDuplicates
+from product.models import Product
 from .models import Stock, Stockdocument
 from .forms import StockdocumentForm
 from tablib import Dataset
@@ -22,6 +23,7 @@ from django.contrib import messages
 from stock.forms import ImportForm
 from stock.tasks import table_data_to_model_task
 from erpghost import app
+from django.core.paginator import Paginator
 
 
 # Create your views here.
@@ -32,57 +34,50 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Stock).order_by("-id")
-        return queryset
+        return self.set_pagination(queryset)
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockListView, self).get_context_data(*args, **kwargs)
 
-        amount_positions = 30000
+        context["fields"] = self.build_fields()
 
-        amount_stocks = Stock.objects.count()
+        context["object_list"] = self.get_queryset()
 
-        context["amount_positions"] = amount_positions
+        context["object_list_zip"] = zip(context["object_list"], self.get_products())
 
-        context["amount_stocks"] = amount_stocks
-
-        context["progress_bar_value"] = round((100 / amount_positions) * amount_stocks, 2)
-
-        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Stock, \
-                               exclude_fields=["id", 'regal', "ean_upc", "scanner", "name", "karton",
-                                               'box', 'aufnahme_datum', "ignore_unique"], \
-                               exclude_filter_fields=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
-                                                      'box', 'aufnahme_datum', "ignore_unique"])
-        if context["object_list"]:
-            set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
-
-        context["fields"] = self.get_verbose_names(exclude=["id", 'regal', "ean_upc", "scanner", "name", "karton",
-                                                            'box', 'aufnahme_datum', "ignore_unique"])
         context["filter_fields"] = self.get_filter_fields(
             exclude=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
                      'box', 'aufnahme_datum', "ignore_unique"])
 
-        if "table" in str(self.request.get_full_path()):
-            context["title"] = "Lagerbestand"
-            context["is_table"] = True
-        else:
-            context["title"] = "Inventar"
-            context["is_table"] = None
-        # context["extra_fields"] = [("total_amount_ean", "GESAMT")]
-        gesamt_arr = []
-        for obj in context["object_list"]:
-            gesamt_arr.append(obj.total_amount_ean())
-        context["gesamt_arr"] = gesamt_arr
+        context["title"] = "Lagerbestand"
 
-        # Auf die Art und WEISE kann man manuell was hinzufügen!! TODO: Dry machen in utils oder so
-        if "object_list_as_json" in context:
-            new = []
-            for json, g in zip(context["object_list_as_json"], gesamt_arr):
-                json["GESAMT"] = g
-                new.append(json)
-            context["object_list_as_json"] = new
-        # extra_fields wird in tables noch durchlaufen, der erste Element ist der key, zweite der table header!
-        context["extra_fields"] = [("name", "name"), ("GESAMT", "GESAMT")]
         return context
+
+    def build_fields(self):
+        fields = self.get_verbose_names(exclude=["id", "ean_upc", "scanner", "name", "karton", "box",
+                                                 "aufnahme_datum", "ignore_unique", "regal"])
+        fields.append("Gesamt Bestand")
+        fields = ["", "Bild"] + fields
+        return fields
+
+    def get_products(self):
+        queryset = self.get_queryset()
+        products = []
+        for q in queryset:
+            product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+            if product is not None:
+                products.append(product)
+            else:
+                products.append(None)
+        return products
+
+    def set_pagination(self, queryset):
+        page = self.request.GET.get("page")
+        paginator = Paginator(queryset, 15)
+        if not page:
+            page = 1
+        current_page_object = paginator.page(int(page))
+        return current_page_object
 
     def get_verbose_names(self, exclude=None):
         fields = Stock._meta.get_fields()
@@ -194,7 +189,7 @@ class StockDetailView(LoginRequiredMixin, DetailView):
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = modelform_factory(model=Stock, fields=["bestand", "ean_vollstaendig", "zustand", "ignore_unique"],
+    form_class = modelform_factory(model=Stock, fields=["bestand", "ean_vollstaendig", "zustand"],
                                    labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
     login_url = "/login/"
 

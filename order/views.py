@@ -78,6 +78,7 @@ class ScanOrderUpdateView(UpdateView):
         product_orders = context.get("object").productorder_set.all()
         context["product_orders_or_missions"] = product_orders
         context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
+        context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
     def form_valid(self, form, *args, **kwargs):
@@ -116,6 +117,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context = super(OrderUpdateView, self).get_context_data(**kwargs)
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["ManyToManyForms"] = self.build_product_order_forms()
+        context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
     def build_product_order_forms(self):
@@ -161,8 +163,8 @@ class OrderCreateView(CreateView):
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
-
         context["ManyToManyForms"] = self.build_product_order_forms(self.amount_product_order_forms)
+        context["detail_url"] = reverse_lazy("order:list")
         return context
 
     def build_product_order_forms(self, amount):

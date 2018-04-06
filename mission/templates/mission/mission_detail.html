@@ -31,8 +31,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for product in object.products.all %}
-                    {% for productmission in product.productmission_set.all %}
+                    {% for productmission in object.productmission_set.all %}
                         {% if object.id == productmission.mission.id %}
                         <tr>
                             <td>{{productmission.product.ean}}</td>
@@ -59,7 +58,6 @@
                         </tr>
                         {% endif %}
                     {% endfor %}
-                {% endfor %}
             </tbody>
         </table>
         {% if object.pickable == True %}

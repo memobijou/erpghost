@@ -18,15 +18,51 @@
     <span class="input-group-addon">
         SKU
     </span>
-    <input class="form-control scan_input" id="scan_sku">
+
+    <input class="form-control scan_input" id="scan_sku" style="border-right: 0px;">
+
+    <div class="input-group-addon" style="background-color:white;border-left:0px;border-right:0px;"></div>
+
+    <div class="input-group" style="width:100%;">
+      <select class="form-control">
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
+        <option>6</option>
+        <option>7</option>
+        <option>8</option>
+        <option>9</option>
+        <option>10</option>
+        <option>11</option>
+        <option>12</option>
+        <option>13</option>
+        <option>14</option>
+        <option>15</option>
+        <option>16</option>
+        <option>17</option>
+        <option>18</option>
+        <option>19</option>
+        <option>20</option>
+      </select>
+    </div>
+
     <span class="input-group-addon">
         <input type="checkbox" class="focus" id="sku_checkbox"
-                {% if last_checked_checkbox == 'sku_checkbox'%}
-                    checked
-                {% endif %}
-               style="cursor: pointer;width: 20px; height: 20px;">
+                    {% if last_checked_checkbox == 'sku_checkbox'%}
+                        checked
+                    {% endif %}
+                   style="cursor: pointer;width: 20px; height: 20px;">
     </span>
+
+
+
+
+
+
 </div>
+
 
 <div style="display:none;padding-top:30px;" id="confirm_detail_view">
         <p id="match_title"></p>

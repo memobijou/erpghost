@@ -1,11 +1,90 @@
-{% for object in object_list %}
+{% for object, product in object_list_zip %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
         </td>
-            <td> {{ object.ean_vollstaendig}} </td>
-            <td> {{ object.bestand}} </td>
-            <td> {{ object.lagerplatz}} </td>
-            <td> {{object.zustand}} </td>
+        <td class="show_hide" style="cursor:pointer;">
+            <a collapseid="collapse_{{ forloop.counter }}">
+                <span class="glyphicon glyphicon-chevron-down"></span>
+            </a>
+        </td>
+        <td>
+            {% if product.main_image %}
+                <img src="{{ product.main_image.url }}" width="50px" height="50px">
+            {% endif %}
+        </td>
+        <td> {{ object.ean_vollstaendig}} </td>
+        <td> {{ object.bestand}} </td>
+        <td> {{ object.lagerplatz}} </td>
+        <td> {{object.zustand}} </td>
+        <td> {{object.total_amount_ean}} </td>
     </tr>
+
+    <tr id="collapse_{{ forloop.counter }}" class="collapse">
+      <td colspan="12">
+          <p>
+              <b>Name: </b> {{ object.name }}
+          </p>
+          <p>
+              <b>Aufnahme Datum: </b> {{ object.aufnahme_datum }}
+          </p>
+          <p>
+              <b>Regal: </b> {{ object.regal }}
+          </p>
+          <p>
+              <b>Scanner: </b> {{ object.scanner }}
+          </p>
+          <p>
+              <b>Box: </b> {{ object.box }}
+          </p>
+          {% if object.short_description %}
+              <p><b>Kurzbeschreibung: </b><br/> {{ object.short_description}}</p>
+          {% endif %}
+          {% if object.description %}
+              <p><b>Beschreibung: </b><br/> {{ object.description}}</p>
+          {% endif %}
+
+            <h3>Produktbeschreibung</h3>
+            <p><b>Artikelname: </b>{{ product.title }}</p>
+            <p><b>Kurzbeschreibung: </b>{{ product.short_description }}</p>
+            <br/>
+            {% if product %}
+              <p><a href="{% url "product:detail" pk=product.pk %}">Zur Artikelansicht</a></p>
+            {% endif %}
+
+      </td>
+    </tr>
+
 {% endfor %}
+
+
+<script>
+    var show_hide_elements = document.getElementsByClassName("show_hide");
+
+    for(var i = 0; i<show_hide_elements.length; i++){
+        var show_hide_element = show_hide_elements[i];
+
+
+        show_hide_element.onclick = function(e){
+           var a_element = this.getElementsByTagName("a")[0];
+
+           var show_or_hide_element = this.getElementsByTagName("span")[0];
+
+           flip_down_up(show_or_hide_element);
+
+           $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+
+
+
+        }
+    }
+
+    var flip_down_up = function(el){
+           if(el.className.includes("chevron-down")){
+               el.className = el.className.replace("chevron-down", "chevron-up");
+           }else{
+              el.className = el.className.replace("chevron-up", "chevron-down");
+           }
+    };
+
+</script>

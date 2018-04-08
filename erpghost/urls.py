@@ -31,7 +31,6 @@ urlpatterns = [
     url(r'^order/', include("order.urls", namespace="order")),
     url(r'^warehouse/', include("warehouse.urls", namespace="warehouse")),
     url(r'^sku/', include("sku.urls", namespace="sku")),
-    url(r'^position/', include("position.urls", namespace="position")),
     url(r'^column/', include("column.urls", namespace="column")),
     url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
     url(r'^login/$', LoginView.as_view(), name="login"),

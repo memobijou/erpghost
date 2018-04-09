@@ -104,3 +104,13 @@ class Stockdocument(models.Model):
 
     def get_absolute_url(self):
         return reverse("stock:documentdetail", kwargs={"pk": self.id})
+
+
+class Position(models.Model):
+    prefix = models.CharField(blank=True, null=False, max_length=250, verbose_name="Prefix")
+    shelf = models.CharField(blank=True, null=False, max_length=250, verbose_name="Regal")
+    level = models.CharField(blank=True, null=False, max_length=250, verbose_name="Ebene")
+    column = models.CharField(blank=True, null=False, max_length=250, verbose_name="Spalte")
+
+    def __str__(self):
+        return f"{prefix}shelf-level-column"

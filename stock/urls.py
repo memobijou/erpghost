@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from .views import StockListView, StockCreateView, StockDocumentDetailView, StockUpdateView, StockDetailView, \
-    StockImportView, StockCopyView, PositionListView
+    StockImportView, StockCopyView
 
 urlpatterns = [
     url(r'^$', StockListView.as_view(), name="list"),
@@ -10,5 +10,4 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/$', StockDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/copy/$', StockCopyView.as_view(), name="copy"),
     url(r'^import/$', StockImportView.as_view(), name="import"),
-    url(r'^position/$', PositionListView.as_view(), name="position_list"),
 ]

@@ -9,7 +9,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('position', '0007_position_column'),
+        #('position', '0007_position_column'),
         ('order', '0034_productorder_missing_amount'),
     ]
 

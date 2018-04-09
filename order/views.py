@@ -1,66 +1,22 @@
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from order.models import Order, ProductOrder, PositionProductOrder
-from position.models import Position
+from order.models import Order, ProductOrder
 from order.forms import OrderForm,ProductOrderFormsetUpdate, ProductOrderFormsetCreate, ProductOrderForm, \
     ProductOrderUpdateForm
 from product.models import Product
 from utils.utils import set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, set_object_ondetailview, save_picklist, search_positions_for_order, \
-    search_all_wareneingang_products, get_verbose_names, get_filter_fields, \
+    filter_queryset_from_request, set_object_ondetailview, \
+    get_verbose_names, get_filter_fields, \
     filter_complete_and_uncomplete_order_or_mission
-from order.serializers import OrderSerializer, PositionProductOrderSerializer
+from order.serializers import OrderSerializer
 from rest_framework.generics import ListAPIView
-from django.forms import modelform_factory, inlineformset_factory
+from django.forms import modelform_factory
 from django.contrib.auth.mixins import LoginRequiredMixin
 from picklist.models import Picklist
 from django.urls import reverse_lazy
 from product.order_mission import validate_product_order_or_mission_from_post, \
     create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post
 from django.forms.models import model_to_dict
-
-
-# search position for product which are on Wareneingang
-def search_after_product_on_we(request):
-    wePosition = Position.objects.get(halle="WE")
-    gefunden_array = search_all_wareneingang_products()
-
-    if len(gefunden_array) != 0:
-        positions_products = save_picklist(gefunden_array, "Wareneingang", wePosition)
-    else:
-        positions_products = "NIX NEUES"
-
-    wareneingang_products = PositionProductOrder.objects.filter(positions=wePosition)
-
-    context = {"Positionen": positions_products,
-               "we": wareneingang_products
-               }
-    return render(request, "order/position_product.html", context)
-
-
-# function to search avaialble postion for productorder.
-def search_positions(request, ordernummer):
-    order = Order.objects.get(id=ordernummer)
-    wePosition = Position.objects.get(halle="WE")
-
-    all = search_positions_for_order(ordernummer)
-    gefunden = all[0]
-    alle = all[1]
-
-    if len(gefunden) != 0:
-        positions_products_new = save_picklist(gefunden, order, wePosition)
-    else:
-        positions_products_new = "NIX neues"
-
-    positionproducts_all = PositionProductOrder.objects.filter(productorder__in=alle)
-    positionproducts_we = PositionProductOrder.objects.filter(positions=wePosition)
-
-    context = {"Positionen": positions_products_new,
-               "alle": positionproducts_all,
-               "we": positionproducts_we
-               }
-
-    return render(request, "order/position_product.html", context)
 
 
 class ScanOrderUpdateView(UpdateView):
@@ -249,7 +205,3 @@ class OrderListAPIView(ListAPIView):
     queryset = Order.objects.all()
     serializer_class = OrderSerializer
 
-
-class PositionProductOrderListAPIView(ListAPIView):
-    queryset = Picklist.objects.all()
-    serializer_class = PositionProductOrderSerializer

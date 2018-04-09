@@ -46,8 +46,6 @@ INSTALLED_APPS = [
     'warehouse',
     'masterdata',
     'sku',
-    'position',
-    'column',
     'invoice',
     'client',
     'supplier',

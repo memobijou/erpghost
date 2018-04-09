@@ -104,3 +104,13 @@ class Stockdocument(models.Model):
 
     def get_absolute_url(self):
         return reverse("stock:documentdetail", kwargs={"pk": self.id})
+
+
+class Position(models.Model):
+    shelf = models.CharField(max_length=250, verbose_name="Regal", null=True, blank=True)
+    level = models.CharField(max_length=250, verbose_name="Ebene", null=True, blank=True)
+    column = models.CharField(max_length=250, verbose_name="Spalte", null=True, blank=True)
+    prefix = models.CharField(max_length=250, verbose_name="Prefix", null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.prefix}-{self.shelf}-{self.level}-{self.column}"

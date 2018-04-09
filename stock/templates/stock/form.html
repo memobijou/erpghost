@@ -3,37 +3,88 @@
 
 {% block content %}
     <div class="row">
-         {% if form.non_field_errors %}
-            <div class="alert alert-danger">
-                {% for  error in form.non_field_errors %}
-                    {{ error | safe }}
-                {% endfor %}
-            </div>
-         {% endif %}
-
         <div class="col-md-12">
+            {% if object.pk %}
+                <a href="{% url 'stock:copy' pk=object.id %}" class="btn btn-info pull-right">Neuen Artikel zu Position buchen
+            {% endif %}
+            </a>
+            <br/><br/><br/>
+        </div>
+        <div class="col-md-12">
+    <style>
+        .is-table-row {
+            display: table;
+        }
+        .is-table-row [class*="col-"] {
+            float: none;
+            display: table-cell;
+            vertical-align: top;
+        }
+    </style>
+
+
+    <div class="is-table-row" style="padding-bottom: 20px;width:100%">
+
+        {% if object.id %}
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+                    <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+            </div>
+
+            <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                    {% if object.ean_vollstaendig %}
+                         <b>EAN: </b> <span> {{ object.ean_vollstaendig }} </span>
+                    {% elif object.sku %}
+                         <b>SKU: </b> <span> {{ object.sku }} </span>
+                    {% elif object.title %}
+                         <b>keine EAN oder SKU vorhanden</b>
+                    {% else %}
+                        <b>Kein Artikel gebucht</b>
+                    {% endif %}
+                    {% if object.zustand %}
+                         - <b>Zustand: </b>{{ object.zustand }}<br/>
+                    {% endif %}
             </div>
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                <b>Ean: </b>{{ object.ean_vollstaendig }}
+                    <b>Aktuelle Menge: </b> <span> {{ object.bestand }} </span></br>
             </div>
-            <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                <b>Aktuelle Menge: </b>{{ object.bestand }}
+        {% else %}
+            <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;text-align: center;font-size:25px;">
+                    <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
             </div>
+        {% endif %}
+    </div>
         </div>
     </div>
     </br>
     <div class="panel panel-default">
         <div class="panel-body">
+            {% if object.pk %}
             <div class="pull-right">
                 <p><a href="{% url 'stock:detail' pk=object.id %}">Zur Ansicht</a></p>
             </div>
-
-            <form method="POST">{% csrf_token %}
-                {{ form.as_p }}
-                <input type="submit" class="btn btn-primary" value="Speichern">
-            </form>
+            {% endif %}
+                <form method="POST">{% csrf_token %}
+                    <div class="col-md-12">
+                        {% if form.non_field_errors %}
+                                {% for  error in form.non_field_errors %}
+                                    {{ error | safe }}
+                                {% endfor %}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        {% for field in form %}
+                            <div class="form-group">
+                                {{ field.errors }}
+                                {{ field.label_tag }} {{ field }}
+                                {% if field.help_text %}
+                                <p class="help">{{ field.help_text|safe }}</p>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                        <br/>
+                        <input type="submit" class="btn btn-primary" value="Speichern">
+                    </div>
+                </form>
         </div>
     </div>
 {% endblock %}

@@ -15,7 +15,7 @@
             </div>
         {% endfor %}
     {% endif %}
-    <form method="POST" action="." enctype="multipart/form-data">{% csrf_token %}
+    <form method="POST" action="" enctype="multipart/form-data">{% csrf_token %}
         <div style="background-color:white;padding:25px;" class="table-bordered">
             {{ form.as_p }}
 

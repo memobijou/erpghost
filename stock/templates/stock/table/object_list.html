@@ -17,13 +17,16 @@
         <td> {{ object.bestand}} </td>
         <td> {{ object.lagerplatz}} </td>
         <td> {{object.zustand}} </td>
+        <td> {{object.title|default:""}} </td>
+        <td> {{object.sku|default:""}} </td>
+
         <td> {{object.total_amount_ean}} </td>
     </tr>
 
     <tr id="collapse_{{ forloop.counter }}" class="collapse">
       <td colspan="12">
           <p>
-              <b>Name: </b> {{ object.name }}
+              <b>Person: </b> {{ object.name }}
           </p>
           <p>
               <b>Aufnahme Datum: </b> {{ object.aufnahme_datum }}

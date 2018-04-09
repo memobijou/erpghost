@@ -1,14 +1,82 @@
 {% extends 'base.html' %}
 {% load utils %}
 {% block content %}
+    <style>
+        .is-table-row {
+            display: table;
+        }
+        .is-table-row [class*="col-"] {
+            float: none;
+            display: table-cell;
+            vertical-align: top;
+        }
+    </style>
+
+    <div class="col-md-12">
+        {% if object.pk %}
+            <a href="{% url 'stock:copy' pk=object.id %}" class="btn btn-info pull-right">Neuen Artikel zu Position buchen
+        {% endif %}
+        </a>
+        <br/><br/><br/>
+    </div>
+
+    <div class="is-table-row" style="padding-bottom: 20px;width:100%">
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+        </div>
+
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                {% if object.ean_vollstaendig %}
+                     <b>EAN: </b> <span> {{ object.ean_vollstaendig }} </span>
+                {% elif object.sku %}
+                     <b>SKU: </b> <span> {{ object.sku }} </span>
+                {% elif object.title %}
+                     <b>keine EAN oder SKU vorhanden</b>
+                {% elif product.title %}
+                     <b>keine EAN oder SKU vorhanden </b>
+                {% else %}
+                    <b>Kein Artikel gebucht</b>
+                {% endif %}
+                {% if object.zustand %}
+                     - <b>Zustand: </b>{{ object.zustand }}<br/>
+                {% endif %}
+        </div>
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Aktuelle Menge: </b> <span> {{ object.bestand }} </span></br>
+        </div>
+    </div>
 
     <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
-
         <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
+        {% if product %}
+            {% if product.title %}
+                <h4>{{ product.title }}</h4>
+            {% elif object.title %}
+                <h4>{{ object.title }}</h4>
+            {% endif %}
+        {% elif object.title %}
+                <h4>{{ object.title }}</h4>
+        {% endif %}
 
-        {% for field in field_names %}
-            <p><b>{{ field }}: </b> {{ object_as_json|getattr:field}} </p>
-        {% endfor %}
+        {% if product %}
+            {% if product.main_image %}
+                <div style="max-height: 200px;max-width: 200px;">
+                    <p><image src="{{ product.main_image.url }}" class="img-responsive"></image></p>
+                </div>
+            {% endif %}
+            {% if product.short_description %}
+            <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
+            {% endif %}
+        {% endif %}
+
+        <p><b>Person: </b>{{ object.name }}</p>
+        <p><b>Regal: </b>{{ object.regal }}</p>
+        <p><b>Scanner: </b>{{ object.scanner }}</p>
+        <p><b>Karton: </b>{{ object.karton }}</p>
+        <p><b>Box: </b>{{ object.box }}</p>
+        <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
+        <p><b>GESAMT Bestand: </b>{{ object.total_amount_ean }}</p>
+
 
 
     </div>

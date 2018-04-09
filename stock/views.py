@@ -5,20 +5,17 @@ from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django.forms import modelform_factory
 from django_celery_results.models import TaskResult
-from import_excel.funcs import get_table_header, check_excel_header_fields_not_in_header, \
-    compare_header_with_model_fields, \
-    check_excel_for_duplicates
+from import_excel.funcs import get_table_header, check_excel_for_duplicates
 from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
 from product.models import Product
 from .models import Stock, Stockdocument
-from .forms import StockdocumentForm
+from .forms import StockdocumentForm, StockForm
 from tablib import Dataset
 from .resources import StockResource
 from django.core.urlresolvers import reverse_lazy
 from django.http import HttpResponseRedirect
-from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview
+from utils.utils import filter_queryset_from_request, set_object_ondetailview
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from stock.forms import ImportForm
@@ -38,7 +35,7 @@ class StockListView(LoginRequiredMixin, ListView):
         return self.set_pagination(queryset)
 
     def get_context_data(self, *args, **kwargs):
-        context = super(StockListView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
 
         context["fields"] = self.build_fields()
 
@@ -183,15 +180,13 @@ class StockDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, *args, **kwargs):
         context = super(StockDetailView, self).get_context_data(*args, **kwargs)
         context["title"] = "Inventar " + context["object"].lagerplatz
-        set_object_ondetailview(context=context, ModelClass=Stock, exclude_fields=["id"], \
-                                exclude_relations=[], exclude_relation_fields={})
+        context["product"] = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
         return context
 
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = modelform_factory(model=Stock, fields=["bestand", "ean_vollstaendig", "zustand"],
-                                   labels={"bestand": "IST Bestand", "ean_vollstaendig": "EAN"})
+    form_class = StockForm
     login_url = "/login/"
 
     def get_object(self):
@@ -200,11 +195,50 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, *args, **kwargs):
         context = super(StockUpdateView, self).get_context_data(*args, **kwargs)
+
         if not self.request.POST:
             context["object"] = self.get_object(*args, **kwargs)
-
             context["title"] = "Inventar bearbeiten"
         return context
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class=None)
+        choices_with_object_zustand_value = form.fields["zustand"].choices
+        for k, v in choices_with_object_zustand_value:
+            print(f"{k} - {self.object.zustand} --- {v} --- {self.object.zustand}")
+            if k == self.object.zustand or v == self.object.zustand:
+                return form
+        form.fields["zustand"].choices.append((self.object.zustand, self.object.zustand))
+        form.fields["zustand"]._set_choices(choices_with_object_zustand_value)
+        return form
+
+
+class StockCopyView(StockUpdateView):
+    def get_object(self):
+        copy = Stock.objects.get(pk=self.kwargs.get("pk"))
+        copy.id = None
+        copy.ean_vollstaendig = None
+        copy.zustand = "Neu"
+        copy.bestand = None
+        copy.title = None
+        copy.sku = None
+        copy.name = None
+        copy.regal = None
+        copy.karton = None
+        copy.box = None
+        copy.aufnahme_datum = None
+        copy.scanner = None
+        return copy
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(*args, **kwargs)
+        context["title"] = f"Neuen Artikel zu Position {self.object.lagerplatz} buchen"
+        return context
+
+    def form_valid(self, form, *args, **kwargs):
+        self.object.id = Stock.objects.latest("id").id+1
+        self.object.save()
+        return super().form_valid(form)
 
 
 class StockImportView(FormView):
@@ -244,7 +278,7 @@ class StockImportView(FormView):
                                "name", "karton", "box", "aufnahme_datum"]
 
         excel_list = get_records_as_list_with_dicts(file_type, content, header, excel_header_fields)
-        #print(excel_list)
+
         excel_duplicates = check_excel_for_duplicates(excel_list)
 
         if excel_duplicates:
@@ -252,7 +286,25 @@ class StockImportView(FormView):
             context["excel_duplicates"] = excel_duplicates
             return render(self.request, self.template_name, context)
 
-        unique_together = ["ean_vollstaendig", "lagerplatz", "zustand"]  # use vebose_names
+        unique_together = ["ean_vollstaendig", "lagerplatz", "zustand"]
 
         table_data_to_model_task.delay(excel_list, ("stock", "Stock"), unique_together)
         return super().post(request, *args, **kwargs)
+
+
+from stock.models import Position
+
+
+class PositionListView(LoginRequiredMixin, ListView):
+    template_name = "position/position_list.html"
+
+    def get_queryset(self, **kwargs):
+        positions = Position.objects.all()
+        return self.set_pagination(positions)
+
+    def set_pagination(self, queryset):
+        page_object = Paginator(queryset, 15)
+        current_page = self.request.GET.get("page")
+        if current_page is None:
+            current_page = 1
+        return page_object.page(current_page)

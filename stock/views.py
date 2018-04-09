@@ -290,21 +290,3 @@ class StockImportView(FormView):
 
         table_data_to_model_task.delay(excel_list, ("stock", "Stock"), unique_together)
         return super().post(request, *args, **kwargs)
-
-
-from stock.models import Position
-
-
-class PositionListView(LoginRequiredMixin, ListView):
-    template_name = "position/position_list.html"
-
-    def get_queryset(self, **kwargs):
-        positions = Position.objects.all()
-        return self.set_pagination(positions)
-
-    def set_pagination(self, queryset):
-        page_object = Paginator(queryset, 15)
-        current_page = self.request.GET.get("page")
-        if current_page is None:
-            current_page = 1
-        return page_object.page(current_page)

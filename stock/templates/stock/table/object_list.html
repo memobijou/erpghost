@@ -60,6 +60,16 @@
 
 {% endfor %}
 
+{% if not object_list %}
+    <tr>
+        <td class="text-center" colspan="12">
+            <h1>Kein Ergebniss</h1><br/>
+            {% if search_position %}
+             <a class="btn btn-lg btn-info" href="{% url 'stock:position_book' pk=search_position.id %}">Artikel auf {{ search_position.position }} buchen</a>
+            {% endif %}
+        </td>
+    </tr>
+{% endif %}
 
 <script>
     var show_hide_elements = document.getElementsByClassName("show_hide");

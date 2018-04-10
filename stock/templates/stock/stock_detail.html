@@ -12,7 +12,7 @@
         }
     </style>
 
-    <div class="col-md-12">
+    <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
         {% if object.pk %}
             <a href="{% url 'stock:copy' pk=object.id %}" class="btn btn-info pull-right">Neuen Artikel zu Position buchen
         {% endif %}
@@ -68,19 +68,31 @@
             <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
             {% endif %}
         {% endif %}
-
-        <p><b>Person: </b>{{ object.name }}</p>
-        <p><b>Regal: </b>{{ object.regal }}</p>
-        <p><b>Scanner: </b>{{ object.scanner }}</p>
-        <p><b>Karton: </b>{{ object.karton }}</p>
-        <p><b>Box: </b>{{ object.box }}</p>
-        <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
-        <p><b>GESAMT Bestand: </b>{{ object.total_amount_ean }}</p>
-
-
-
+        {% if object.name %}
+            <p><b>Person: </b>{{ object.name }}</p>
+        {% endif %}
+        {% if object.regal %}
+            <p><b>Regal: </b>{{ object.regal }}</p>
+        {% endif %}
+        {% if object.scanner %}
+            <p><b>Scanner: </b>{{ object.scanner }}</p>
+        {% endif %}
+        {% if object.karton %}
+            <p><b>Karton: </b>{{ object.karton }}</p>
+        {% endif %}
+        {% if object.box %}
+            <p><b>Box: </b>{{ object.box }}</p>
+        {% endif %}
+        {% if object.aufnahme_datum %}
+            <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
+        {% endif %}
+        <p><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ object.total_amount_ean }}</p>
     </div>
 
+    <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
+    <br/>
+    <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
+    </div>
 
 
 

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <div>
+
+        {% include "stock/position/filter.html" %}
+        {% include "snippets/pagination.html" %}
+
+
+        {% include "snippets/table.html"  with app="stock_position" %}
+
+
+    </div>
+
+{% endblock %}

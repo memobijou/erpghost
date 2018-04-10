@@ -3,6 +3,7 @@ from django.core.urlresolvers import reverse
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.template import Context, Template
+import re
 
 
 class Stock(models.Model):
@@ -34,6 +35,21 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def clean(self):
+
+        if self.lagerplatz is None:
+            return
+
+        has_ean = self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
+        has_sku = self.sku is not None and self.sku != ""
+        has_title = self.title is not None and self.title != ""
+
+        if has_ean is True and has_sku is True or has_sku is True and has_title is True or has_ean is True\
+                and has_title is True:
+            only_ean_or_sku_or_title_html =\
+                "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN, Sku oder Artikelname</h3>"
+            c = Context({'unique_message': 'Your message'})
+            raise ValidationError(Template(only_ean_or_sku_or_title_html).render(c))
+
         if self.zustand.lower() == "neu" or self.zustand.lower() == "a":
             if self.ean_vollstaendig is None or self.ean_vollstaendig == "":
                 stock_html = "<h1 style='color:red;'>Sie müssen eine EAN angeben</h1>"
@@ -45,7 +61,7 @@ class Stock(models.Model):
                                               lagerplatz=self.lagerplatz, title=self.title).exclude(id=self.id)
             else:
                 if (self.sku is None or self.sku == "") and (self.title is None or self.title == ""):
-                    stock_html = "<h1 style='color:red;'>Sie müssen eine SKU oder Artikelnamen angeben</h1>"
+                    stock_html = "<h3 style='color:red;'>Sie müssen entweder eine SKU oder einen Artikelnamen angeben</h3>"
                     c = Context({'unique_message': 'Your message'})
                     raise ValidationError(Template(stock_html).render(c))
                 stocks = Stock.objects.filter(sku=self.sku, zustand=self.zustand,
@@ -89,8 +105,10 @@ class Stock(models.Model):
     def total_amount_ean(self):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
-        elif (self.sku is not None and self.sku != "") or (self.title is not None and self.title != ""):
-            total = Stock.objects.filter(sku=self.sku, title=self.title).aggregate(Sum('bestand'))
+        elif self.sku is not None and self.sku != "":
+            total = Stock.objects.filter(sku=self.sku).aggregate(Sum('bestand'))
+        elif self.title is not None and self.title != "":
+            total = Stock.objects.filter(title=self.title).aggregate(Sum('bestand'))
         else:
             return "/"
         print("?!?!: " + str(total))
@@ -113,4 +131,22 @@ class Position(models.Model):
     column = models.CharField(blank=True, null=False, max_length=250, verbose_name="Spalte")
 
     def __str__(self):
-        return f"{prefix}shelf-level-column"
+        return self.position
+
+    @property
+    def position(self):
+        if self.level.isdigit():
+            level = '%03d' % (int(self.level),)
+        else:
+            level = self.level
+        if self.column.isdigit():
+            column = '%03d' % (int(self.column),)
+        else:
+            column = self.column
+
+        position = f"{self.prefix}{self.shelf}-{level}-{column}"
+
+        if all(char.isalpha() or char.isspace() or char == "-" for char in position):
+            return self.prefix
+
+        return position

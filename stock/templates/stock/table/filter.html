@@ -1,0 +1,8 @@
+<div class="col-md-12">
+    <form id="filter_form" action="." class="form-inline">
+        {% for attname, verbose_name, GET_value in filter_fields %}
+        <input class="form-control" name="{{ attname }}" placeholder="{{ verbose_name }}" value="{{ GET_value }}">
+        {% endfor %}
+        <input type="Submit" class="btn btn-default" value="Filter">
+    </form>
+</div>

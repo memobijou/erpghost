@@ -24,6 +24,8 @@
                         {% include "product/table/object_list.html" %}
                     {% elif app == "stock" %}
                         {% include "stock/table/object_list.html" %}
+                    {% elif app == "stock_position" %}
+                        {% include "stock/position/table/object_list.html" %}
                     {% endif %}
             </tbody>
 

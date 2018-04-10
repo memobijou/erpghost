@@ -1,34 +1,36 @@
 import urllib
-
 from django.shortcuts import render, get_object_or_404
+from django.views.generic import DeleteView
 from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
-from django.forms import modelform_factory
 from django_celery_results.models import TaskResult
 from import_excel.funcs import get_table_header, check_excel_for_duplicates
 from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
 from product.models import Product
 from .models import Stock, Stockdocument
-from .forms import StockdocumentForm, StockForm
+from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm
 from tablib import Dataset
 from .resources import StockResource
 from django.core.urlresolvers import reverse_lazy
 from django.http import HttpResponseRedirect
-from utils.utils import filter_queryset_from_request, set_object_ondetailview
+from utils.utils import filter_queryset_from_request
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from stock.forms import ImportForm
 from stock.tasks import table_data_to_model_task
 from erpghost import app
 from django.core.paginator import Paginator
-
+from django.db.models import Q
+from stock.models import Position
 
 # Create your views here.
+
 
 class StockListView(LoginRequiredMixin, ListView):
     template_name = "stock/stock_list.html"
     login_url = "/login/"
+    exclude_fields = ["id", "bestand", 'regal', "ean_upc", "scanner", "karton", 'box', 'aufnahme_datum',
+                      "ignore_unique"]
 
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Stock).order_by("-id")
@@ -43,13 +45,29 @@ class StockListView(LoginRequiredMixin, ListView):
 
         context["object_list_zip"] = zip(context["object_list"], self.get_products())
 
-        context["filter_fields"] = self.get_filter_fields(
-            exclude=["id", "bestand", 'regal', "ean_upc", "scanner", "karton",
-                     'box', 'aufnahme_datum', "ignore_unique"])
+        context["filter_fields"] = self.get_filter_fields(exclude=self.exclude_fields)
+
+        context["search_position"] = self.get_searched_position()
 
         context["title"] = "Lagerbestand"
+        context["filter_fields"] = self.build_filter_fields(exclude=self.exclude_fields)
 
         return context
+
+    def get_searched_position(self):
+        GET_value = self.request.GET.get("lagerplatz", "").strip()
+        if GET_value is not None and GET_value != "":
+            position_from_GET_request = self.request.GET.get("lagerplatz").strip()
+            return filter_queryset_from_position_string(position_from_GET_request, Position).first()
+
+    def build_filter_fields(self, exclude=list):
+        filter_fields = []
+        for field in Stock._meta.get_fields():
+            if field.attname in exclude:
+                continue
+            value = self.request.GET.get(field.attname, "").strip()
+            filter_fields.append((field.attname, field.verbose_name, value))
+        return filter_fields
 
     def build_fields(self):
         fields = self.get_verbose_names(exclude=["id", "ean_upc", "scanner", "name", "karton", "box",
@@ -178,15 +196,15 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         return obj
 
     def get_context_data(self, *args, **kwargs):
-        context = super(StockDetailView, self).get_context_data(*args, **kwargs)
-        context["title"] = "Inventar " + context["object"].lagerplatz
+        context = super().get_context_data(*args, **kwargs)
+        context["title"] = f"Inventar {context.get('object').lagerplatz}"
         context["product"] = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
         return context
 
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = StockForm
+    form_class = StockUpdateForm
     login_url = "/login/"
 
     def get_object(self):
@@ -213,21 +231,37 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         return form
 
 
+class StockDeleteView(DeleteView):
+    model = Stock
+    success_url = reverse_lazy("stock:list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        obj = context["object"]
+        product_ean_or_sku_or_title = self.get_product_ean_or_sku_or_title(obj)
+        context["product_ean_or_sku_or_title"] = product_ean_or_sku_or_title
+        context['title'] = f"{obj.bestand} x Artikel {product_ean_or_sku_or_title} von {obj.lagerplatz} ausbuchen"
+        return context
+
+    def delete(self, request, *args, **kwargs):
+        messages.add_message(self.request, messages.INFO, "Artikel wurde erfolgreich ausgebucht")
+        return super().delete(request, *args, **kwargs)
+
+    def get_product_ean_or_sku_or_title(self, obj):
+        if obj.ean_vollstaendig is not None and obj.ean_vollstaendig != "":
+            return obj.ean_vollstaendig
+        elif obj.sku is not None and obj.sku != "":
+            return obj.sku
+        elif obj.title is not None and obj.title != "":
+            return obj.title
+
+
 class StockCopyView(StockUpdateView):
     def get_object(self):
-        copy = Stock.objects.get(pk=self.kwargs.get("pk"))
-        copy.id = None
-        copy.ean_vollstaendig = None
+        position = Stock.objects.get(pk=self.kwargs.get("pk")).lagerplatz
+        copy = Stock()
+        copy.lagerplatz = position
         copy.zustand = "Neu"
-        copy.bestand = None
-        copy.title = None
-        copy.sku = None
-        copy.name = None
-        copy.regal = None
-        copy.karton = None
-        copy.box = None
-        copy.aufnahme_datum = None
-        copy.scanner = None
         return copy
 
     def get_context_data(self, *args, **kwargs):
@@ -290,3 +324,83 @@ class StockImportView(FormView):
 
         table_data_to_model_task.delay(excel_list, ("stock", "Stock"), unique_together)
         return super().post(request, *args, **kwargs)
+
+
+class PositionListView(LoginRequiredMixin, ListView):
+    template_name = "stock/position/position_list.html"
+    exclude_fields = ["id"]
+
+    def get_queryset(self):
+        queryset = self.filter_model_from_get_request(Position)
+        return self.set_pagination(queryset)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lagerplätze"
+        context["fields"] = self.build_header_fields(exclude=self.exclude_fields)
+        context["filter_fields"] = self.build_filter_fields()
+        return context
+
+    def build_filter_fields(self):
+        filter_fields = []
+        filter_fields.append(("position", "Lagerplatz", self.request.GET.get("position", "").strip()))
+        return filter_fields
+
+    def build_header_fields(self, exclude=list):
+        fields = ["", "Position"]
+        for field in Position._meta.get_fields():
+            if field.attname in exclude:
+                continue
+            fields.append(field.verbose_name)
+        fields.append("")
+        return fields
+
+    def filter_model_from_get_request(self, model_class):
+        return filter_queryset_from_position_string(self.request.GET.get("position", "").strip(), model_class)
+
+    def set_pagination(self, queryset):
+        current_page = self.request.GET.get("page")
+        if current_page is None:
+            current_page = 1
+        return Paginator(queryset, 15).page(current_page)
+
+
+def filter_queryset_from_position_string(GET_value, model_class):
+    if GET_value == "" or GET_value is None:
+        return model_class.objects.all()
+    match_ids = []
+    for p in model_class.objects.all():
+        position = p.position
+        if GET_value.lower() in position.lower():
+            match_ids.append(p.id)
+    return model_class.objects.filter(id__in=match_ids).order_by("prefix", "shelf", "level", "column")
+
+
+class BookProductToPositionView(LoginRequiredMixin, CreateView):
+    template_name = "stock/form.html"
+    form_class = StockCreateForm
+    login_url = "/login/"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Artikel zu Position buchen'
+        context["object"] = Stock(lagerplatz=self.current_position)
+        return context
+
+    def get_initial(self):
+        return {
+            'lagerplatz': self.current_position,
+        }
+
+    def form_valid(self, form):
+        object = form.save(commit=False)
+        object.lagerplatz = self.current_position
+        object.id = Stock.objects.latest("id").id+1
+        object.save()
+        return super().form_valid(form)
+
+    @property
+    def current_position(self):
+        position = Position.objects.get(id=self.kwargs.get("pk")).position
+        print(f"???? {position}")
+        return position

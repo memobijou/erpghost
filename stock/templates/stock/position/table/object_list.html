@@ -1,0 +1,57 @@
+{% for object in object_list %}
+    <tr>
+        <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
+            <a href="{{ object.id }}/edit">Bearbeiten</a>
+        </td>
+        <td class="show_hide" style="cursor:pointer;">
+            <a collapseid="collapse_{{ forloop.counter }}">
+                <span class="glyphicon glyphicon-chevron-down"></span>
+            </a>
+        </td>
+        <td> {{ object.position }} </td>
+        <td> {{ object.prefix}} </td>
+        <td> {{ object.shelf}} </td>
+        <td> {{ object.level}} </td>
+        <td> {{object.column}} </td>
+        <td class="text-center"><a class="btn btn-info" href="{% url 'stock:position_book' pk=object.id %}">Artikel buchen</a></td>
+    </tr>
+
+    <tr id="collapse_{{ forloop.counter }}" class="collapse">
+      <td colspan="12">
+          <h3>{{ object }}</h3>
+      </td>
+    </tr>
+
+{% endfor %}
+
+
+<script>
+    var show_hide_elements = document.getElementsByClassName("show_hide");
+
+    for(var i = 0; i<show_hide_elements.length; i++){
+        var show_hide_element = show_hide_elements[i];
+
+
+        show_hide_element.onclick = function(e){
+           var a_element = this.getElementsByTagName("a")[0];
+
+           var show_or_hide_element = this.getElementsByTagName("span")[0];
+
+           flip_down_up(show_or_hide_element);
+
+           $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+
+
+
+        }
+    }
+
+    var flip_down_up = function(el){
+           if(el.className.includes("chevron-down")){
+               el.className = el.className.replace("chevron-down", "chevron-up");
+           }else{
+              el.className = el.className.replace("chevron-up", "chevron-down");
+           }
+    };
+
+</script>

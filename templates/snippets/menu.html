@@ -16,6 +16,8 @@
                 <li><a href="{% url 'stock:list' %}" style="color:black">Lagerbestand</a></li>
                 <li><a href="{% url 'supplier:list' %}" style="color:black">Lieferanten</a></li>
                 <li><a href="{% url 'customer:list' %}" style="color:black">Kunden</a></li>
+                <li><a href="{% url 'stock:position_list' %}" style="color:black">Lagerplätze</a></li>
+
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}

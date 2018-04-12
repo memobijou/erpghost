@@ -60,7 +60,7 @@
     var main_form_submit_btn = document.getElementById("main_form_submit_btn");
     var ean_elements = document.getElementsByName("ean");
 
-        var GET_ = function (value, input) {
+    var GET_ = function (value, input) {
       var xhr = new XMLHttpRequest();
       var url = "/product/api?ean=" + value.toString();
 

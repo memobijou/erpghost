@@ -77,6 +77,22 @@ class ProductUpdateView(UpdateView):
     def get_success_url(self):
         return reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")})
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data()
+        import requests
+        import json
+        user_agent = self.request.META.get('HTTP_USER_AGENT')
+        ean = self.object.ean
+        ip_address = self.request.META.get('REMOTE_ADDR')
+        app_key = "dC73EDZeCXmjZ30bgtiuiuN6oLC0TuF9"
+        shopname = "itbtc123"
+        ip = "88.74.253.121"
+        url = f"https://live.icecat.biz/api/signatures?shopname={shopname}&Language=de&GTIN=8007842706949" \
+              f"&app_key={app_key}&IP={ip_address}&useragent={user_agent}"
+        print(f"Jo: {self.object} - {self.request.META.get('HTTP_USER_AGENT')} - {ip_address}")
+        context["icecat"] = requests.get(url).content
+        return context
+
 
 class ProductDetailView(DetailView):
     def get_object(self):

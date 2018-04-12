@@ -37,7 +37,7 @@ def create_product_order_or_mission_forms_from_post(many_to_many_model, many_to_
             if key in many_to_many_form.base_fields:
                 value = request.POST.getlist(key)[i]
                 if key == "ean":
-                    product = Product.objects.filter(ean=value).first()
+                    product = Product.objects.filter(ean=value.strip()).first()
                     if product:
                         data["product"] = product
                     continue

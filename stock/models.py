@@ -52,7 +52,7 @@ class Stock(models.Model):
 
         if self.zustand.lower() == "neu" or self.zustand.lower() == "a":
             if self.ean_vollstaendig is None or self.ean_vollstaendig == "":
-                stock_html = "<h1 style='color:red;'>Sie müssen eine EAN angeben</h1>"
+                stock_html = "<h3 style='color:red;'>Sie müssen eine EAN angeben</h3>"
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
         if self.zustand.lower() in ["b", "c", "d", "e"]:

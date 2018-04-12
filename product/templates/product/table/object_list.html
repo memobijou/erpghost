@@ -19,12 +19,12 @@
                     <img src="{{ object.main_image.url|default:''}}" width="50px" height="50px">
                 {% endif %}
             </td>
-            <td> {{ object.ean}} </td>
-            <td> {{ object.manufacturer}} </td>
-            <td> {{ object.brandname}} </td>
-            <td> {{ object.part_number}} </td>
-            <td> {{ object.title}} </td>
-            <td> {{ stock }} </td>
+            <td> {{ object.ean|default:""}} </td>
+            <td> {{ object.manufacturer|default:""}} </td>
+            <td> {{ object.brandname|default:""}} </td>
+            <td> {{ object.part_number|default:""}} </td>
+            <td> {{ object.title|default:""}} </td>
+            <td> {{ stock|default:"" }} </td>
     </tr>
   <tr id="collapse_{{ forloop.counter }}" class="collapse">
       <td colspan="12">

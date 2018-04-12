@@ -1,4 +1,6 @@
 from django import forms
+
+from product.models import Product
 from .models import Mission, ProductMission
 from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
@@ -42,6 +44,15 @@ class CommonProductMissionForm(forms.Form):
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_ean(self):
+        data = self.cleaned_data['ean'].strip()
+        if Product.objects.filter(ean__iexact=data).count() == 0:
+            raise forms.ValidationError("Sie müssen eine gültige EAN eingeben!")
+
+        # Always return a value to use as the new cleaned data, even if
+        # this method didn't change it.
+        return data
 
     class Meta:
         abstract = True

@@ -10,6 +10,9 @@
                     </div>
                 {% endif %}
                 <div class="col-md-6">
+                    {% if icecat %}
+                        <h1>{{ icecat }}</h1>
+                    {% endif %}
                     <form method="POST" id="main_form" enctype="multipart/form-data"> {% csrf_token %}
                     {% for field in form %}
                         <div class="form-group">{% include "snippets/forms/field.html" %}</div>

@@ -168,6 +168,9 @@ class OrderCreateView(CreateView):
         return context
 
     def build_product_order_forms(self, amount):
+        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+            amount = len(self.request.POST.getlist("ean"))
+
         product_order_forms_list = []
         for i in range(0, amount):
             if self.request.POST:

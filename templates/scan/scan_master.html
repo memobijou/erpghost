@@ -24,8 +24,10 @@
                     </td>
                     <td>
                         {% if product_order_or_mission.product.main_image %}
-                            <img src="{{ product_order_or_mission.product.main_image.url }}"
-                                            style="width:50px; height:50px;">
+                            <div style="max-height: 80px;max-width:80px;">
+                                <img src="{{ product_order_or_mission.product.main_image.url }}"
+                                                style="max-height:80px;" class="img-responsive">
+                            </div>
                         {% endif %}
                     </td>
                     <td>{{ product_order_or_mission.product.ean }}</td>

@@ -21,8 +21,19 @@
                     </p>
                     {% if object.main_image %}
                         <p>
-                             <img class="img-responsive" src="{{ object.main_image.url }}">
+                             <img class="img-responsive img-modal" style="cursor:pointer;" src="{{ object.main_image.url }}">
                         </p>
+                        <div class="modal fade">
+                             <!-- Modal -->
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-body">
+                                        <img src="{{ object.main_image.url|default:''}}"
+                                         class="img-responsive center-block">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     {% endif %}
                     <p>
                         <b>Beschreibung: </b> {{ object.description }}
@@ -30,4 +41,13 @@
                 </div>
             </div>
         </div>
+<script>
+
+    var modal_image = document.getElementsByClassName("img-modal")[0];
+        modal_image.onclick = function(){
+            var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+</script>
 {% endblock %}
+

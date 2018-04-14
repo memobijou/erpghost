@@ -14,13 +14,18 @@ from utils.utils import get_queries_as_json, set_field_names_onview, \
 from .serializers import ProductSerializer, IncomeSerializer
 from rest_framework.generics import ListAPIView
 from rest_framework import generics
-from product.forms import ImportForm, ProductForm
+from product.forms import ImportForm, ProductForm, ProductIcecatForm
 from django.urls import reverse_lazy
 # Create your views here.
 from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
 from import_excel.models import TaskDuplicates
 import pyexcel
+from io import BytesIO
+import requests
+from django.core import files
+import base64
+import json
 
 
 class ProductListView(ListView):
@@ -74,29 +79,128 @@ class ProductUpdateView(UpdateView):
     def get_object(self):
         return Product.objects.get(pk=self.kwargs.get("pk"))
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Artikel bearbeiten"
+        return context
+
     def get_success_url(self):
         return reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")})
 
+
+class ProductUpdateIcecatView(ProductUpdateView):
+    form_class = ProductIcecatForm
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data()
-        import requests
-        import json
+        context["title"] = "Icecat Import"
         user_agent = self.request.META.get('HTTP_USER_AGENT')
         ean = self.object.ean
         ip_address = self.request.META.get('REMOTE_ADDR')
-        app_key = "dC73EDZeCXmjZ30bgtiuiuN6oLC0TuF9"
-        shopname = "itbtc123"
-        ip = "88.74.253.121"
-        url = f"https://live.icecat.biz/api/signatures?shopname={shopname}&Language=de&GTIN=8007842706949" \
-              f"&app_key={app_key}&IP={ip_address}&useragent={user_agent}"
-        print(f"Jo: {self.object} - {self.request.META.get('HTTP_USER_AGENT')} - {ip_address}")
-        context["icecat"] = requests.get(url).content
+        import os
+        app_key = os.environ.get("icecat_app_key")
+        shopname = os.environ.get("icecat_username")
+        # url = f"https://live.icecat.biz/api/signatures?shopname={shopname}&Language=de&GTIN=8007842706949" \
+        #       f"&app_key={app_key}&IP={ip_address}&useragent={user_agent}"
+        url = f"https://live.icecat.biz/api/?UserName={shopname}&Language=de&GTIN={ean}" \
+              f"&app_key={app_key}"
+        response = requests.get(url)
+        if response.status_code != requests.codes.ok:
+            context["icecat_status"] = "FAIL"
+        else:
+            context["icecat_status"] = "SUCCESS"
+        icecat_response = json.loads(response.text)
+        print(url)
+        if "data" in icecat_response:
+            self.icecat_data_to_form(context["form"], icecat_response.get("data"), context)
+            context["icecat"] = icecat_response.get("data").get("GeneralInfo")
         return context
+
+    def icecat_data_to_form(self, form, icecat_json, context):
+        title = icecat_json.get("GeneralInfo").get("Title")
+        length = None
+        width = None
+        height = None
+        long_description = None
+        short_description = None
+        brand = None
+        image = None
+
+        if "Image" in icecat_json:
+            if "HighPic" in icecat_json["Image"]:
+                image_url = icecat_json.get("Image").get("HighPic")
+                print(image_url)
+                r = requests.get(image_url)
+                if r.status_code == requests.codes.ok:
+                    image_file_bytes = BytesIO()
+                    image_file_bytes.write(r.content)
+                    encoded_string = base64.b64encode(r.content)
+                    context["icecat_image_base64"] = encoded_string
+                    context["icecat_image_bytes"] = image_file_bytes
+                    filename = image_url.split("/")[-1]
+                    context["icecat_image_filename"] = filename
+
+        if "Brand" in icecat_json.get("GeneralInfo"):
+            if icecat_json.get("GeneralInfo").get("Brand"):
+                brand = icecat_json.get("GeneralInfo").get("Brand")
+
+        if icecat_json.get("GeneralInfo").get("Description"):
+            long_description = icecat_json.get("GeneralInfo").get("Description").get("LongDesc")
+            print(long_description)
+        if icecat_json.get("GeneralInfo").get("SummaryDescription"):
+            short_description = icecat_json.get("GeneralInfo").get("SummaryDescription").get("LongSummaryDescription")
+
+        for feature_group in icecat_json.get("FeaturesGroups"):
+            feature_name = feature_group.get("FeatureGroup").get("Name").get("Value")
+
+            for feature in feature_group.get('Features'):
+                value = feature.get('Value')
+                measure_sign = feature.get('Feature').get('Measure').get('Signs').get('_')
+                name = feature.get('Feature').get('Name').get('Value')
+
+                if name == "Verpackungshöhe":
+                    height = value
+                if name == "Verpackungsbreite":
+                    width = value
+                if name == "Verpackungstiefe":
+                    length = value
+        if title is not None and title != "":
+            form.initial["title"] = title
+
+        if length is not None and length != "":
+            form.initial["length"] = length
+
+        if width is not None and width != "":
+            form.initial["width"] = width
+
+        if height is not None and height != "":
+            form.initial["height"] = height
+
+        if long_description is not None and long_description != "":
+            form.initial["description"] = long_description
+
+        if short_description is not None and short_description != "":
+            form.initial["short_description"] = short_description
+
+        if brand is not None and brand != "":
+            form.initial["brandname"] = brand
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        icecat_image_bytes = context["icecat_image_bytes"]
+        object = form.save()
+        object.main_image.save(context["icecat_image_filename"], files.File(icecat_image_bytes))
+        return super().form_valid(form)
 
 
 class ProductDetailView(DetailView):
     def get_object(self):
         return Product.objects.get(pk=self.kwargs.get("pk"))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Artikel Detailansicht"
+        return context
 
 
 class IncomeListView(ListAPIView):

@@ -21,3 +21,10 @@ class ProductForm(forms.ModelForm):
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+
+class ProductIcecatForm(ProductForm):
+    class Meta:
+        model = Product
+        fields = None
+        exclude = ["main_image"]

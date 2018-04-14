@@ -144,22 +144,36 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
     def build_product_mission_forms(self):
         product_mission_forms_list = []
+        product_mission_forms_list = self.object_instances_to_forms_list(product_mission_forms_list)
+        product_mission_forms_list = self.non_object_forms_to_forms_list(product_mission_forms_list)
+        return product_mission_forms_list
+
+    def object_instances_to_forms_list(self, forms_list):
         product_missions = self.object.productmission_set.all()
         i = 0
         for product_mission in product_missions:
             if self.request.POST:
                 data = {}
                 for k in self.request.POST:
-                    if k in ProductMissionForm.base_fields:
+                    if k in ProductMissionUpdateForm.base_fields:
                         data[k] = self.request.POST.getlist(k)[i]
-                print(data)
-                product_mission_forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data))
             else:
                 data = model_to_dict(product_mission)
                 data["ean"] = product_mission.product.ean
-                product_mission_forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data))
             i += 1
-        return product_mission_forms_list
+        return forms_list
+
+    def non_object_forms_to_forms_list(self, forms_list):
+        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+            for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
+                    data = {}
+                    for k in self.request.POST:
+                        if k in ProductMissionForm.base_fields:
+                            data[k] = self.request.POST.getlist(k)[i]
+                    forms_list.append(ProductMissionForm(data=data))
+        return forms_list
 
     def form_valid(self, form, **kwargs):
         self.object = form.save()

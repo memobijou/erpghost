@@ -122,6 +122,12 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 
     def build_product_order_forms(self):
         product_order_forms_list = []
+        product_order_forms_list = self.object_instances_to_forms_list(product_order_forms_list)
+        print(f"A: {len(product_order_forms_list)}")
+        product_order_forms_list = self.non_object_forms_to_forms_list(product_order_forms_list)
+        return product_order_forms_list
+
+    def object_instances_to_forms_list(self, forms_list):
         product_orders = self.object.productorder_set.all()
         i = 0
         for product_order in product_orders:
@@ -130,14 +136,23 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
                 for k in self.request.POST:
                     if k in ProductOrderForm.base_fields:
                         data[k] = self.request.POST.getlist(k)[i]
-                print(data)
-                product_order_forms_list.append(ProductOrderUpdateForm(data=data))
+                forms_list.append(ProductOrderUpdateForm(data=data))
             else:
                 data = model_to_dict(product_order)
                 data["ean"] = product_order.product.ean
-                product_order_forms_list.append(ProductOrderUpdateForm(data=data))
+                forms_list.append(ProductOrderUpdateForm(data=data))
             i += 1
-        return product_order_forms_list
+        return forms_list
+
+    def non_object_forms_to_forms_list(self, forms_list):
+        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+            for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
+                    data = {}
+                    for k in self.request.POST:
+                        if k in ProductOrderForm.base_fields:
+                            data[k] = self.request.POST.getlist(k)[i]
+                    forms_list.append(ProductOrderForm(data=data))
+        return forms_list
 
     def form_valid(self, form, *args, **kwargs):
         self.object = form.save()

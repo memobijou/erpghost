@@ -125,21 +125,22 @@ class Stockdocument(models.Model):
 
 
 class Position(models.Model):
+
     prefix = models.CharField(blank=True, null=False, max_length=250, verbose_name="Prefix")
-    shelf = models.CharField(blank=True, null=False, max_length=250, verbose_name="Regal")
-    level = models.CharField(blank=True, null=False, max_length=250, verbose_name="Ebene")
-    column = models.CharField(blank=True, null=False, max_length=250, verbose_name="Spalte")
+    shelf = models.IntegerField(blank=True, null=False, verbose_name="Regal")
+    level = models.IntegerField(blank=True, null=False, verbose_name="Ebene")
+    column = models.IntegerField(blank=True, null=False, verbose_name="Spalte")
 
     def __str__(self):
         return self.position
 
     @property
     def position(self):
-        if self.level.isdigit():
+        if str(self.level).isdigit():
             level = '%03d' % (int(self.level),)
         else:
             level = self.level
-        if self.column.isdigit():
+        if str(self.column).isdigit():
             column = '%03d' % (int(self.column),)
         else:
             column = self.column
@@ -150,3 +151,6 @@ class Position(models.Model):
             return self.prefix
 
         return position
+
+    class Meta:
+           ordering = ["prefix", "shelf", "level", "column"]

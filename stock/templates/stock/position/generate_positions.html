@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+
+{% block content %}
+        <form method="POST">{% csrf_token %}
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    {{ error_duplicates|safe }}
+                    <div class="col-md-6">
+
+                        {{ form.as_p }}
+
+                        <span class="glyphicon glyphicon-plus" id="add_fields" style="cursor:pointer;"></span><br/><br/>
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Ebene</th>
+                                    <th>Anzahl Plätze</th>
+                                </tr>
+                            </thead>
+                            <div class="tbody">
+                                {% for level_position_form in level_position_forms%}
+                                    <tr class="level_position_row">
+                                        {% for field in level_position_form %}
+                                                <td>
+                                                    {{ field }}
+                                                    <div style="color:red;">{{ field.errors }}</div>
+                                                </td>
+                                        {% endfor %}
+                                        <td>
+                                            <span class="glyphicon glyphicon-trash delete_row" style="color:red;cursor:pointer;">
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </div>
+                        </table>
+                        <br/>
+                        <input type="submit" class="btn btn-primary" value="Speichern">
+                    </div>
+                </div>
+            </div>
+        </form>
+
+<script>
+    var add_fields = document.getElementById("add_fields");
+    var original_row = document.getElementsByClassName("level_position_row")[0];
+    var tbody = original_row.parentElement;
+
+    add_fields.onclick = function(){
+        var clone = original_row.cloneNode(true);
+        var clone_delete_btn = clone.getElementsByClassName("delete_row")[0];
+        clone_delete_btn.onclick = function(){
+            remove_row(this.parentElement.parentElement, tbody);
+        };
+
+        var clone_inputs = clone.getElementsByTagName("input");
+        for(var i = 0; i< clone_inputs.length; i++){
+            clone_inputs[i].value = "";
+        }
+
+        tbody.appendChild(clone);
+
+    };
+
+    var delete_btn = document.getElementsByClassName("delete_row")[0];
+
+    delete_btn.onclick = function(){
+        remove_row(this.parentElement.parentElement, tbody);
+    };
+
+    var remove_row = function(row, tbody){
+        tbody.removeChild(row);
+    };
+
+
+
+
+
+
+</script>
+
+{% endblock %}

@@ -47,3 +47,29 @@ class StockCreateForm(ModelForm):
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+
+class GeneratePositionsForm(forms.Form):
+    prefix = forms.CharField(label='Prefix', max_length=100)
+    shelf_number = forms.IntegerField(label='Regalnummer')
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class GeneratePositionLevelsColumnsForm(forms.Form):
+    level = forms.IntegerField(label='Ebene')
+    amount_columns = forms.IntegerField(label='Anzahl Spalten')
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
+                visible.field.widget.attrs["class"] = "form-control"

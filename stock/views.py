@@ -9,7 +9,8 @@ from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
 from product.models import Product
 from .models import Stock, Stockdocument
-from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm
+from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm, GeneratePositionsForm, \
+    GeneratePositionLevelsColumnsForm
 from tablib import Dataset
 from .resources import StockResource
 from django.core.urlresolvers import reverse_lazy
@@ -22,6 +23,8 @@ from erpghost import app
 from django.core.paginator import Paginator
 from django.db.models import Q
 from stock.models import Position
+import itertools
+
 
 # Create your views here.
 
@@ -373,7 +376,7 @@ def filter_queryset_from_position_string(GET_value, model_class):
         position = p.position
         if GET_value.lower() in position.lower():
             match_ids.append(p.id)
-    return model_class.objects.filter(id__in=match_ids).order_by("prefix", "shelf", "level", "column")
+    return model_class.objects.filter(id__in=match_ids)
 
 
 class BookProductToPositionView(LoginRequiredMixin, CreateView):
@@ -404,3 +407,88 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         position = Position.objects.get(id=self.kwargs.get("pk")).position
         print(f"???? {position}")
         return position
+
+
+class GeneratePositionsView(FormView):
+    template_name = "stock/position/generate_positions.html"
+    form_class = GeneratePositionsForm
+    success_url = reverse_lazy("stock:position_list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lagerplätze generieren"
+        context["level_position_forms"] = [GeneratePositionLevelsColumnsForm()]
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+
+        amount_rows = len(self.request.POST.getlist("level"))
+
+        level_position_forms_list = []
+
+        bulk_instances = []
+        shelf_number = form.cleaned_data.get("shelf_number")
+        prefix = form.cleaned_data.get("prefix")
+
+        for row_count in range(0, amount_rows):
+            data = {"level": self.request.POST.getlist("level")[row_count],
+                    "amount_columns": self.request.POST.getlist("amount_columns")[row_count]
+                    }
+            level_position_form = GeneratePositionLevelsColumnsForm(data=data)
+
+            level_position_forms_list.append(level_position_form)
+
+            print(level_position_form.data)
+
+            if level_position_form.is_valid():
+
+                level = int(level_position_form.cleaned_data.get("level"))
+                amount_columns = int(level_position_form.cleaned_data.get("amount_columns"))
+
+                levels = [level]
+                columns = [col for col in range(1, amount_columns+1)]
+
+                cartesian = [levels, columns]
+
+                for element in itertools.product(*cartesian):
+                    level = str(element[0])
+                    column = str(element[1])
+                    p = Position(prefix=prefix, shelf=shelf_number, level=level, column=column)
+                    print(p.position)
+                    bulk_instances.append(p)
+
+        context["level_position_forms"] = level_position_forms_list
+
+        for level_position_form in level_position_forms_list:
+            if level_position_form.is_valid() is False:
+                return render(self.request, self.template_name, context)
+        if self.validate_positions_have_no_duplicates(bulk_instances, context) is False:
+            return render(self.request, self.template_name, context)
+
+        Position.objects.bulk_create(bulk_instances)
+        return super().form_valid(form)
+
+    def validate_positions_have_no_duplicates(self, positions, context):
+        has_duplicates = False
+        duplicates_html = f"<div class='col-md-12'>" \
+                          f"<h3 style='color:red;'>Folgende Positionen sind bereits vorhanden</h3>" \
+                          f"<table class='table table-bordered'>" \
+                          f"<thead><tr><th>Position</th></tr></thead>" \
+                          f"<tbody>"
+        for position in positions:
+            position_queryset = Position.objects.filter(prefix=position.prefix, shelf=position.shelf, level=position.level,
+                                                        column=position.column)
+            print(f"WHAT? {position_queryset.count()}")
+
+            if position_queryset.count() >= 1:
+                has_duplicates = True
+                duplicates_html += f"<tr><td>{position.position}</td></tr>"
+
+        duplicates_html += f"</tbody></table></div>"
+
+        if has_duplicates is True:
+            context["error_duplicates"] = duplicates_html
+            return False
+        else:
+            return True

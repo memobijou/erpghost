@@ -3,7 +3,9 @@
 {% block content %}
 
     <div>
-
+        <div class="col-md-12">
+            <a href="{% url 'stock:generate_positions' %}" class="btn btn-info pull-right">Lagerplätze anlegen</a>
+        </div>
         {% include "stock/position/filter.html" %}
         {% include "snippets/pagination.html" %}
 

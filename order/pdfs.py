@@ -85,7 +85,7 @@ class OrderPdfView(View):
             date="06.03.2018", customer="342323", order=order_number, delivery_date=delivery_date,
             document_height=doc.height, footer_height=footer_height,
         )
-        doc.build(story, canvasmaker=CustomCanvas)
+        doc.build(story)
 
         return response
 

@@ -13,6 +13,7 @@ from reportlab.platypus.tables import Table, TableStyle, LongTable
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import Frame, NextPageTemplate, PageBreakIfNotEmpty
 from order.models import Order
+from django.contrib.staticfiles.templatetags.staticfiles import static
 
 size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)
 size_nine_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9)
@@ -25,7 +26,7 @@ size_nine_helvetica_left_indent_310 = ParagraphStyle(name="normal", fontName="He
 right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                              rightIndent=17)
 right_align_bold_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica-Bold", fontSize=9,
-                                             rightIndent=17)
+                                                  rightIndent=17)
 underline = "_____________________________"
 spaces_13 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
 spaces_6 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
@@ -37,6 +38,8 @@ horizontal_line.add(Line(0, 0, 425, 0))
 
 
 class OrderPdfView(View):
+    qr_code_url = ""
+
     @property
     def order(self):
         return Order.objects.get(pk=self.kwargs.get("pk"))
@@ -52,13 +55,17 @@ class OrderPdfView(View):
         print(order_number)
         # FOOTER
 
-        # first_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='first_frame')
-        # next_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='last_frame')
-        #
-        # first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
-        # next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
-        #
-        # doc.addPageTemplates([first_template, next_template])
+        first_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='first_frame')
+        next_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='last_frame')
+
+        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=self.footer)
+        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=self.footer)
+
+        doc.addPageTemplates([first_template, next_template])
+
+        scheme = request.is_secure() and "https" or "http"
+        self.qr_code_url = f"{scheme}://{request.get_host()}{static('qrcodebtc.png')}"
+        CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
 
         warning_list = [
             f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
@@ -85,7 +92,7 @@ class OrderPdfView(View):
             date="06.03.2018", customer="342323", order=order_number, delivery_date=delivery_date,
             document_height=doc.height, footer_height=footer_height,
         )
-        doc.build(story)
+        doc.build(story, canvasmaker=CustomCanvas, onLaterPages=self.footer, onFirstPage=self.footer)
 
         return response
 
@@ -116,8 +123,8 @@ class OrderPdfView(View):
                                                     delivery_address_delivery_conditions_payment_conditions)
 
         tables_list = self.create_table()
-        #NextPageTemplate(['*', 'next']),
-        story = [sender_address_paragraph, receiver_address_paragraph,
+
+        story = [NextPageTemplate(['*', 'next']), sender_address_paragraph, receiver_address_paragraph,
                  Paragraph("<br/><br/><br/>", style=size_eleven_helvetica), date_customer_delivery_note_paragraph, two_new_lines,
                  your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
                  delivery_note_title_paragraph, horizontal_line]
@@ -414,6 +421,17 @@ class OrderPdfView(View):
         # table.setStyle(TableStyle([('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
+    def footer(self, canvas, doc):
+        canvas.saveState()
+        from reportlab.lib.utils import ImageReader
+
+        w, h = footer_paragraph.wrap(doc.width, doc.bottomMargin)
+        print(f"Footer: {h}")
+        footer_paragraph.drawOn(canvas, doc.leftMargin + 30, h - 70)
+        qr_code = ImageReader(self.qr_code_url)
+        canvas.drawImage(qr_code, doc.leftMargin + 30, h - 74, width=1 * inch, height=1 * inch)
+        canvas.restoreState()
+
 footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
 footer_paragraph = Paragraph(
         f"<br/><br/><br/> "
@@ -430,17 +448,6 @@ footer_paragraph = Paragraph(
         footer_style)
 
 
-def footer(canvas, doc):
-    canvas.saveState()
-    from reportlab.lib.utils import ImageReader
-
-    w, h = footer_paragraph.wrap(doc.width, doc.bottomMargin)
-    print(f"Footer: {h}")
-    footer_paragraph.drawOn(canvas, doc.leftMargin + 30, h - 70)
-    qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
-    canvas.drawImage(qr_code, doc.leftMargin + 30, h - 74, width=1 * inch, height=1 * inch)
-    canvas.restoreState()
-
 def add_new_line_to_string_at_index(string, index):
     import textwrap
     return '<br/>'.join(textwrap.wrap(string, index))
@@ -451,12 +458,12 @@ class CustomCanvas(canvas.Canvas):
     http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
     http://code.activestate.com/recipes/576832/
     """
+    logo_url = ""
 
     # ----------------------------------------------------------------------
     def __init__(self, *args, **kwargs):
         """Constructor"""
         canvas.Canvas.__init__(self, *args, **kwargs)
-
         self.pages = []
 
     # ----------------------------------------------------------------------
@@ -497,7 +504,7 @@ class CustomCanvas(canvas.Canvas):
 
     def draw_logo(self, x, y):
         from reportlab.lib.utils import ImageReader
-        logo = ImageReader('http://127.0.0.1:8000/static/btclogo.jpg')
+        logo = ImageReader(self.logo_url)
         self.drawImage(logo, x, y, width=1 * inch, height=1 * inch)
         # qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
         # canvas.drawImage(qr_code, self.doc.leftMargin + 30, h - 35, width=1 * inch, height=1 * inch)

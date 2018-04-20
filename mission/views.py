@@ -254,43 +254,6 @@ class GenerateInvoicePdf(View):
         response = HttpResponse(content_type='application/pdf')
         doc = SimpleDocTemplate(response)
 
-        # FOOTER
-
-        def footer(canvas, doc):
-            canvas.saveState()
-            footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
-            from reportlab.lib.utils import ImageReader
-            # logo = ImageReader('http://127.0.0.1:8000/static/btclogo.jpg')
-            # canvas.drawImage(logo, 440, 740, width=1 * inch, height=1 * inch)
-            from reportlab.platypus import Image
-            logo = Image('http://127.0.0.1:8000/static/btclogo.jpg', width=1 * inch, height=1 * inch)
-            w, h = logo.wrap(doc.width, doc.bottomMargin)
-            logo.drawOn(canvas, 440, h+650)
-            p_ = Paragraph(
-                f"<b>Baschar Trading Center GmbH | Orber Straße 16 | 60386 Frankfurt a.M.</b>"
-                f"<br/>"
-                f"tel +49 (0) 69 20 23 50 93 | fax +49 (0) 69 20 32 89 52 | info@btcgmbh.eu | www.btcgmbh.eu"
-                f"<br/>"
-                f"Frankfurter Sparkasse | BIC: HELADEF1822 | IBAN: DE73 5005 0201 0200 5618 47"
-                f"<br/>"
-                f"Amtsgericht Ffm HRB 87651 | St.Nr. 45 229 07653 | Ust-IdNr. DE 270211471"
-                f"<br/>"
-                f"Geschäftsführer: Mohamed Makansi"
-                f"<br/>",
-                footer_style)
-            w, h = p_.wrap(doc.width, doc.bottomMargin)
-            p_.drawOn(canvas, doc.leftMargin + 30, h - 55)
-            qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
-            canvas.drawImage(qr_code, doc.leftMargin + 30, h - 55, width=1 * inch, height=1 * inch)
-            canvas.restoreState()
-        first_page_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='first_frame')
-        next_page_frame = Frame(doc.leftMargin, doc.bottomMargin-50, doc.width, doc.height, id='last_frame')
-
-        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
-        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
-
-        doc.addPageTemplates([first_template, next_template])
-
         story = self.build_story(
             sender_address="Baschar Trading Center GmbH - Orber Str. 16 - 60386 Frankfurt am Main",
             receiver_address="Impex Service GmbH<br/>Kopernikusstr.17<br/>50126 Bergheim<br/>",
@@ -318,7 +281,7 @@ class GenerateInvoicePdf(View):
         )
 
         #doc.build(story, onFirstPage=footer, onLaterPages=footer)
-        doc.build(story, canvasmaker=PageNumCanvas)
+        doc.build(story)
 
         return response
 
@@ -330,28 +293,7 @@ class GenerateInvoicePdf(View):
         receiver_address_para = Paragraph(receiver_address,
                                           style=size_nine_helvetica_bold)
 
-        date_customer_delivery_note_para = Paragraph(date_customer_delivery_note,
-                                                     style=size_nine_helvetica_left_indent_310)
-
-        your_delivery_para = Paragraph(your_delivery, style=size_nine_helvetica_bold)
-
-        delivery_address_para = Paragraph(
-            delivery_address, style=size_nine_helvetica)
-        delivery_conditions_para = Paragraph(delivery_conditions, style=size_nine_helvetica)
-
-        delivery_note_title_para = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
-
-        table = self.create_table()
-
-        driver_form_para = Paragraph(driver_form, size_eleven_helvetica)
-
-        warning_para = Paragraph(warning, style=size_ten_helvetica)
-
-        story = [NextPageTemplate(['*', 'next']), sender_address_para, receiver_address_para, date_customer_delivery_note_para, two_new_lines,
-                 your_delivery_para, delivery_address_para, two_new_lines, delivery_conditions_para,
-                 delivery_note_title_para, horizontal_line, table, horizontal_line, two_new_lines, two_new_lines,
-                 #NextPageTemplate('footer'), PageBreak(),
-                 driver_form_para, two_new_lines, two_new_lines, warning_para]
+        story = [sender_address_para, receiver_address_para]
         return story
 
     def create_table(self):

@@ -62,9 +62,13 @@ class GeneratePositionsForm(forms.Form):
                 visible.field.widget.attrs["class"] = "form-control"
 
 
+number_choices = [(i, i) for i in range(1, 201)]
+
+
 class GeneratePositionLevelsColumnsForm(forms.Form):
-    level = forms.IntegerField(label='Ebene')
-    amount_columns = forms.IntegerField(label='Anzahl Spalten')
+    level = forms.ChoiceField(choices=number_choices, label='Ebene', required=True)
+    columns_from = forms.ChoiceField(choices=[(None, "----")] + number_choices, label='Anzahl Spalten von', required=True)
+    columns_to = forms.ChoiceField(choices=[(None, "----")] + number_choices, label='Anzahl Spalten bis', required=True)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

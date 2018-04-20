@@ -427,14 +427,20 @@ class GeneratePositionsView(FormView):
 
         level_position_forms_list = []
 
+        column_from_to_list = []
+
         bulk_instances = []
         shelf_number = form.cleaned_data.get("shelf_number")
         prefix = form.cleaned_data.get("prefix")
 
         for row_count in range(0, amount_rows):
             data = {"level": self.request.POST.getlist("level")[row_count],
-                    "amount_columns": self.request.POST.getlist("amount_columns")[row_count]
+                    "columns_from": self.request.POST.getlist("columns_from")[row_count],
+                    "columns_to": self.request.POST.getlist("columns_to")[row_count]
                     }
+
+            column_from_to_list.append((data.get("level"), data.get("columns_from"), data.get("columns_to")))
+
             level_position_form = GeneratePositionLevelsColumnsForm(data=data)
 
             level_position_forms_list.append(level_position_form)
@@ -444,10 +450,11 @@ class GeneratePositionsView(FormView):
             if level_position_form.is_valid():
 
                 level = int(level_position_form.cleaned_data.get("level"))
-                amount_columns = int(level_position_form.cleaned_data.get("amount_columns"))
+                columns_from = int(level_position_form.cleaned_data.get("columns_from"))
+                columns_to = int(level_position_form.cleaned_data.get("columns_to"))
 
                 levels = [level]
-                columns = [col for col in range(1, amount_columns+1)]
+                columns = [col for col in range(columns_from, columns_to+1)]
 
                 cartesian = [levels, columns]
 
@@ -463,13 +470,66 @@ class GeneratePositionsView(FormView):
         for level_position_form in level_position_forms_list:
             if level_position_form.is_valid() is False:
                 return render(self.request, self.template_name, context)
-        if self.validate_positions_have_no_duplicates(bulk_instances, context) is False:
+
+        if self.validate_positions_have_no_duplicates_in_model(bulk_instances, context) is False:
             return render(self.request, self.template_name, context)
+
+        if self.validate_forms_level_has_no_duplicates(level_position_forms_list, context) is False:
+            return render(self.request, self.template_name, context)
+
+        if self.validate_column_from_is_less_than_column_to(column_from_to_list, context) is False:
+            return render(self.request, self.template_name, context)
+
 
         Position.objects.bulk_create(bulk_instances)
         return super().form_valid(form)
 
-    def validate_positions_have_no_duplicates(self, positions, context):
+    def validate_column_from_is_less_than_column_to(self, column_from_to_list, context):
+        html_error_msg = f"<h4 style='color:red;'>'Plätze von' darf nicht größer als 'Plätze bis' sein:<br/><br/>" \
+                         f"<ul>"
+        has_column_from_greater_than_column_to = False
+        for level, column_from, column_to in column_from_to_list:
+            if int(column_from) > int(column_to):
+                has_column_from_greater_than_column_to = True
+                html_error_msg += f"<li><b>{column_from}</b> bis <b>{column_to}</b> auf Ebene <b>{level}</b></li>"
+        html_error_msg += "</ul></h4>"
+        if has_column_from_greater_than_column_to is True:
+            context["column_from_greater_column_to_errors"] = html_error_msg
+            return False
+        else:
+            return True
+
+    def validate_forms_level_has_no_duplicates(self, level_position_forms_list, context):
+        levels = []
+        for level_position_form in level_position_forms_list:
+            cleaned_data = level_position_form.cleaned_data
+            levels.append(cleaned_data.get("level"))
+
+        duplicates = []
+        if len(set(levels)) != len(levels):
+            print(set(levels))
+            for i, level in enumerate(levels):
+                for next_, level_next in enumerate(levels):
+                    if next_ != i:
+                        if level == level_next:
+                            duplicates.append(level)
+                        print(f"{i} -- {level} --- {next_} .. {level_next}")
+            print(set(duplicates))
+            duplicates_msg = f"<h4 style='color:red;'>Folgende Ebenen sind doppelt eingetragen: " \
+                             f"<span style='color:black;'>"
+            for duplicate in set(duplicates):
+                duplicates_msg += f"{duplicate}, "
+            duplicates_msg = duplicates_msg[:-1]
+            duplicates_msg = duplicates_msg[:-1]
+
+            duplicates_msg += f"</span></h4>"
+            context["duplicate_levels"] = duplicates_msg
+            print(duplicates_msg)
+            return False
+        else:
+            return True
+
+    def validate_positions_have_no_duplicates_in_model(self, positions, context):
         has_duplicates = False
         duplicates_html = f"<div class='col-md-12'>" \
                           f"<h3 style='color:red;'>Folgende Positionen sind bereits vorhanden</h3>" \
@@ -492,3 +552,48 @@ class GeneratePositionsView(FormView):
             return False
         else:
             return True
+
+
+class PositionDeleteView(DeleteView):
+    model = Position
+    success_url = reverse_lazy("stock:position_list")
+    template_name = "stock/position/position_confirm_delete.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lagerplätze löschen"
+        return context
+
+    def get_object(self, queryset=None):
+        return Position.objects.filter(id__in=self.request.GET.getlist('item'))
+
+
+from rest_framework import generics
+from rest_framework import serializers
+
+
+class PositionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Position
+        fields = ["position"]
+
+
+class PositionListAPIView(generics.ListAPIView):
+    queryset = Position.objects.all()
+    serializer_class = PositionSerializer
+
+    def get_queryset(self):
+        """ allow rest api to filter by submissions """
+        queryset = Position.objects.all()
+        prefix = self.request.query_params.get('prefix', None)
+        shelf = self.request.query_params.get('shelf', None)
+        level = self.request.query_params.get('level', None)
+
+        if prefix is not None:
+            queryset = queryset.filter(prefix=prefix)
+        if shelf is not None:
+            queryset = queryset.filter(shelf=shelf)
+        if level is not None:
+            queryset = queryset.filter(level=level)
+
+        return queryset

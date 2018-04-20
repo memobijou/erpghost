@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <h4>Wollen Sie wirklich diesen Vorgang ausführen?  Diese Aktion kann nicht rückgängig gemacht werden.</h4>
+    <h4>Sie habe vor folgende Lagerplätze zu löschen: </h4>
+    {% for p in object %}
+        <p style="font-size:30px;"><b>{{ p.position }}</b></p>
+    {% endfor %}
+<div class="text-center">
+    <form method="POST" action="?{{ request.GET.urlencode }}">{% csrf_token %}
+        <input type="SUBMIT" class="btn btn-danger btn-lg" value="Lagerplätze löschen">
+    </form>
+</div>
+</div>
+{% endblock %}

@@ -9,12 +9,15 @@
 
                         {{ form.as_p }}
 
+                        {{ duplicate_levels|safe }}
+                        {{ column_from_greater_column_to_errors|safe }}
                         <span class="glyphicon glyphicon-plus" id="add_fields" style="cursor:pointer;"></span><br/><br/>
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
                                     <th>Ebene</th>
-                                    <th>Anzahl Plätze</th>
+                                    <th>Plätze von</th>
+                                    <th>Plätze bis</th>
                                 </tr>
                             </thead>
                             <div class="tbody">
@@ -49,32 +52,47 @@
     add_fields.onclick = function(){
         var clone = original_row.cloneNode(true);
         var clone_delete_btn = clone.getElementsByClassName("delete_row")[0];
+
         clone_delete_btn.onclick = function(){
             remove_row(this.parentElement.parentElement, tbody);
         };
 
-        var clone_inputs = clone.getElementsByTagName("input");
-        for(var i = 0; i< clone_inputs.length; i++){
-            clone_inputs[i].value = "";
+        var clone_selects = clone.getElementsByTagName("select");
+
+
+        var last_selected_level_value = get_last_select_option_value_of_level();
+
+        if(last_selected_level_value){
+            clone_selects[0].value = parseInt(get_last_select_option_value_of_level()) + 1;
         }
 
         tbody.appendChild(clone);
 
     };
 
-    var delete_btn = document.getElementsByClassName("delete_row")[0];
-
-    delete_btn.onclick = function(){
-        remove_row(this.parentElement.parentElement, tbody);
-    };
 
     var remove_row = function(row, tbody){
         tbody.removeChild(row);
     };
 
+    var get_last_select_option_value_of_level = function(){
+      var level_fields = document.getElementsByName("level");
+      if(level_fields.length){
+          return level_fields[level_fields.length-1].value
+      }
+    };
+
+    var onload = function(){
+        var rows = tbody.getElementsByTagName("tr");
+        for(var i = 0; i<rows.length; i++){
+            rows[i].getElementsByClassName("delete_row")[0].onclick = function () {
+              remove_row(this.parentElement.parentElement, tbody);
+            };
+        }
+    };
 
 
-
+    onload();
 
 
 </script>

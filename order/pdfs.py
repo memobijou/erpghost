@@ -52,13 +52,13 @@ class OrderPdfView(View):
         print(order_number)
         # FOOTER
 
-        first_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='first_frame')
-        next_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='last_frame')
-
-        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
-        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
-
-        doc.addPageTemplates([first_template, next_template])
+        # first_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='first_frame')
+        # next_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='last_frame')
+        #
+        # first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
+        # next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
+        #
+        # doc.addPageTemplates([first_template, next_template])
 
         warning_list = [
             f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
@@ -116,8 +116,8 @@ class OrderPdfView(View):
                                                     delivery_address_delivery_conditions_payment_conditions)
 
         tables_list = self.create_table()
-
-        story = [NextPageTemplate(['*', 'next']), sender_address_paragraph, receiver_address_paragraph,
+        #NextPageTemplate(['*', 'next']),
+        story = [sender_address_paragraph, receiver_address_paragraph,
                  Paragraph("<br/><br/><br/>", style=size_eleven_helvetica), date_customer_delivery_note_paragraph, two_new_lines,
                  your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
                  delivery_note_title_paragraph, horizontal_line]

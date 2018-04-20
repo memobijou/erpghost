@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
-    <script src="http://labelwriter.com/software/dls/sdk/js/DYMO.Label.Framework.latest.js"
-        type="text/javascript" charset="UTF-8"> </script>
+    <script src="{% static 'js/vendor/dymo.js' %}" type="text/javascript" charset="UTF-8"> </script>
     <div>
         <div class="col-md-12">
             <a href="{% url 'stock:generate_positions' %}" class="btn btn-info pull-right">Lagerplätze anlegen</a>

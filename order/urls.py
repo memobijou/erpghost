@@ -1,4 +1,6 @@
 from django.conf.urls import url
+
+from order.pdfs import OrderPdfView
 from .views import OrderListView, OrderListAPIView, OrderDetailView, OrderCreateView, OrderUpdateView, \
     ScanOrderUpdateView, search_positions, PositionProductOrderListAPIView, search_after_product_on_we, OrderDeleteView
 
@@ -14,4 +16,5 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/api/productorderposition/$', PositionProductOrderListAPIView.as_view(),
         name="apilistforProduct"),
     url(r'^delete/$', OrderDeleteView.as_view(), name="delete"),
+    url(r'^order_pdf/(?P<pk>\d+)/$', OrderPdfView.as_view(), name="order_pdf"),
 ]

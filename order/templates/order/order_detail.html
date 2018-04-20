@@ -58,7 +58,11 @@
         </table>
         {% if object.status != "OFFEN" and object.status != "ABGELEHNT" %}
             <a href="{% url 'order:scan' pk=object.id %}" class="btn btn-success" id="scan_btn">SCAN<a>
+            <a href="{% url 'order:order_pdf' pk=object.id %}" class="btn btn-danger" id="scan_btn">PDF<a>
+
         {% endif %}
+
+
     </div>
 
 

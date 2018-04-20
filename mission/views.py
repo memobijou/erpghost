@@ -254,6 +254,43 @@ class GenerateInvoicePdf(View):
         response = HttpResponse(content_type='application/pdf')
         doc = SimpleDocTemplate(response)
 
+        # FOOTER
+
+        def footer(canvas, doc):
+            canvas.saveState()
+            footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
+            from reportlab.lib.utils import ImageReader
+            # logo = ImageReader('http://127.0.0.1:8000/static/btclogo.jpg')
+            # canvas.drawImage(logo, 440, 740, width=1 * inch, height=1 * inch)
+            from reportlab.platypus import Image
+            logo = Image('http://127.0.0.1:8000/static/btclogo.jpg', width=1 * inch, height=1 * inch)
+            w, h = logo.wrap(doc.width, doc.bottomMargin)
+            logo.drawOn(canvas, 440, h+650)
+            p_ = Paragraph(
+                f"<b>Baschar Trading Center GmbH | Orber Straße 16 | 60386 Frankfurt a.M.</b>"
+                f"<br/>"
+                f"tel +49 (0) 69 20 23 50 93 | fax +49 (0) 69 20 32 89 52 | info@btcgmbh.eu | www.btcgmbh.eu"
+                f"<br/>"
+                f"Frankfurter Sparkasse | BIC: HELADEF1822 | IBAN: DE73 5005 0201 0200 5618 47"
+                f"<br/>"
+                f"Amtsgericht Ffm HRB 87651 | St.Nr. 45 229 07653 | Ust-IdNr. DE 270211471"
+                f"<br/>"
+                f"Geschäftsführer: Mohamed Makansi"
+                f"<br/>",
+                footer_style)
+            w, h = p_.wrap(doc.width, doc.bottomMargin)
+            p_.drawOn(canvas, doc.leftMargin + 30, h - 55)
+            qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
+            canvas.drawImage(qr_code, doc.leftMargin + 30, h - 55, width=1 * inch, height=1 * inch)
+            canvas.restoreState()
+        first_page_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='first_frame')
+        next_page_frame = Frame(doc.leftMargin, doc.bottomMargin-50, doc.width, doc.height, id='last_frame')
+
+        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
+        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
+
+        doc.addPageTemplates([first_template, next_template])
+
         story = self.build_story(
             sender_address="Baschar Trading Center GmbH - Orber Str. 16 - 60386 Frankfurt am Main",
             receiver_address="Impex Service GmbH<br/>Kopernikusstr.17<br/>50126 Bergheim<br/>",

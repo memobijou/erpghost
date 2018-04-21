@@ -4,7 +4,7 @@ from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import PageTemplate
-from reportlab.platypus import SimpleDocTemplate
+from reportlab.platypus import SimpleDocTemplate,BaseDocTemplate
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph
 from reportlab.graphics.shapes import Drawing, Line
@@ -46,7 +46,7 @@ class OrderPdfView(View):
 
     def get(self, request, *args, **kwargs):
         response = HttpResponse(content_type='application/pdf')
-        doc = SimpleDocTemplate(response)
+        doc = BaseDocTemplate(response)
 
         self.document_height = doc.height
 
@@ -58,8 +58,8 @@ class OrderPdfView(View):
         first_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='first_frame')
         next_page_frame = Frame(doc.leftMargin, doc.bottomMargin+50, doc.width, doc.height, id='last_frame')
 
-        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=self.footer)
-        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=self.footer)
+        first_template = PageTemplate(id='first', frames=first_page_frame, onPage=self.footer)
+        next_template = PageTemplate(id='next', frames=next_page_frame, onPage=self.footer)
 
         doc.addPageTemplates([first_template, next_template])
 
@@ -92,7 +92,7 @@ class OrderPdfView(View):
             date="06.03.2018", customer="342323", order=order_number, delivery_date=delivery_date,
             document_height=doc.height, footer_height=footer_height,
         )
-        doc.build(story, canvasmaker=CustomCanvas, onLaterPages=self.footer, onFirstPage=self.footer)
+        doc.build(story, canvasmaker=CustomCanvas)
 
         return response
 
@@ -125,8 +125,8 @@ class OrderPdfView(View):
         tables_list = self.create_table()
 
         story = [NextPageTemplate(['*', 'next']), sender_address_paragraph, receiver_address_paragraph,
-                 Paragraph("<br/><br/><br/>", style=size_eleven_helvetica), date_customer_delivery_note_paragraph, two_new_lines,
-                 your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
+                 Paragraph("<br/><br/><br/>", style=size_eleven_helvetica), date_customer_delivery_note_paragraph,
+                 two_new_lines, your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
                  delivery_note_title_paragraph, horizontal_line]
 
         story.extend([table for table in tables_list])
@@ -167,7 +167,7 @@ class OrderPdfView(View):
 
         payment_condition = "14 Tage Netto"
 
-        delivery_date = f"{delivery_date}"
+        delivery_date = f"{delivery_date.strftime('%d.%m.%Y')}"
 
         table_data = [
             [
@@ -213,23 +213,6 @@ class OrderPdfView(View):
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", leading=10, fontName="Helvetica", fontSize=9)
 
-        left_table_data = [
-            [
-                Paragraph("Datum<br/>Kunde<br/>Bestellung<br/>",
-                          style=right_align_paragraph_style),
-            ]
-        ]
-
-        left_table = Table(left_table_data)
-
-        left_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
         right_table_data = [
             [
                 Paragraph("Datum", style=right_align_paragraph_style), Paragraph(date, style=right_align_paragraph_style),
@@ -256,12 +239,10 @@ class OrderPdfView(View):
         )
 
         data = [
-            ["", "", "", right_table],
+            ["", right_table],
         ]
 
-        table = Table(data, splitByRow=True)
-
-
+        table = Table(data, splitByRow=True, colWidths=[300, 100])
 
         table.setStyle(
             TableStyle([
@@ -275,6 +256,8 @@ class OrderPdfView(View):
 
     def create_table(self):
         tables_list = []
+
+        colwidths = [30, 68, 152, 60, 65, 65]
 
         data = []
 
@@ -290,80 +273,28 @@ class OrderPdfView(View):
 
         ]
 
-        data.append(header)
-
-        table_with_header = LongTable(data, splitByRow=True)
-
-        table_with_header.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        tables_list.append(table_with_header)
-
         data = []
-        first_page = True
+        data.append(header)
         pos = 1
 
         for productorder in self.order.productorder_set.all():
 
             data.append(
                 [
-                    Paragraph(add_new_line_to_string_at_index(str(pos), 20),
-                              style=size_nine_helvetica),
-                    Paragraph(add_new_line_to_string_at_index(productorder.product.ean, 20),
-                              style=size_nine_helvetica),
-                    Paragraph(add_new_line_to_string_at_index(productorder.product.title, 50), style=size_nine_helvetica),
-                    Paragraph(add_new_line_to_string_at_index(str(productorder.amount), 20), style=right_align_paragraph_style),
-                    Paragraph(format_number_thousand_decimal_points(productorder.netto_price), style=right_align_paragraph_style),
+                    Paragraph(str(pos), style=size_nine_helvetica),
+                    Paragraph(productorder.product.ean, style=size_nine_helvetica),
+                    Paragraph(productorder.product.title, style=size_nine_helvetica),
+                    Paragraph(str(productorder.amount), style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(productorder.netto_price),
+                              style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points((productorder.netto_price*productorder.amount)
                               + (productorder.netto_price*productorder.amount)*0.19),
                               style=right_align_paragraph_style),
                 ],
             )
 
-            table = LongTable(data, splitByRow=True)
-
-            table.setStyle(
-                TableStyle([
-                    ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                    ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                    ('VALIGN', (0, 0), (-1, -1), "TOP"),
-                ])
-            )
-            # tables_list.append(table)
-            # tables_list.append(PageBreakIfNotEmpty())
-            # data = []
-            table_width, table_height = table.wrap(0, 0)
-            print(f"{self.document_height - self.header_height - self.footer_height}")
-            print(table_height)
-            print(f"{self.document_height - self.header_height - self.footer_height - table_height}")
-
-            if (self.document_height - self.header_height - self.footer_height - table_height) < -50 and first_page is True\
-                    or table_height > 550 and first_page is False:
-                print(f"GREATER: {self.document_height - self.header_height - self.footer_height - table_height}")
-                print(table_height)
-                last_item = data[-1]
-                data = data[:-1]
-
-                table = LongTable(data, splitByRow=True)
-                table.setStyle(
-                    TableStyle([
-                        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                        ('VALIGN', (0, 0), (-1, -1), "TOP"),
-                    ])
-                )
-                tables_list.append(table)
-                tables_list.append(PageBreakIfNotEmpty())
-                data = [header, last_item]
-                first_page = False
-
             pos += 1
-        table = LongTable(data, splitByRow=True)
+        table = LongTable(data, splitByRow=True, colWidths=colwidths, repeatRows=1)
         table.setStyle(
             TableStyle([
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -371,10 +302,11 @@ class OrderPdfView(View):
                 ('VALIGN', (0, 0), (-1, -1), "TOP"),
             ])
         )
-        self.last_table_height = table_height
+
         tables_list.append(table)
 
         total_netto = 0
+
         for productorder in self.order.productorder_set.all():
             total_netto += productorder.amount * productorder.netto_price
 
@@ -473,7 +405,7 @@ class CustomCanvas(canvas.Canvas):
         """
 
         if len(self.pages) == 0:
-            self.draw_logo(440, 740)
+            self.draw_logo(433, 740)
 
         self.pages.append(dict(self.__dict__))
         self._startPage()

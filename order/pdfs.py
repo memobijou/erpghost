@@ -85,12 +85,14 @@ class OrderPdfView(View):
 
         story = self.build_story(
             sender_address="Baschar Trading Center GmbH - Orber Str. 16 - 60386 Frankfurt am Main",
-            receiver_address="Impex Service GmbH<br/>Kopernikusstr.17<br/>50126 Bergheim<br/>",
+            receiver_address=f"{self.order.supplier.contact.adress.firma}<br/>"
+                             f"{self.order.supplier.contact.adress.strasse} "
+                             f"{self.order.supplier.contact.adress.hausnummer}<br/>"
+                             f"{self.order.supplier.contact.adress.place} {self.order.supplier.contact.adress.zip}<br/>",
             your_delivery=f"<u>Bestellung: {order_number}</u>",
             delivery_note_title=f"<br/>Bestellung {order_number}<br/><br/>",
-            warning_list=warning_list,
-            date="06.03.2018", customer="342323", order=order_number, delivery_date=delivery_date,
-            document_height=doc.height, footer_height=footer_height,
+            warning_list=warning_list, date=f"{self.order.created_date.strftime('%d.%m.%Y')}", customer="342323",
+            order=order_number, delivery_date=delivery_date, document_height=doc.height, footer_height=footer_height,
         )
         doc.build(story, canvasmaker=CustomCanvas)
 
@@ -163,9 +165,9 @@ class OrderPdfView(View):
         delivery_address = "Impex Service GmbH<br/>LGZ3 / Technologiepark West<br/>Zum Frenser Feld 11.6<br/>" \
                            "50127 Bergheim"
 
-        delivery_condition = "CIF, Lieferung Frei Haus"
+        delivery_condition = self.order.terms_of_delivery
 
-        payment_condition = "14 Tage Netto"
+        payment_condition = self.order.terms_of_payment
 
         delivery_date = f"{delivery_date.strftime('%d.%m.%Y')}"
 

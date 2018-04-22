@@ -41,6 +41,7 @@ urlpatterns = [
     url(r'^mission/', include("mission.urls", namespace="mission")),
     url(r'^supplier/', include("supplier.urls", namespace="supplier")),
     url(r'^customer/', include("customer.urls", namespace="customer")),
+    url(r'^client/', include("client.urls", namespace="client")),
 ]
 
 if settings.DEBUG is True:

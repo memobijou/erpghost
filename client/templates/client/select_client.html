@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <a class="btn btn-info pull-right" href="{% url 'client:create' %}">Mandanten anlegen</a>
+    <br/><br/>
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-md-3"></div>
+            <div class="col-md-6 text-center">
+                {% if current_client %}
+                    {% if current_client.contact.company_image %}
+                           <img src="{{ current_client.contact.company_image.url }}"
+                                class="img-responsive center-block" style="max-height: 200px;max-width:200px;"/>
+                    {% endif %}
+
+                    <p>{{ current_client }}</p>
+                {% endif %}
+                <form method="POST">{% csrf_token %}
+                    {{ form.as_p }}
+                    <input type="submit" value="Speichern" class="btn btn-primary">
+                </form>
+            </div>
+            <div class="col-md-3"></div>
+        </div>
+    </div>
+{% endblock %}

@@ -243,7 +243,8 @@ class OrderListView(ListView):
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,
                                exclude_fields=["id", "products", "verified"],
                                exclude_filter_fields=["id", "products", "verified"])
-        context["fields"] = get_verbose_names(Order, exclude=["id", "products", "invoice"])
+        context["fields"] = get_verbose_names(Order, exclude=["id", "products", "invoice", "terms_of_payment",
+                                                              "terms_of_delivery", "created_date", "modified_date"])
         context["fields"].insert(len(context["fields"])-1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"])-1, "Gesamt (Brutto)")
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)

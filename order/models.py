@@ -13,6 +13,29 @@ from datetime import date
 
 # Create your models here.
 
+terms_of_payment_choices = [
+    ("Innerhalb 30 Tage netto, ohne Abzug", "Innerhalb 30 Tage netto, ohne Abzug"),
+    ("Sofort nach Erhalt, ohne Abzug", "Sofort nach Erhalt, ohne Abzug"),
+    ("Innerhalb 14 Tage netto, ohne Abzug", "Innerhalb 14 Tage netto, ohne Abzug"),
+    ("30 Tage netto, 14 Tage 3% Skonto", "30 Tage netto, 14 Tage 3% Skonto"),
+    ("7 Tage netto", "7 Tage netto"),
+    ("Vorkasse", "Vorkasse"),
+    ("innerhalb 45 Tage 3% Skonto", "innerhalb 45 Tage 3% Skonto"),
+    ("innerhalb 60 Tagen, ohne Abzug", "innerhalb 60 Tagen, ohne Abzug"),
+    ("innerhalb 21 Tage, ohne Abzug", "innerhalb 21 Tage, ohne Abzug"),
+    ("15 Tage 3% Skonto, 45 Tage Valuta", "15 Tage 3% Skonto, 45 Tage Valuta"),
+    ("innerhalb 90 Tage, ohne Abzug", "innerhalb 90 Tage, ohne Abzug"),
+    ("10 Tage netto", "10 Tage netto"),
+]
+
+terms_of_delivery_choices = [
+    ("DDP - Frei Haus verzollt", "DDP - Frei Haus verzollt"),
+    ("CIF - Frei Haus", "CIF - Frei Haus"),
+    ("CIP - Frei Haus", "CIP - Frei Haus"),
+    ("EXW - Ab Werk", "EXW - Ab Werk"),
+]
+
+
 class Order(models.Model):
     ordernumber = models.CharField(max_length=13, blank=True, verbose_name="Bestellnummer")
     delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
@@ -20,6 +43,14 @@ class Order(models.Model):
     supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order', verbose_name="Lieferant")
     products = models.ManyToManyField(Product, through="ProductOrder")
     invoice = models.ManyToManyField(Invoice, through="InvoiceOrder")
+    terms_of_payment = models.CharField(choices=terms_of_payment_choices, blank=True, null=True, max_length=200,
+                                        verbose_name="Zahlungsbedingung")
+    terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
+                                         verbose_name="Lieferkonditionen")
+
+    created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
+
     CHOICES = (
         (None, "----"),
         (True, "Ja"),
@@ -104,7 +135,6 @@ class InvoiceOrder(models.Model):
 
 
 class PositionProductOrder(models.Model):
-    productorder = models.ForeignKey(ProductOrder, on_delete=models.CASCADE,blank=True, null=True)
     amount = models.IntegerField(null=False, blank=False, default=0)
     positions = models.ForeignKey(Position, on_delete=models.CASCADE,blank=True, null=True)
     CHOICES = (

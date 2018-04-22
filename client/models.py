@@ -8,4 +8,5 @@ class Client(models.Model):
     contact = models.OneToOneField(Contact, blank=True, null=True, related_name="client")
 
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.contact.adress.firma} - {self.contact.adress.strasse} - " \
+               f"{self.contact.adress.hausnummer} - {self.contact.adress.zip} - {self.contact.adress.place}"

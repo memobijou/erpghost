@@ -1,6 +1,7 @@
 from django.db import models
 # Create your models here.
 
+
 class Picklist(models.Model):
     bestellungsnummer = models.CharField(max_length=13)
     status = models.CharField(max_length=25, null=True, blank=True)

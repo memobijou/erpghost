@@ -72,12 +72,14 @@ class OrderPdfView(View):
         scheme = request.is_secure() and "https" or "http"
         self.qr_code_url = f"{scheme}://{request.get_host()}{static('qrcodebtc.png')}"
         # CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
+        print(self.qr_code_url)
         if "http" in self.client.contact.company_image.url:
             CustomCanvas.logo_url = self.client.contact.company_image.url
         else:
             CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{self.client.contact.company_image.url}"
         print(CustomCanvas.logo_url)
-
+        print(self.client.contact)
+        print(self.order)
         warning_list = [
             f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
             f"Anlieferungen aufgrund von Bestellungen bedürfen einer Lieferankündigung von mindestens 24 Stunden "

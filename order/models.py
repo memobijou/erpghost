@@ -2,6 +2,8 @@ from django.db import models
 import datetime
 from django.utils import timezone
 from django.core.urlresolvers import reverse
+
+from adress.models import Adress
 from product.models import Product
 from invoice.models import Invoice
 from supplier.models import Supplier
@@ -47,7 +49,7 @@ class Order(models.Model):
                                         verbose_name="Zahlungsbedingung")
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
                                          verbose_name="Lieferkonditionen")
-
+    delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse")
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
 

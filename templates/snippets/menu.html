@@ -22,6 +22,8 @@
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}
                     <li><a>Herzlich Willkommen, {{ request.user }}</a></li>
+                    <li><a href="{% url 'client:select' %}">
+                        Mandant: <b style="color:green;">{{ request.session.client_name }}</b></a></li>
                     <li><a href="{% url 'logout' %}"><span class="glyphicon glyphicon-log-out"></span></a></li>
                 {% else %}
                     <li><a>Bitte loggen Sie sich ein</a></li>

@@ -16,4 +16,4 @@ class Adress(models.Model):
     place = models.CharField(blank=True, null=False, max_length=200)
 
     def __str__(self):
-        return str(self.firma) + str(self.contact)
+        return f"{self.firma} - {self.strasse} {self.hausnummer} - {self.zip} {self.place}"

@@ -1,5 +1,6 @@
 from django import forms
 
+from adress.models import Adress
 from product.models import Product
 from .models import Order, ProductOrder
 from django.forms import modelform_factory, inlineformset_factory, BaseFormSet, BaseInlineFormSet, CharField, FloatField, \
@@ -12,10 +13,21 @@ class OrderForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Order._meta.get_field("delivery_date").verbose_name)
 
+    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(contact__client__isnull=False))
+
     class Meta:
         model = Order
-        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery"]
+        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery", 'delivery_address']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.ImageField:
+                visible.field.widget.attrs["class"] = "form-control"
+            if type(visible.field) is forms.DateField:
+                visible.field.widget.attrs["class"] = "form-control datepicker"
 
 
 class BaseProductOrderFormset(BaseInlineFormSet):

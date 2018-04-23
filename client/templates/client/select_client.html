@@ -14,10 +14,11 @@
                     {% endif %}
 
                     <p>{{ current_client }}</p>
+                    <p><a href="{% url 'client:update' pk=current_client.pk %}">Bearbeiten</a></p>
                 {% endif %}
                 <form method="POST">{% csrf_token %}
                     {{ form.as_p }}
-                    <input type="submit" value="Speichern" class="btn btn-primary">
+                    <input type="submit" value="Mandanten wechseln" class="btn btn-primary">
                 </form>
             </div>
             <div class="col-md-3"></div>

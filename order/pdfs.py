@@ -73,6 +73,7 @@ class OrderPdfView(View):
         self.qr_code_url = f"{scheme}://{request.get_host()}{static('qrcodebtc.png')}"
         # CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
         CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{self.client.contact.company_image.url}"
+        print(CustomCanvas.logo_url)
 
         warning_list = [
             f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",

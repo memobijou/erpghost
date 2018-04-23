@@ -14,6 +14,7 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import Frame, NextPageTemplate, PageBreakIfNotEmpty
 from order.models import Order
 from django.contrib.staticfiles.templatetags.staticfiles import static
+from client.models import Client
 
 size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)
 size_nine_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9)
@@ -44,6 +45,11 @@ class OrderPdfView(View):
     def order(self):
         return Order.objects.get(pk=self.kwargs.get("pk"))
 
+    @property
+    def client(self):
+        client = Client.objects.get(pk=self.request.session.get("client"))
+        return client
+
     def get(self, request, *args, **kwargs):
         response = HttpResponse(content_type='application/pdf')
         doc = BaseDocTemplate(response)
@@ -65,7 +71,8 @@ class OrderPdfView(View):
 
         scheme = request.is_secure() and "https" or "http"
         self.qr_code_url = f"{scheme}://{request.get_host()}{static('qrcodebtc.png')}"
-        CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
+        # CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
+        CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{self.client.contact.company_image.url}"
 
         warning_list = [
             f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
@@ -80,17 +87,30 @@ class OrderPdfView(View):
             f"Jeder Lieferverzug ist unverzüglich schriftlich mitzuteilen.",
         ]
 
-        footer_width, footer_height = footer_paragraph.wrap(doc.width, doc.bottomMargin)
-        self.footer_height = footer_height
+        delivery_address = f"{self.order.delivery_address.firma}<br/>"
+
+        if self.order.delivery_address.adresszusatz:
+            delivery_address += f"{self.order.delivery_address.adresszusatz}<br/>"
+
+        if self.order.delivery_address.adresszusatz2:
+            delivery_address += f"{self.order.delivery_address.adresszusatz2}<br/>"
+
+        delivery_address += f"{self.order.delivery_address.strasse} {self.order.delivery_address.hausnummer}<br/>" \
+                            f"{self.order.delivery_address.zip} {self.order.delivery_address.place}"
 
         story = self.build_story(
-            sender_address="Baschar Trading Center GmbH - Orber Str. 16 - 60386 Frankfurt am Main",
-            receiver_address="Impex Service GmbH<br/>Kopernikusstr.17<br/>50126 Bergheim<br/>",
+            sender_address=f"{self.client.contact.adress.firma} - {self.client.contact.adress.strasse} "
+                           f"{self.client.contact.adress.hausnummer}- {self.client.contact.adress.zip} "
+                           f"{self.client.contact.adress.place}",
+            receiver_address=f"{self.order.supplier.contact.adress.firma}<br/>"
+                             f"{self.order.supplier.contact.adress.strasse} "
+                             f"{self.order.supplier.contact.adress.hausnummer}<br/>"
+                             f"{self.order.supplier.contact.adress.place} {self.order.supplier.contact.adress.zip}<br/>",
             your_delivery=f"<u>Bestellung: {order_number}</u>",
             delivery_note_title=f"<br/>Bestellung {order_number}<br/><br/>",
-            warning_list=warning_list,
-            date="06.03.2018", customer="342323", order=order_number, delivery_date=delivery_date,
-            document_height=doc.height, footer_height=footer_height,
+            warning_list=warning_list, date=f"{self.order.created_date.strftime('%d.%m.%Y')}", customer="342323",
+            order=order_number, delivery_date=delivery_date, delivery_address=delivery_address,
+            document_height=doc.height,
         )
         doc.build(story, canvasmaker=CustomCanvas)
 
@@ -98,13 +118,12 @@ class OrderPdfView(View):
 
     last_table_height = None
     document_height = None
-    footer_height = None
     header_height = None
     conditions_height = None
 
     def build_story(self, sender_address="", receiver_address="", your_delivery="", delivery_note_title="",
                     warning_list=list, date="", customer="", order="", delivery_date="", document_height="",
-                    footer_height=""):
+                    delivery_address=""):
 
         sender_address_paragraph = Paragraph(sender_address, style=size_seven_helvetica)
         receiver_address_paragraph = Paragraph(receiver_address, style=size_nine_helvetica_bold)
@@ -113,7 +132,7 @@ class OrderPdfView(View):
 
         your_delivery_paragraph = Paragraph(your_delivery, style=size_nine_helvetica_bold)
 
-        delivery_address_delivery_conditions_payment_conditions = self.build_conditions(delivery_date)
+        delivery_address_delivery_conditions_payment_conditions = self.build_conditions(delivery_date, delivery_address)
 
         delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
 
@@ -133,7 +152,7 @@ class OrderPdfView(View):
 
         story.extend([two_new_lines, two_new_lines])
 
-        warning_text = self.build_warning_text(warning_list, document_height, footer_height, tables_list)
+        warning_text = self.build_warning_text(warning_list, document_height, tables_list)
 
         # print(f"JO: {warning_table_h}")
         story.extend(warning_text)
@@ -148,8 +167,7 @@ class OrderPdfView(View):
         print(f"HEADER HEIGHT: {height}")
         return height
 
-    def build_warning_text(self, warning_list, document_height, footer_height, tables_list):
-
+    def build_warning_text(self, warning_list, document_height, tables_list):
         warning_paragraphs = []
 
         for warning_string in warning_list:
@@ -158,14 +176,11 @@ class OrderPdfView(View):
             warning_paragraphs.append(warning_paragraph)
         return warning_paragraphs
 
-    def build_conditions(self, delivery_date):
+    def build_conditions(self, delivery_date, delivery_address):
 
-        delivery_address = "Impex Service GmbH<br/>LGZ3 / Technologiepark West<br/>Zum Frenser Feld 11.6<br/>" \
-                           "50127 Bergheim"
+        delivery_condition = self.order.terms_of_delivery
 
-        delivery_condition = "CIF, Lieferung Frei Haus"
-
-        payment_condition = "14 Tage Netto"
+        payment_condition = self.order.terms_of_payment
 
         delivery_date = f"{delivery_date.strftime('%d.%m.%Y')}"
 
@@ -175,7 +190,7 @@ class OrderPdfView(View):
                           "schriftlich mitzuteilen.", size_nine_helvetica)
             ],
             [
-                 Paragraph("<br/>Lieferadresse: ", style=size_nine_helvetica),
+                 Paragraph("<br/><b>Lieferadresse:</b> ", style=size_nine_helvetica),
             ],
             [
                 Paragraph(delivery_address, style=size_nine_helvetica),
@@ -354,30 +369,34 @@ class OrderPdfView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def footer(self, canvas, doc):
+        footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
+        footer_text = f"<br/><br/><br/> "\
+                      f"<b>{self.client.contact.adress.firma} | {self.client.contact.adress.strasse} "\
+                      f"{self.client.contact.adress.hausnummer} | {self.client.contact.adress.zip} "\
+                      f"{self.client.contact.adress.place}</b><br/>"\
+                      f"tel {self.client.contact.telefon} | fax {self.client.contact.fax} | " \
+                      f"{self.client.contact.email} | {self.client.contact.website}"\
+                      f"<br/>"\
+                      f"{self.client.contact.bank.first().bank} | BIC: {self.client.contact.bank.first().bic} | "\
+                      f"IBAN: {self.client.contact.bank.first().iban}"\
+                      f"<br/>"\
+                      f"{self.client.contact.commercial_register} | St.Nr. {self.client.contact.tax_number} | "\
+                      f"Ust-IdNr. {self.client.contact.sales_tax_identification_number}"\
+                      f"<br/>"\
+
+        if self.client.contact.adress.vorname and self.client.contact.adress.nachname:
+            footer_text += f"Geschäftsführer: {self.client.contact.adress.vorname} {self.client.contact.adress.nachname}"
+        footer_text += f"<br/>"
+        footer_paragraph = Paragraph(footer_text, footer_style)
         canvas.saveState()
         from reportlab.lib.utils import ImageReader
 
         w, h = footer_paragraph.wrap(doc.width, doc.bottomMargin)
         print(f"Footer: {h}")
-        footer_paragraph.drawOn(canvas, doc.leftMargin + 30, h - 70)
+        footer_paragraph.drawOn(canvas, doc.leftMargin + 18, h - 70)
         qr_code = ImageReader(self.qr_code_url)
-        canvas.drawImage(qr_code, doc.leftMargin + 30, h - 74, width=1 * inch, height=1 * inch)
+        canvas.drawImage(qr_code, doc.leftMargin, h - 74, width=1 * inch, height=1 * inch)
         canvas.restoreState()
-
-footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
-footer_paragraph = Paragraph(
-        f"<br/><br/><br/> "
-        f"<b>Baschar Trading Center GmbH | Orber Straße 16 | 60386 Frankfurt a.M.</b>"
-        f"<br/>"
-        f"tel +49 (0) 69 20 23 50 93 | fax +49 (0) 69 20 32 89 52 | info@btcgmbh.eu | www.btcgmbh.eu"
-        f"<br/>"
-        f"Frankfurter Sparkasse | BIC: HELADEF1822 | IBAN: DE73 5005 0201 0200 5618 47"
-        f"<br/>"
-        f"Amtsgericht Ffm HRB 87651 | St.Nr. 45 229 07653 | Ust-IdNr. DE 270211471"
-        f"<br/>"
-        f"Geschäftsführer: Mohamed Makansi"
-        f"<br/>",
-        footer_style)
 
 
 def add_new_line_to_string_at_index(string, index):
@@ -391,6 +410,8 @@ class CustomCanvas(canvas.Canvas):
     http://code.activestate.com/recipes/576832/
     """
     logo_url = ""
+    logo_width = 70
+    logo_height = 70
 
     # ----------------------------------------------------------------------
     def __init__(self, *args, **kwargs):
@@ -405,7 +426,7 @@ class CustomCanvas(canvas.Canvas):
         """
 
         if len(self.pages) == 0:
-            self.draw_logo(433, 740)
+            self.draw_logo(433, 740, self.logo_width, self.logo_height)
 
         self.pages.append(dict(self.__dict__))
         self._startPage()
@@ -434,10 +455,14 @@ class CustomCanvas(canvas.Canvas):
         self.setFont("Helvetica", 9)
         self.drawRightString(530, 10, page)
 
-    def draw_logo(self, x, y):
+    def draw_logo(self, x, y, width, height):
         from reportlab.lib.utils import ImageReader
         logo = ImageReader(self.logo_url)
-        self.drawImage(logo, x, y, width=1 * inch, height=1 * inch)
+        if logo.getSize()[0] > 2000:  # Discount König Resize ...
+            width += 40
+            height += 40
+            x -= 43
+        self.drawImage(logo, x, y, width=width, height=height)
         # qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
         # canvas.drawImage(qr_code, self.doc.leftMargin + 30, h - 35, width=1 * inch, height=1 * inch)
 

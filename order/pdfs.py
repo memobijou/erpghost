@@ -130,6 +130,8 @@ class OrderPdfView(View):
     def build_story(self, sender_address="", receiver_address="", your_delivery="", delivery_note_title="",
                     warning_list=list, date="", customer="", order="", delivery_date="", document_height="",
                     delivery_address=""):
+        print(sender_address)
+        print(receiver_address)
 
         sender_address_paragraph = Paragraph(sender_address, style=size_seven_helvetica)
         receiver_address_paragraph = Paragraph(receiver_address, style=size_nine_helvetica_bold)
@@ -393,6 +395,7 @@ class OrderPdfView(View):
         if self.client.contact.adress.vorname and self.client.contact.adress.nachname:
             footer_text += f"Geschäftsführer: {self.client.contact.adress.vorname} {self.client.contact.adress.nachname}"
         footer_text += f"<br/>"
+        print(footer_text)
         footer_paragraph = Paragraph(footer_text, footer_style)
         canvas.saveState()
         from reportlab.lib.utils import ImageReader

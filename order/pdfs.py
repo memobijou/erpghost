@@ -72,7 +72,10 @@ class OrderPdfView(View):
         scheme = request.is_secure() and "https" or "http"
         self.qr_code_url = f"{scheme}://{request.get_host()}{static('qrcodebtc.png')}"
         # CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{static('btclogo.jpg')}"
-        CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{self.client.contact.company_image.url}"
+        if "http" in self.client.contact.company_image.url:
+            CustomCanvas.logo_url = self.client.contact.company_image.url
+        else:
+            CustomCanvas.logo_url = f"{scheme}://{request.get_host()}{self.client.contact.company_image.url}"
         print(CustomCanvas.logo_url)
 
         warning_list = [

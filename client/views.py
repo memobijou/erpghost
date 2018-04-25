@@ -42,7 +42,7 @@ class ClientCreateView(generic.FormView):
 
     def form_valid(self, form):
         data = form.cleaned_data
-        client = Client(name=data.get("name"))
+        client = Client(name=data.get("name"), qr_code=data.get("qr_code"))
         bank = Bank(bank=data.get("bank"), bic=data.get("bic"), iban=data.get("iban"))
         contact = Contact(company_image=data.get("company_image"), telefon=data.get("phone"), fax=data.get("fax"),
                           email=data.get("email"), website=data.get("website"),
@@ -87,7 +87,8 @@ class ClientUpdateView(generic.FormView):
                 "email": object_.contact.email, "website": object_.contact.website,
                 "commercial_register": object_.contact.commercial_register, "tax_number": object_.contact.tax_number,
                 "sales_tax_identification_number": object_.contact.sales_tax_identification_number,
-                "first_name": object_.contact.adress.vorname, "last_name": object_.contact.adress.nachname
+                "first_name": object_.contact.adress.vorname, "last_name": object_.contact.adress.nachname,
+                "qr_code": object_.qr_code
                 }
         if object_.contact.bank.first() is not None:
             data["bank"] = object_.contact.bank.first().bank
@@ -101,7 +102,6 @@ class ClientUpdateView(generic.FormView):
         data = form.cleaned_data
         client = self.get_object()
         client.name = data.get("name")
-        client.contact.company_image = data.get("company_image")
         client.contact.telefon = data.get("phone")
         client.contact.fax = data.get("fax")
         client.contact.email = data.get("email")
@@ -116,6 +116,16 @@ class ClientUpdateView(generic.FormView):
         client.contact.adress.zip = data.get("zip")
         client.contact.adress.vorname = data.get("first_name")
         client.contact.adress.nachname = data.get("last_name")
+
+        if data.get("qr_code") is False:
+            client.qr_code.delete()
+        else:
+            client.qr_code = data.get("qr_code")
+
+        if data.get("company_image") is False:
+            client.contact.company_image.delete()
+        else:
+            client.contact.company_image = data.get("company_image")
 
         if client.contact.bank.first() is None:
             bank = Bank(bank=data.get("bank"), bic=data.get("bic"), iban=data.get("iban"))

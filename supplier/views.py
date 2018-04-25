@@ -67,9 +67,14 @@ class SupplierCreateView(generic.FormView):
 class SupplierUpdateView(generic.FormView):
     form_class = SupplierForm
     template_name = "supplier/form.html"
+    object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Supplier.objects.get(pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self):
-        return Supplier.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
 
     def get_success_url(self):
         return reverse_lazy("supplier:detail", kwargs={"pk": self.kwargs.get("pk")})
@@ -77,6 +82,7 @@ class SupplierUpdateView(generic.FormView):
     def get_context_data(self, **kwargs):
             context = super().get_context_data(**kwargs)
             context["title"] = "Lieferant bearbeiten"
+            context["object"] = self.get_object()
             return context
 
     def get_form(self, form_class=None):
@@ -86,11 +92,12 @@ class SupplierUpdateView(generic.FormView):
                         'street': object_.contact.adress.strasse,
                         'zip': object_.contact.adress.zip,
                         'place': object_.contact.adress.place,
-                        'house_number': object_.contact.adress.hausnummer}
+                        'house_number': object_.contact.adress.hausnummer, "supplier_number": object_.supplier_number}
         return form
 
     def form_valid(self, form):
         object_ = self.get_object()
+        object_.supplier_number = form.cleaned_data.get("supplier_number")
         object_.contact.adress.firma = form.cleaned_data.get("company")
         object_.contact.adress.strasse = form.cleaned_data.get("street")
         object_.contact.adress.zip = form.cleaned_data.get("zip")
@@ -104,6 +111,6 @@ class SupplierUpdateView(generic.FormView):
             object_.contact.adress.save()
             object_.contact.save()
             object_.save()
-        except ValidationError as e:
+        except ValidationError:
             return render(self.request, self.template_name, self.get_context_data())
         return super().form_valid(form)

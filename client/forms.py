@@ -14,7 +14,7 @@ class ClientForm(forms.Form):
 class ClientCreateForm(forms.Form):
     name = forms.CharField(max_length=200, label="Bezeichnung")
     company = forms.CharField(max_length=200, label="Firma")
-    company_image = forms.ImageField(label="Firmenlogo")
+    company_image = forms.ImageField(label="Firmenlogo", required=False)
     first_name = forms.CharField(max_length=200, label="Vorname", required=False)
     last_name = forms.CharField(max_length=200, label="Nachname", required=False)
     street = forms.CharField(max_length=200, label="Straße")
@@ -31,6 +31,7 @@ class ClientCreateForm(forms.Form):
     commercial_register = forms.CharField(max_length=200, label="Handelsregister")
     tax_number = forms.CharField(max_length=200, label="Steuernummer")
     sales_tax_identification_number = forms.CharField(max_length=200, label="Ust-IdNr.")
+    qr_code = forms.ImageField(label="QR-Code", required=False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -13,7 +13,8 @@ class OrderForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Order._meta.get_field("delivery_date").verbose_name)
 
-    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(contact__client__isnull=False))
+    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(contact__client__isnull=False),
+                                              label="Lieferadresse")
 
     class Meta:
         model = Order

@@ -1,19 +1,19 @@
-{% extends 'snippets/forms/custom_form.html' %}
-{% load utils %}
+{% extends 'base.html' %}
 
-{% block form %}
-        {% if object %}
-            <div class="pull-right">
-                <a href="{% url 'supplier:detail' pk=object.pk %}">Zur Ansicht</a>
-            </div>
-        {% endif %}
-        {% for field in form %}
-            {% if field.name == "verified" %}
-                {% if request|has_group:"master" %}
-                    {% include "snippets/forms/field.html" %}
-                {% endif %}
-            {% else %}
-                    {% include "snippets/forms/field.html" %}
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if object %}
+                <div class="pull-right">
+                    <a href="{% url 'supplier:detail' pk=object.pk %}">Zur Ansicht</a>
+                </div>
             {% endif %}
-        {% endfor %}
+            <div class="col-md-6">
+                <form method="POST">{% csrf_token %}
+                    {{ form.as_p }}
+                    <input type="submit" class="btn btn-primary" value="Speichern">
+                </form>
+            </div>
+        </div>
+    </div>
 {% endblock %}

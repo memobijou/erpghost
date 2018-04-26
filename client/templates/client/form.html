@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <form method="POST" enctype="multipart/form-data">{% csrf_token %}
+        <div class="panel panel-default">
+            <div class="panel-body">
+                          {{ form.non_field_errors }}
+
+                          {% for hidden_field in form.hidden_fields %}
+                            {{ hidden_field.errors }}
+                            {{ hidden_field }}
+                          {% endfor %}
+                          <div class="col-md-6">
+                              <div class="panel panel-default">
+                                  <div class="panel-heading">Stammdaten</div>
+                                  <div class="panel-body">
+                                    {% include 'client/masterdata_panelform.html' %}
+                                  </div>
+                              </div>
+                          </div>
+                          <div class="col-md-6">
+                              <div class="panel panel-default">
+                                  <div class="panel-heading">
+                                      Rechnungsadresse
+                                  </div>
+                                  <div class="panel-body">
+                                    {% include 'client/billing_address_panelform.html' %}
+                                  </div>
+                              </div>
+                            </div>
+                          <div class="col-md-6">
+                              <div class="panel panel-default">
+                                  <div class="panel-heading">
+                                      Lieferadresse
+                                  </div>
+                                  <div class="panel-body">
+                                      {% include 'client/delivery_address_panelform.html' %}
+                                  </div>
+                              </div>
+                          </div>
+            </div>
+
+
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <input type="submit" class="btn btn-primary" value="Speichern">
+            </div>
+        </div>
+    </form>
+{% endblock %}

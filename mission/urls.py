@@ -1,6 +1,7 @@
 from django.conf.urls import url
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
     MissionDeleteView, GenerateInvoicePdf
+from mission.delivery_note_pdf import DeliveryNoteView
 
 urlpatterns = [
     url(r'^$', MissionListView.as_view(), name="list"),
@@ -10,4 +11,5 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/scan/$', ScanMissionUpdateView.as_view(), name="scan"),
     url(r'^delete/$', MissionDeleteView.as_view(), name="delete"),
     url(r'^invoice_pdf/$', GenerateInvoicePdf.as_view(), name="invoice"),
+    url(r'^(?P<pk>\d+)/delivery_note/$', DeliveryNoteView.as_view(), name="delivery_note"),
 ]

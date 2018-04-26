@@ -10,7 +10,7 @@ class Supplier(models.Model):
     # contact = models.OneToOneField(Contact,blank=True,null=True,related_name="supplier")
 
     def __str__(self):
-        return f"{self.contact.adress.firma}"
+        return f"{self.contact.billing_address.firma}"
 
     def get_absolute_url(self):
         return reverse("supplier:detail", kwargs={"pk": self.id})

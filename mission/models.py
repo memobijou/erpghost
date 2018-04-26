@@ -1,9 +1,12 @@
 from django.db import models
 import datetime
 from django.core.urlresolvers import reverse
+
+from adress.models import Adress
 from customer.models import Customer
 from product.models import Product
 from datetime import date
+from order.models import terms_of_delivery_choices, terms_of_payment_choices
 
 
 # Create your models here.
@@ -19,6 +22,13 @@ class Mission(models.Model):
         (False, "Nein")
     )
     pickable = models.NullBooleanField(choices=CHOICES, verbose_name="Pickbereit")
+    terms_of_payment = models.CharField(choices=terms_of_payment_choices, blank=True, null=True, max_length=200,
+                                        verbose_name="Zahlungsbedingung")
+    terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
+                                         verbose_name="Lieferkonditionen")
+    delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse")
+    created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     def __init__(self, *args, **kwargs):
         super(Mission, self).__init__(*args, **kwargs)

@@ -22,7 +22,8 @@ class SupplierListView(generic.ListView):
         context = super().get_context_data(**kwargs)
         context["title"] = "Lieferanten"
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
-        context["fields"] = ["Firma"]
+        context["fields"] = ["Lieferant"]
+        context["fields"].extend(get_verbose_names(Supplier, exclude=["id", "contact_id"]))
         context["filter_fields"] = get_filter_fields(Supplier, exclude=["id", "contact_id"])
         return context
 
@@ -30,6 +31,11 @@ class SupplierListView(generic.ListView):
 class SupplierDetailView(generic.DetailView):
     def get_object(self):
         return Supplier.objects.get(pk=self.kwargs.get("pk"))
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lieferant Ansicht"
+        return context
 
 
 class SupplierCreateView(generic.FormView):
@@ -44,18 +50,14 @@ class SupplierCreateView(generic.FormView):
 
     def form_valid(self, form):
         data = form.cleaned_data
-        supplier = Supplier()
+        supplier = Supplier(supplier_number=data.get("supplier_number"))
         address = Adress(firma=data.get("company"), zip=data.get("zip"), place=data.get("place"),
                          strasse=data.get("street"), hausnummer=data.get("house_number"))
-        contact = Contact(adress=address)
+        contact = Contact(billing_address=address)
 
         try:
-            address.full_clean()
-            contact.full_clean()
-            supplier.full_clean()
-
             address.save()
-            contact.adress = address
+            contact.billing_address = address
             contact.save()
             supplier.contact = contact
             supplier.save()
@@ -88,28 +90,37 @@ class SupplierUpdateView(generic.FormView):
     def get_form(self, form_class=None):
         form = super().get_form()
         object_ = self.get_object()
-        form.initial = {'company': object_.contact.adress.firma,
-                        'street': object_.contact.adress.strasse,
-                        'zip': object_.contact.adress.zip,
-                        'place': object_.contact.adress.place,
-                        'house_number': object_.contact.adress.hausnummer, "supplier_number": object_.supplier_number}
+        if object_.contact is None or object_.contact.billing_address is None:
+            form.initial = {"supplier_number": object_.supplier_number}
+            return form
+        form.initial = {'company': object_.contact.billing_address.firma,
+                        'street': object_.contact.billing_address.strasse,
+                        'zip': object_.contact.billing_address.zip,
+                        'place': object_.contact.billing_address.place,
+                        'house_number': object_.contact.billing_address.hausnummer,
+                        "supplier_number": object_.supplier_number}
         return form
 
     def form_valid(self, form):
         object_ = self.get_object()
         object_.supplier_number = form.cleaned_data.get("supplier_number")
-        object_.contact.adress.firma = form.cleaned_data.get("company")
-        object_.contact.adress.strasse = form.cleaned_data.get("street")
-        object_.contact.adress.zip = form.cleaned_data.get("zip")
-        object_.contact.adress.place = form.cleaned_data.get("place")
-        object_.contact.adress.hausnummer = form.cleaned_data.get("house_number")
+        contact = object_.contact
+        if contact is None:
+            contact = Contact()
+            contact.billing_address = Adress()
+        if contact is not None and contact.billing_address is None:
+            contact.billing_address = Adress()
+        contact.billing_address.firma = form.cleaned_data.get("company")
+        contact.billing_address.strasse = form.cleaned_data.get("street")
+        contact.billing_address.zip = form.cleaned_data.get("zip")
+        contact.billing_address.place = form.cleaned_data.get("place")
+        contact.billing_address.hausnummer = form.cleaned_data.get("house_number")
         try:
-            object_.contact.full_clean()
-            object_.contact.adress.full_clean()
-            object_.full_clean()
-            object_.contact.save()
-            object_.contact.adress.save()
-            object_.contact.save()
+            billing_address = contact.billing_address
+            billing_address.save()
+            contact.billing_address = billing_address
+            contact.save()
+            object_.contact = contact
             object_.save()
         except ValidationError:
             return render(self.request, self.template_name, self.get_context_data())

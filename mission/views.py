@@ -57,7 +57,9 @@ class MissionListView(ListView):
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission, \
                                exclude_fields=["id", "pickable"],
                                exclude_filter_fields=["id", "pickable"])
-        context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products"])
+        context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products",
+                                                                "modified_date", "created_date", "terms_of_payment",
+                                                                "terms_of_delivery"])
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Brutto)")
         if context["object_list"].count() > 0:

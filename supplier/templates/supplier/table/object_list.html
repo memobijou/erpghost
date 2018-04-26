@@ -3,7 +3,7 @@
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
         </td>
-
-            <td> {{ object.contact.adress.firma}} </td>
+            <td> {{ object.contact.billing_address.firma}} </td>
+            <td> {{ object.supplier_number}} </td>
     </tr>
 {% endfor %}

@@ -1,9 +1,16 @@
 from django import forms
-
 from product.models import Product
 from .models import Mission, ProductMission
 from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
+from client.models import Client
+from adress.models import Adress
+
+client_delivery_addresses_ids = []
+
+for client in Client.objects.all():
+    if client.contact.delivery_address is not None:
+        client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
 
 
 class MissionForm(forms.ModelForm):
@@ -12,10 +19,22 @@ class MissionForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Mission._meta.get_field("delivery_date").verbose_name)
 
+    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
+                                              label="Lieferadresse", required=False)
+
     class Meta:
         model = Mission
-        fields = ['delivery_date', 'pickable', "customer"]
+        fields = ['delivery_date', 'pickable', 'terms_of_delivery', 'terms_of_payment', "delivery_address", "customer"]
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.ImageField:
+                visible.field.widget.attrs["class"] = "form-control"
+            if type(visible.field) is forms.DateField:
+                visible.field.widget.attrs["class"] = "form-control datepicker"
 
 
 class BaseProductMissionFormset(BaseInlineFormSet):

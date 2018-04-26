@@ -15,6 +15,8 @@ from reportlab.platypus import Frame, NextPageTemplate, PageBreakIfNotEmpty
 from order.models import Order
 from django.contrib.staticfiles.templatetags.staticfiles import static
 from client.models import Client
+from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header
+from client.pdfs import CustomPdf
 
 size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)
 size_nine_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9)
@@ -55,9 +57,7 @@ class OrderPdfView(View):
 
         story = self.build_story()
 
-        from client.pdfs import CustomPdf
-
-        logo_url, qr_code_url = self.get_logo_and_qr_code_from_client()
+        logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
 
         receiver_address_list = self.get_reciver_address_list_from_order()
 
@@ -66,32 +66,12 @@ class OrderPdfView(View):
         return custom_pdf.response
 
     def get_reciver_address_list_from_order(self):
-        receiver_address = [self.order.supplier.contact.adress.firma,
-                            f"{self.order.supplier.contact.adress.strasse} "
-                            f"{self.order.supplier.contact.adress.hausnummer}",
-                            f"{self.order.supplier.contact.adress.place} {self.order.supplier.contact.adress.zip}"]
+        receiver_address = [self.order.supplier.contact.billing_address.firma,
+                            f"{self.order.supplier.contact.billing_address.strasse} "
+                            f"{self.order.supplier.contact.billing_address.hausnummer}",
+                            f"{self.order.supplier.contact.billing_address.place} "
+                            f"{self.order.supplier.contact.billing_address.zip}"]
         return receiver_address
-
-    def get_logo_and_qr_code_from_client(self):
-        logo_url = None
-        qr_code_url = None
-
-        scheme = self.request.is_secure() and "https" or "http"
-        print(self.client.contact.company_image)
-
-        if bool(self.client.contact.company_image) is not False:
-            if "http" in self.client.contact.company_image.url:
-                logo_url = self.client.contact.company_image.url
-            else:
-                logo_url = f"{scheme}://{self.request.get_host()}{self.client.contact.company_image.url}"
-
-        if bool(self.client.qr_code) is not False:
-            if "http" in self.client.qr_code.url:
-                qr_code_url = self.client.qr_code.url
-            else:
-                qr_code_url = f"{scheme}://{self.request.get_host()}{self.client.qr_code.url}"
-
-        return logo_url, qr_code_url
 
     def build_story(self):
         supplier_number = self.order.supplier.supplier_number or ""
@@ -126,9 +106,16 @@ class OrderPdfView(View):
         delivery_address += f"{self.order.delivery_address.strasse} {self.order.delivery_address.hausnummer}<br/>" \
                             f"{self.order.delivery_address.zip} {self.order.delivery_address.place}"
 
-        date_customer_delivery_note_paragraph = self.create_date_customer_order_table(created_date, supplier_number,
-                                                                                      order_number)
+        supplier_number_and_order_number = [
+            [Paragraph("Bestellung", size_nine_helvetica_leading_10),
+             Paragraph(add_new_line_to_string_at_index(order_number, 10), size_nine_helvetica_leading_10)],
+            [Paragraph("Lieferanten-Nr.", size_nine_helvetica_leading_10),
+             Paragraph(add_new_line_to_string_at_index(supplier_number, 10), size_nine_helvetica_leading_10)],
+        ]
 
+        date_customer_delivery_note_paragraph = create_right_align_header(created_date, x_position=260,
+                                                                          additional_data=supplier_number_and_order_number)
+        print(date_customer_delivery_note_paragraph)
         your_delivery_paragraph = Paragraph(your_delivery, style=size_nine_helvetica_bold)
 
         delivery_address_delivery_conditions_payment_conditions = self.build_conditions(delivery_date, delivery_address)
@@ -137,9 +124,14 @@ class OrderPdfView(View):
 
         tables_list = self.create_table()
 
-        story = [Paragraph("<br/><br/><br/>", style=size_eleven_helvetica), date_customer_delivery_note_paragraph,
+        story = []
+
+        story.extend(date_customer_delivery_note_paragraph)
+
+        story.extend([
                  two_new_lines, your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
                  delivery_note_title_paragraph, horizontal_line]
+)
 
         story.extend([table for table in tables_list])
 

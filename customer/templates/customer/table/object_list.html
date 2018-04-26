@@ -4,6 +4,7 @@
             <a href="{{ object.id }}/edit">Bearbeiten</a>
         </td>
 
-            <td> {{ object.name}} </td>
+            <td> {{ object.contact.billing_address.firma}} </td>
+            <td> {{ object.customer_number}} </td>
     </tr>
 {% endfor %}

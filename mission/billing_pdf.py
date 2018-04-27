@@ -2,7 +2,7 @@ from django.views import View
 from reportlab.platypus import KeepTogether
 from reportlab.platypus import LongTable
 
-from client.pdfs import CustomPdf
+from client.pdfs import CustomPdf, format_number_thousand_decimal_points, right_align_bold_paragraph_style
 from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header, size_nine_helvetica_leading_10, \
     add_new_line_to_string_at_index, get_reciver_address_list_from_object, size_nine_helvetica_bold, two_new_lines, \
     get_delivery_address_html_string_from_object, size_nine_helvetica, Table, TableStyle, size_twelve_helvetica_bold, \
@@ -19,7 +19,7 @@ mission_horizontal_line = Drawing(100, 1)
 mission_horizontal_line.add(Line(0, 0, 423, 0))
 
 
-class DeliveryNoteView(View):
+class BillingPdfView(View):
 
     @property
     def mission(self):
@@ -45,7 +45,7 @@ class DeliveryNoteView(View):
     def build_story(self):
         mission_number = self.mission.mission_number
 
-        your_mission_number = f"<u>Ihre Bestellung: {mission_number}</u>"
+        your_mission_number = f"<u>Ihre Rechnung: {mission_number}</u>"
 
         your_delivery_paragraph = Paragraph(your_mission_number, style=size_nine_helvetica_bold)
 
@@ -128,12 +128,12 @@ class DeliveryNoteView(View):
         self.story.append(table)
 
     def build_table_title(self):
-        delivery_note_title = f"<br/>Lieferschein<br/><br/>"
+        delivery_note_title = f"<br/>Rechnung<br/><br/>"
         delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
         self.story.extend([delivery_note_title_paragraph, mission_horizontal_line])
 
     def build_table(self):
-        colwidths = [30, 68, 282, 60]
+        colwidths = [30, 68, 152, 60, 65, 65]
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                                      rightIndent=17)
@@ -142,6 +142,8 @@ class DeliveryNoteView(View):
             Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
+            Paragraph("<b>Einzelpreis</b>", style=right_align_paragraph_style),
+            Paragraph("<b>Betrag</b>", style=right_align_paragraph_style),
         ]
 
         data = []
@@ -156,6 +158,11 @@ class DeliveryNoteView(View):
                     Paragraph(productmission.product.ean, style=size_nine_helvetica),
                     Paragraph(productmission.product.title, style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
+                              style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(
+                        (productmission.netto_price * productmission.amount)),
+                              style=right_align_paragraph_style),
                 ],
             )
 
@@ -169,7 +176,44 @@ class DeliveryNoteView(View):
             ])
         )
 
-        self.story.extend([table, mission_horizontal_line])
+        total_netto = 0
+
+        for productmission in self.mission.productmission_set.all():
+            total_netto += productmission.amount * productmission.netto_price
+
+        horizontal_line_betrag = Drawing(20, 1)
+        horizontal_line_betrag.add(Line(425, 0, 200, 0))
+
+        betrag_data = [
+            [
+                Paragraph(f"Nettobetrag",
+                          style=right_align_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto)} €", style=right_align_paragraph_style),
+            ],
+            [
+                Paragraph(f"+ Umsatzsteuer (19,00%)", style=right_align_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto*0.19)} €",
+                          style=right_align_paragraph_style),
+            ],
+            [
+                horizontal_line_betrag,
+            ],
+            [
+                Paragraph(f"GESAMT", style=right_align_bold_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto+(total_netto*0.19))} €",
+                          style=right_align_bold_paragraph_style),
+            ]
+        ]
+        betrag_table = Table(betrag_data, colWidths=[None, 70, 75])
+        betrag_table.setStyle(
+            TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('VALIGN', (0, 0), (-1, -1), "TOP"),
+            ])
+        )
+
+        self.story.extend([table, mission_horizontal_line, KeepTogether(betrag_table)])
 
         # from reportlab.lib import colors
         # table = Table(rows, hAlign='LEFT', colWidths=[doc.width/3.0]*3)

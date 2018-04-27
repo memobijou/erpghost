@@ -1,45 +1,22 @@
-from django.http import HttpResponse
-from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, View
-from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import PageTemplate
-from reportlab.platypus import SimpleDocTemplate,BaseDocTemplate
-from reportlab.pdfgen import canvas
+from django.views import View
+from reportlab.platypus import KeepTogether
+from reportlab.platypus import LongTable
+
+from client.pdfs import CustomPdf, format_number_thousand_decimal_points, right_align_bold_paragraph_style
+from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header, size_nine_helvetica_leading_10, \
+    add_new_line_to_string_at_index, get_reciver_address_list_from_object, size_nine_helvetica_bold, two_new_lines, \
+    get_delivery_address_html_string_from_object, size_nine_helvetica, Table, TableStyle, size_twelve_helvetica_bold, \
+    horizontal_line, size_ten_helvetica, underline
 from reportlab.platypus import Paragraph
-from reportlab.graphics.shapes import Drawing, Line
-from reportlab.platypus import Spacer
-from reportlab.platypus.tables import Table, TableStyle, LongTable
-from reportlab.lib.units import cm, mm
-from reportlab.platypus import Frame, NextPageTemplate, PageBreakIfNotEmpty
+from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
+from reportlab.lib.styles import ParagraphStyle
 from order.models import Order
-from django.contrib.staticfiles.templatetags.staticfiles import static
 from client.models import Client
-from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header
-from client.pdfs import CustomPdf
+from reportlab.graphics.shapes import Drawing, Line, colors
 
-size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)
-size_nine_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9)
-size_ten_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=10)
-size_eleven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=11)
-size_twelve_helvetica_bold = ParagraphStyle(name="normal", fontName="Helvetica-Bold", fontSize=12)
-size_nine_helvetica_bold = ParagraphStyle(name="normal", fontName="Helvetica-Bold", fontSize=9)
-size_nine_helvetica_left_indent_310 = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9,
-                                                     leftIndent=310, align="RIGHT")
-size_nine_helvetica_leading_10 = ParagraphStyle("adsadsa", leading=10, fontName="Helvetica", fontSize=9)
 
-right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
-                                             rightIndent=17)
-right_align_bold_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica-Bold", fontSize=9,
-                                                  rightIndent=17)
-underline = "_____________________________"
-spaces_13 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
-spaces_6 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
-
-spaces_4 = "&nbsp;&nbsp;&nbsp;&nbsp;"
-two_new_lines = Paragraph("<br/><br/>", style=size_nine_helvetica)
-horizontal_line = Drawing(100, 1)
-horizontal_line.add(Line(0, 0, 425, 0))
+order_horizontal_line = Drawing(100, 1)
+order_horizontal_line.add(Line(0, 0, 423, 0))
 
 
 class OrderPdfView(View):
@@ -53,112 +30,72 @@ class OrderPdfView(View):
         client = Client.objects.get(pk=self.request.session.get("client"))
         return client
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.story = []
+
     def get(self, request, *args, **kwargs):
-
-        story = self.build_story()
-
         logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
-
-        receiver_address_list = self.get_reciver_address_list_from_order()
-
-        custom_pdf = CustomPdf(self.client, qr_code_url, logo_url=logo_url, receiver_address=receiver_address_list,
-                               story=story)
+        story = self.build_story()
+        receiver_address = get_reciver_address_list_from_object(self.order.supplier)
+        custom_pdf = CustomPdf(self.client, qr_code_url, logo_url=logo_url, story=story,
+                               receiver_address=receiver_address)
         return custom_pdf.response
 
-    def get_reciver_address_list_from_order(self):
-        receiver_address = [self.order.supplier.contact.billing_address.firma,
-                            f"{self.order.supplier.contact.billing_address.strasse} "
-                            f"{self.order.supplier.contact.billing_address.hausnummer}",
-                            f"{self.order.supplier.contact.billing_address.place} "
-                            f"{self.order.supplier.contact.billing_address.zip}"]
-        return receiver_address
-
     def build_story(self):
-        supplier_number = self.order.supplier.supplier_number or ""
+        order_number = self.order.ordernumber
+
+        order_number_html = f"<u>Bestellung: {order_number}</u>"
+
+        order_paragraph = Paragraph(order_number_html, style=size_nine_helvetica_bold)
+
+        self.build_right_align_header()
+
+        self.story.extend([two_new_lines, order_paragraph])
+
+        self.build_before_table()
+
+        self.build_table_title()
+
+        self.build_table()
+
+        self.build_after_table()
+
+        return self.story
+
+    def build_right_align_header(self):
         created_date = f"{self.order.created_date.strftime('%d.%m.%Y')}"
         order_number = self.order.ordernumber
-        your_delivery = f"<u>Bestellung: {order_number}</u>"
-        delivery_note_title = f"<br/>Bestellung {order_number}<br/><br/>"
+
+        right_align_header_data = []
+
+        right_align_header_data.append(
+            [
+                Paragraph("Bestellung", style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(order_number, 10), style=size_nine_helvetica_leading_10),
+            ],
+        )
+
+        if self.order.supplier is not None:
+            supplier_number = self.order.supplier.supplier_number or ""
+            right_align_header_data.append([
+                Paragraph("Lieferanten-Nr.", style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(supplier_number, 10), style=size_nine_helvetica_leading_10),
+            ])
+
+        self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data,
+                                                    x_position=260))
+
+    def build_before_table(self):
+        delivery_address_object = self.client.contact.delivery_address
+
+        if self.order.delivery_address is not None:
+            delivery_address_object = self.order.delivery_address
+
+        delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
         delivery_date = self.order.delivery_date
-        # FOOTER
-
-        warning_list = [
-            f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
-            f"Anlieferungen aufgrund von Bestellungen bedürfen einer Lieferankündigung von mindestens 24 Stunden "
-            f"vor Eintreffen der Sendung. Die Ankündigung muss dabei per Mail an lager.we@btcgmbh.eu gerichtet "
-            f"sein und Angaben über Bestellnummer, Lieferanschrift, Lieferdatum sowie Anzahl der Paletten und "
-            f"Packstücke enthalten.<br/><br/>",
-            f"Die Anlieferung kann von Montag bis Freitag in der Zeit von 08:00 bis 17:00 Uhr erfolgen. Anlieferungen"
-            f" außerhalb dieser Zeiten sind nur möglich, wenn ein richtlinienkonformes Anliefern durch Verschulden"
-            f" der btc GmbH nicht möglich war oder in Ausnahmefällen eine Absprache mit der btc Logistik, "
-            f"Bereich Wareneingang erfolgt ist.<br/><br/>",
-            f"Jeder Lieferverzug ist unverzüglich schriftlich mitzuteilen.",
-        ]
-
-        delivery_address = f"{self.order.delivery_address.firma}<br/>"
-
-        if self.order.delivery_address.adresszusatz:
-            delivery_address += f"{self.order.delivery_address.adresszusatz}<br/>"
-
-        if self.order.delivery_address.adresszusatz2:
-            delivery_address += f"{self.order.delivery_address.adresszusatz2}<br/>"
-
-        delivery_address += f"{self.order.delivery_address.strasse} {self.order.delivery_address.hausnummer}<br/>" \
-                            f"{self.order.delivery_address.zip} {self.order.delivery_address.place}"
-
-        supplier_number_and_order_number = [
-            [Paragraph("Bestellung", size_nine_helvetica_leading_10),
-             Paragraph(add_new_line_to_string_at_index(order_number, 10), size_nine_helvetica_leading_10)],
-            [Paragraph("Lieferanten-Nr.", size_nine_helvetica_leading_10),
-             Paragraph(add_new_line_to_string_at_index(supplier_number, 10), size_nine_helvetica_leading_10)],
-        ]
-
-        date_customer_delivery_note_paragraph = create_right_align_header(created_date, x_position=260,
-                                                                          additional_data=supplier_number_and_order_number)
-        print(date_customer_delivery_note_paragraph)
-        your_delivery_paragraph = Paragraph(your_delivery, style=size_nine_helvetica_bold)
-
-        delivery_address_delivery_conditions_payment_conditions = self.build_conditions(delivery_date, delivery_address)
-
-        delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
-
-        tables_list = self.create_table()
-
-        story = []
-
-        story.extend(date_customer_delivery_note_paragraph)
-
-        story.extend([
-                 two_new_lines, your_delivery_paragraph, delivery_address_delivery_conditions_payment_conditions,
-                 delivery_note_title_paragraph, horizontal_line]
-)
-
-        story.extend([table for table in tables_list])
-
-        story.extend([two_new_lines, two_new_lines])
-
-        warning_text = self.build_warning_text(warning_list)
-
-        # print(f"JO: {warning_table_h}")
-        story.extend(warning_text)
-        return story
-
-    def build_warning_text(self, warning_list):
-        warning_paragraphs = []
-
-        for warning_string in warning_list:
-            warning_paragraph = Paragraph(warning_string, size_ten_helvetica)
-            warning_paragraph_width, warning_paragraph_height = warning_paragraph.wrap(500, 500)
-            warning_paragraphs.append(warning_paragraph)
-        return warning_paragraphs
-
-    def build_conditions(self, delivery_date, delivery_address):
-
-        delivery_condition = self.order.terms_of_delivery
-
-        payment_condition = self.order.terms_of_payment
-
-        delivery_date = f"{delivery_date.strftime('%d.%m.%Y')}"
+        terms_of_delivery = self.order.terms_of_delivery
+        terms_of_payment = self.order.terms_of_payment
 
         table_data = [
             [
@@ -169,16 +106,16 @@ class OrderPdfView(View):
                  Paragraph("<br/><b>Lieferadresse:</b> ", style=size_nine_helvetica),
             ],
             [
-                Paragraph(delivery_address, style=size_nine_helvetica),
+                Paragraph(delivery_address_html_string, style=size_nine_helvetica),
             ],
             [
-                Paragraph(f"<br/>Lieferbedingungen: {delivery_condition}<br/>", style=size_nine_helvetica),
+                Paragraph(f"<br/>Lieferbedingungen: {terms_of_delivery}<br/>", style=size_nine_helvetica),
             ],
             [
-                Paragraph(f"Zahlungsbedingungen: {payment_condition}<br/>", style=size_nine_helvetica),
+                Paragraph(f"Zahlungsbedingungen: {terms_of_payment}<br/>", style=size_nine_helvetica),
             ],
             [
-                Paragraph(f"Liefertermin: {delivery_date}<br/>", style=size_nine_helvetica),
+                Paragraph(f"Liefertermin: {delivery_date.strftime('%d.%m.%Y')}<br/>", style=size_nine_helvetica),
             ]
         ]
         table = Table(table_data)
@@ -193,75 +130,25 @@ class OrderPdfView(View):
         )
         table_width, table_height = table.wrap(440, 0)
 
-        return table
+        self.story.append(table)
 
-    def create_date_customer_order_table(self, date, supplier_number, order):
+    def build_table_title(self):
+        order_title = f"<br/>Bestellung<br/><br/>"
+        order_title_paragraph = Paragraph(order_title, size_twelve_helvetica_bold)
+        self.story.extend([order_title_paragraph, order_horizontal_line])
 
-        date = add_new_line_to_string_at_index(date, 10)
-        supplier_number = add_new_line_to_string_at_index(supplier_number, 10)
-        order = add_new_line_to_string_at_index(order, 10)
-
-        right_table_data = [
-            [
-                Paragraph("Datum", style=size_nine_helvetica_leading_10), Paragraph(date, style=size_nine_helvetica_leading_10),
-            ],
-            [
-                Paragraph("Bestellung", style=size_nine_helvetica_leading_10), Paragraph(order,
-                                                                                     style=size_nine_helvetica_leading_10),
-            ]
-        ]
-
-        if supplier_number is not "":
-            right_table_data.append([
-                Paragraph("Lieferanten-Nr.", style=size_nine_helvetica_leading_10),
-                Paragraph(supplier_number, style=size_nine_helvetica_leading_10),
-            ])
-
-        right_table = Table(data=right_table_data)
-
-        right_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-                ('TOPPADDING', (0, 0), (-1, -1), 1),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
-
-            ])
-        )
-
-        data = [
-            ["", right_table],
-        ]
-
-        table = Table(data, splitByRow=True, colWidths=[300, 100])
-
-        table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        return table
-
-    def create_table(self):
-        tables_list = []
-
+    def build_table(self):
         colwidths = [30, 68, 152, 60, 65, 65]
-
-        data = []
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                                      rightIndent=17)
         header = [
             Paragraph("<b>Pos</b>", style=size_nine_helvetica),
-            Paragraph("<b>Art-Nr.</b>", style=size_nine_helvetica),
+            Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
             Paragraph("<b>Einzelpreis</b>", style=right_align_paragraph_style),
             Paragraph("<b>Betrag</b>", style=right_align_paragraph_style),
-
         ]
 
         data = []
@@ -278,7 +165,7 @@ class OrderPdfView(View):
                     Paragraph(str(productorder.amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productorder.netto_price),
                               style=right_align_paragraph_style),
-                    Paragraph(format_number_thousand_decimal_points((productorder.netto_price*productorder.amount)),
+                    Paragraph(format_number_thousand_decimal_points((productorder.netto_price * productorder.amount)),
                               style=right_align_paragraph_style),
                 ],
             )
@@ -293,8 +180,6 @@ class OrderPdfView(View):
             ])
         )
 
-        tables_list.append(table)
-
         total_netto = 0
 
         for productorder in self.order.productorder_set.all():
@@ -304,9 +189,6 @@ class OrderPdfView(View):
         horizontal_line_betrag.add(Line(425, 0, 200, 0))
 
         betrag_data = [
-            [
-                horizontal_line,
-            ],
             [
                 Paragraph(f"Nettobetrag",
                           style=right_align_paragraph_style),
@@ -334,23 +216,79 @@ class OrderPdfView(View):
             ])
         )
 
-        tables_list.append(betrag_table)
-
-        return tables_list
+        self.story.extend([table, order_horizontal_line, KeepTogether(betrag_table)])
 
         # from reportlab.lib import colors
         # table = Table(rows, hAlign='LEFT', colWidths=[doc.width/3.0]*3)
         # table.setStyle(TableStyle([('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
+    def build_after_table(self):
+        first_warning_text = "Die gelieferte Ware bleibt unser Eigentum bis zur Bezahlung sämtlicher auch künftig"\
+                             " entstehender Forderungen aus unserer Geschäftsverbindung. Reklamationen können nur "\
+                             "innerhalb von 2 Tagen nach Lieferung anerkannt werden."
 
-def add_new_line_to_string_at_index(string, index):
-    if len(string) < index:
-        return string
-    import textwrap
-    return '<br/>'.join(textwrap.wrap(string, index))
+        first_warning_paragraph = Paragraph(first_warning_text, size_ten_helvetica)
 
+        first_warning_data = [
+            [first_warning_paragraph, Paragraph("", size_ten_helvetica)],
+        ]
 
-def format_number_thousand_decimal_points(number):
-    number = '{:,.2f}'.format(number).replace(",", "X").replace(".", ",").replace("X", ".")
-    return number
+        first_warning_table = Table(first_warning_data, colWidths=[430, 10])
+
+        first_warning_table.setStyle(
+            TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('VALIGN', (0, 0), (-1, -1), "TOP"),
+            ])
+        )
+
+        second_warning_text = f"Reklamation von Waren können wir nur anerkennen, wenn diese unverzüglich nach der"\
+                              f" Anlieferung erfolgen. Bitte prüfen Sie bei Lieferungen" \
+                              f" unmittelbar die Ordnungsmäßigkeit"\
+                              f" der Lieferung. Sollten Mängel oder Schäden an von uns gelieferten Waren festgestellt "\
+                              f"werden, bitten wir Sie uns umgehend darüber zu informieren." \
+                              f" Von Rücksendungen - ohne unsere"\
+                              f" vorherige Zustimmung - bitten wir abzusehen."\
+                              f"<br/><br/>"\
+                              f"Retouren müssen nach unseren Richtlinien ordnungsgemäß zurück gesendet werden."
+
+        second_warning_paragraph = Paragraph(second_warning_text, size_ten_helvetica)
+
+        second_warning_data = [[second_warning_paragraph, Paragraph("", size_ten_helvetica)]]
+
+        second_warning_table = Table(second_warning_data, colWidths=[430, 10])
+
+        second_warning_table.setStyle(
+            TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('VALIGN', (0, 0), (-1, -1), "TOP"),
+            ])
+        )
+
+        warning_paragraphs = []
+
+        warning_list = [
+            f"Bitte beachten Sie unsere Anliegerrichtlinien:<br/><br/>",
+            f"Anlieferungen aufgrund von Bestellungen bedürfen einer Lieferankündigung von mindestens 24 Stunden "
+            f"vor Eintreffen der Sendung. Die Ankündigung muss dabei per Mail an lager.we@btcgmbh.eu gerichtet "
+            f"sein und Angaben über Bestellnummer, Lieferanschrift, Lieferdatum sowie Anzahl der Paletten und "
+            f"Packstücke enthalten.<br/><br/>",
+            f"Die Anlieferung kann von Montag bis Freitag in der Zeit von 08:00 bis 17:00 Uhr erfolgen. Anlieferungen"
+            f" außerhalb dieser Zeiten sind nur möglich, wenn ein richtlinienkonformes Anliefern durch Verschulden"
+            f" der btc GmbH nicht möglich war oder in Ausnahmefällen eine Absprache mit der btc Logistik, "
+            f"Bereich Wareneingang erfolgt ist.<br/><br/>",
+            f"Jeder Lieferverzug ist unverzüglich schriftlich mitzuteilen.",
+        ]
+
+        for warning_string in warning_list:
+            warning_paragraph = Paragraph(warning_string, size_ten_helvetica)
+            warning_paragraphs.append(warning_paragraph)
+        self.story.extend([two_new_lines, two_new_lines])
+        self.story.extend(warning_paragraphs)

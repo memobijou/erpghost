@@ -21,7 +21,6 @@ class Mission(models.Model):
         (True, "Ja"),
         (False, "Nein")
     )
-    pickable = models.NullBooleanField(choices=CHOICES, verbose_name="Pickbereit")
     terms_of_payment = models.CharField(choices=terms_of_payment_choices, blank=True, null=True, max_length=200,
                                         verbose_name="Zahlungsbedingung")
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
@@ -29,6 +28,8 @@ class Mission(models.Model):
     delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse")
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
+    pickable = models.NullBooleanField(choices=CHOICES, verbose_name="Pickbereit")
+
 
     def __init__(self, *args, **kwargs):
         super(Mission, self).__init__(*args, **kwargs)

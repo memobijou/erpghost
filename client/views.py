@@ -90,26 +90,37 @@ class ClientUpdateView(generic.FormView):
     def get_form(self, form_class=None):
         object_ = self.get_object()
         data = {"name": object_.name, "company_image": object_.contact.company_image,
-                "billing_company": object_.contact.billing_address.firma,
-                "billing_street": object_.contact.billing_address.strasse,
-                "billing_house_number": object_.contact.billing_address.hausnummer,
-                "billing_place": object_.contact.billing_address.place,
-                "billing_zip": object_.contact.billing_address.zip,
+                "phone": object_.contact.telefon,
+                "fax": object_.contact.fax, "email": object_.contact.email, "website": object_.contact.website,
+                "commercial_register": object_.contact.commercial_register, "tax_number": object_.contact.tax_number,
+                "sales_tax_identification_number": object_.contact.sales_tax_identification_number,
+                "qr_code": object_.qr_code
+                }
+
+        if object_.contact.delivery_address is not None:
+            delivery_data = {
                 "delivery_company": object_.contact.delivery_address.firma,
                 "delivery_street": object_.contact.delivery_address.strasse,
                 "delivery_house_number": object_.contact.delivery_address.hausnummer,
                 "delivery_place": object_.contact.delivery_address.place,
                 "delivery_zip": object_.contact.delivery_address.zip,
-                "phone": object_.contact.telefon,
-                "fax": object_.contact.fax, "email": object_.contact.email, "website": object_.contact.website,
-                "commercial_register": object_.contact.commercial_register, "tax_number": object_.contact.tax_number,
-                "sales_tax_identification_number": object_.contact.sales_tax_identification_number,
-                "billing_first_name": object_.contact.billing_address.vorname,
-                "billing_last_name": object_.contact.billing_address.nachname,
                 "delivery_first_name": object_.contact.delivery_address.vorname,
                 "delivery_last_name": object_.contact.delivery_address.nachname,
-                "qr_code": object_.qr_code
-                }
+            }
+            data.update(delivery_data)
+
+        if object_.contact.billing_address is not None:
+            billing_data = {
+                "billing_company": object_.contact.billing_address.firma,
+                "billing_street": object_.contact.billing_address.strasse,
+                "billing_house_number": object_.contact.billing_address.hausnummer,
+                "billing_place": object_.contact.billing_address.place,
+                "billing_zip": object_.contact.billing_address.zip,
+                "billing_first_name": object_.contact.billing_address.vorname,
+                "billing_last_name": object_.contact.billing_address.nachname,
+            }
+            data.update(billing_data)
+
         if object_.contact.bank.first() is not None:
             data["bank"] = object_.contact.bank.first().bank
             data["bic"] = object_.contact.bank.first().bic

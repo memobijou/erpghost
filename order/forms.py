@@ -6,6 +6,7 @@ from product.models import Product
 from .models import Order, ProductOrder
 from django.forms import modelform_factory, inlineformset_factory, BaseFormSet, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
+from django.core.validators import MinValueValidator
 
 
 class OrderForm(forms.ModelForm):
@@ -57,8 +58,8 @@ ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, extra=3,
 
 class CommonProductOrderForm(forms.Form):
     ean = forms.CharField(label='EAN', max_length=200)
-    amount = forms.IntegerField(label='Menge')
-    netto_price = forms.FloatField(label="Einzelpreis (Netto)")
+    amount = forms.IntegerField(label='Menge', min_value=1)
+    netto_price = forms.FloatField(label="Einzelpreis (Netto)", min_value=0.1)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

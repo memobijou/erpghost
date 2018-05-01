@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.views import View
 from reportlab.platypus import KeepTogether
 from reportlab.platypus import LongTable
@@ -6,7 +7,7 @@ from client.pdfs import CustomPdf
 from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header, size_nine_helvetica_leading_10, \
     add_new_line_to_string_at_index, get_reciver_address_list_from_object, size_nine_helvetica_bold, two_new_lines, \
     get_delivery_address_html_string_from_object, size_nine_helvetica, Table, TableStyle, size_twelve_helvetica_bold, \
-    horizontal_line, size_ten_helvetica, underline
+    horizontal_line, size_ten_helvetica, underline, size_seven_helvetica
 from reportlab.platypus import Paragraph
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from reportlab.lib.styles import ParagraphStyle
@@ -35,6 +36,9 @@ class DeliveryNoteView(View):
         self.story = []
 
     def get(self, request, *args, **kwargs):
+        exception = self.validate_pdf()
+        if exception is not None:
+            return exception
         logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
         story = self.build_story()
         receiver_address = get_reciver_address_list_from_object(self.mission.customer)
@@ -229,19 +233,61 @@ class DeliveryNoteView(View):
                                       size_ten_helvetica)
 
         driver_data = [
-            [driver_form_title],
-            [Paragraph(f"Name Fahrer:{underline}", size_ten_helvetica)],
+            [
+                driver_form_title
+            ],
+            [
+                 Paragraph(f"{underline}___", size_ten_helvetica),
+                 Paragraph("", size_ten_helvetica)
+            ],
+            [
+                 Paragraph("Name Fahrer", size_nine_helvetica),
+                 Paragraph("", size_ten_helvetica)
+            ],
+
             [],
-            [Paragraph(f"Kennzeichen:{underline}", size_ten_helvetica)],
+            [
+                Paragraph(f"{underline}___", size_ten_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+            [
+                Paragraph("Kennzeichen", size_nine_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+
             [],
-            [Paragraph(f"Spedition:{underline}", size_ten_helvetica)],
+            [
+                Paragraph(f"{underline}___", size_ten_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+            [
+                Paragraph("Spedition", size_nine_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+
             [],
+            [
+                Paragraph(f"{underline}___", size_ten_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+            [
+                Paragraph("Unterschrift Fahrer/Stempel", size_nine_helvetica),
+                Paragraph("", size_ten_helvetica)
+            ],
+
             [],
-            [Paragraph(f"Unterschrift Fahrer/Stempel:{underline}", size_ten_helvetica)],
-            []
+            # [Paragraph(f"Name Fahrer:{underline}", size_ten_helvetica)],
+            # [],
+            # [Paragraph(f"Kennzeichen:{underline}", size_ten_helvetica)],
+            # [],
+            # [Paragraph(f"Spedition:{underline}", size_ten_helvetica)],
+            # [],
+            # [],
+            # [Paragraph(f"Unterschrift Fahrer/Stempel:{underline}", size_ten_helvetica)],
+            # []
         ]
 
-        driver_table = Table(driver_data, colWidths=[441])
+        driver_table = Table(driver_data, colWidths=[320, 100])
 
         driver_table.setStyle(
             TableStyle([
@@ -258,40 +304,42 @@ class DeliveryNoteView(View):
         quality_data = [
             [quality_form_title],
 
-            [Paragraph("Kommissionierer:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
+            [Paragraph(f"{underline}___", size_ten_helvetica),
+             Paragraph(f"{underline}___", size_ten_helvetica),
              Paragraph("", size_ten_helvetica)],
 
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph("Kontrolleur:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
+            [Paragraph("Name Kommissionierer", size_nine_helvetica),
+             Paragraph("Datum/Unterschrift", size_nine_helvetica),
              Paragraph("", size_ten_helvetica)],
 
             [],
 
-            [Paragraph("Verlader:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
+            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
              Paragraph("", size_ten_helvetica)],
 
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
+            [Paragraph("Name Kontrolleur", size_nine_helvetica),
+             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
 
             [],
 
-            [Paragraph("Verantwortlicher:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
+            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
              Paragraph("", size_ten_helvetica)],
 
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
+            [Paragraph("Name Verlader", size_nine_helvetica),
+             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
+
+            [],
+
+            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
              Paragraph("", size_ten_helvetica)],
+
+            [Paragraph("Name Verantwortlicher", size_nine_helvetica),
+             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
 
             [],
         ]
 
-        quality_form_table = Table(quality_data, colWidths=[100, 339, 0])
+        quality_form_table = Table(quality_data, colWidths=[195, 240, 0])
 
         quality_form_table.setStyle(
             TableStyle([
@@ -304,10 +352,30 @@ class DeliveryNoteView(View):
         )
 
         driver_and_quality_data = [
-            [driver_table, quality_form_table]
+            [driver_table],
+            [quality_form_table],
         ]
 
-        driver_and_quality_table = Table(driver_and_quality_data, colWidths=[250, 250])
+        driver_and_quality_table = Table(driver_and_quality_data)
 
-        self.story.extend([two_new_lines, first_warning_table, KeepTogether(driver_table),
-                           KeepTogether(quality_form_table), two_new_lines, second_warning_table])
+        self.story.extend([two_new_lines, first_warning_table, KeepTogether(driver_and_quality_table),
+                           two_new_lines, second_warning_table])
+
+    def validate_pdf(self, *args, **kwargs):
+        context = {"title": "PDF Fehler",
+                   "object": self.mission
+                   }
+        template_name = "mission/pdf_exception.html"
+
+        if self.mission.customer is None or self.mission.customer.contact is None:
+            context["message"] = "Sie müssen dem Auftrag einen Kunden zuweisen, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.terms_of_delivery is None or self.mission.terms_of_delivery == "":
+            context["message"] = "Sie müssen eine Lieferkondition angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.terms_of_payment is None or self.mission.terms_of_payment == "":
+            context["message"] = "Sie müssen eine Zahlungsbedingung angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.productmission_set.count() == 0:
+            context["message"] = "Der Auftrag muss mindestens einen Artikel beinhalten, um eine PDF zu generieren."
+            return render(self.request, template_name, context)

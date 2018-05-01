@@ -17,13 +17,20 @@
 <script>
     $(function () {
         $(".datepicker").datepicker({
-            dateFormat: 'dd/mm/yy'
+            dateFormat: 'dd/mm/yy',
         });
     });
 
     $(document).ready(function(){
+        $(".datepicker").keyup(function(e){
+            if(e.keyCode == 8 || e.charCode == 8){
+                this.value = "";
+            }
+        });
         $('[data-toggle="tooltip"]').tooltip();
     });
+
+
 </script>
 
 

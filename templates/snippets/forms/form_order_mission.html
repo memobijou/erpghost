@@ -6,6 +6,12 @@
             </div>
             <div class="col-md-8">
                 {{ form.as_p }}
+                {% if duplicates %}
+                    <h3 style="color:red;">Folgende EANs sind doppelt eingetragen:</h3>
+                        {% for duplicate in duplicates %}
+                            <p style="color:red;">&nbsp;&nbsp;&nbsp;&nbsp;{{ duplicate }}</p>
+                        {% endfor %}
+                {% endif %}
                 <span class="glyphicon glyphicon-plus" style="cursor:pointer;" id="add_row_btn"></span><br/><br/>
                 <table class="table table-bordered">
                     <thead>
@@ -22,7 +28,9 @@
                                     {% for field in many_to_many_form %}
                                         <td>
                                             <div class="form-group">
-                                                {{ field.errors }}
+                                                {% for field_error in field.errors %}
+                                                    <p style="color:red;">{{ field_error }}</p>
+                                                {% endfor %}
                                                 {{ field }}
                                                 {% if field.help_text %}
                                                     <p class="help">{{ field.help_text|safe }}</p>
@@ -31,14 +39,21 @@
                                         </td>
                                     {% endfor %}
                                     {% if object %}
-                                        <td>
-                                            <div class="checkbox">
-                                                <label><input type="checkbox" value="True"
-                                                              style="cursor:pointer;"
-                                                              class="delete_checkbox">Löschen</label>
-                                                <input type="hidden" value="off" name="delete">
-                                            </div>
-                                        </td>
+                                        {% if object_has_products %}
+                                            <td>
+                                                <div class="checkbox">
+                                                    <label><input type="checkbox" value="True"
+                                                                  style="cursor:pointer;"
+                                                                  class="delete_checkbox">Löschen</label>
+                                                    <input type="hidden" value="off" name="delete">
+                                                </div>
+                                            </td>
+                                        {% else %}
+                                            <td>
+                                                <span class="glyphicon glyphicon-trash delete-trash"
+                                                      style="color:red; cursor:pointer;font-size:15px;"></span>
+                                            </td>
+                                        {% endif %}
                                     {% else %}
                                         <td>
                                             <span class="glyphicon glyphicon-trash delete-trash"
@@ -69,7 +84,6 @@
             var response = JSON.parse(xhr.responseText);
 
             set_error_or_success_for_input(input, response);
-            disable_or_enable_form_submit_btn(ean_elements);
 
             if(response.length > 0){
                   response = response[0];
@@ -114,8 +128,6 @@
         ean_element.oninput = function(){
             GET_(this.value.replace(/ /g,''), this);
         };
-        GET_(ean_element.value.replace(/ /g,''), ean_element);
-
     }
 
     var disable_or_enable_form_submit_btn = function(ean_elements){
@@ -254,11 +266,27 @@
         }
     };
 
+    var remove_first_initial_form_on_update_view = function(){
+        var table_rows = document.getElementsByClassName("entry_row");
+
+        if(table_rows.length == 1){
+            {% if not object_has_products and object %}
+
+                for(var i = 0; i<table_rows.length; i++){
+                    var table_row = table_rows[i];
+                    table_row.parentElement.removeChild(table_row);
+                }
+            {% endif %}
+        }
+
+    };
+
 
 
     add_delete_row_on_click_to_initial_trash_butttons();
 
     add_new_row_on_plus_click();
 
+    remove_first_initial_form_on_update_view();
 
 </script>

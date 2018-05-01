@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.views import View
 from reportlab.platypus import KeepTogether
 from reportlab.platypus import LongTable
@@ -35,6 +36,9 @@ class OrderPdfView(View):
         self.story = []
 
     def get(self, request, *args, **kwargs):
+        exception = self.validate_pdf()
+        if exception is not None:
+            return exception
         logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
         story = self.build_story()
         receiver_address = get_reciver_address_list_from_object(self.order.supplier)
@@ -292,3 +296,23 @@ class OrderPdfView(View):
             warning_paragraphs.append(warning_paragraph)
         self.story.extend([two_new_lines, two_new_lines])
         self.story.extend(warning_paragraphs)
+
+    def validate_pdf(self, *args, **kwargs):
+        context = {"title": "PDF Fehler",
+                   "object": self.order
+                   }
+        template_name = "order/pdf_exception.html"
+
+        if self.order.supplier is None or self.order.supplier.contact is None:
+            context["message"] = "Sie müssen der Bestellung einen Lieferanten zuweisen, um eine PDF zu generieren."
+            print(context)
+            return render(self.request, template_name, context)
+        if self.order.terms_of_delivery is None or self.order.terms_of_delivery == "":
+            context["message"] = "Sie müssen eine Lieferkonditionen angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.order.terms_of_payment is None or self.order.terms_of_payment == "":
+            context["message"] = "Sie müssen eine Zahlungsbedingung angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.order.productorder_set.count() == 0:
+            context["message"] = "Die Bestellung muss mindestens einen Artikel beinhalten, um eine PDF zu generieren."
+            return render(self.request, template_name, context)

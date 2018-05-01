@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.views import generic
+from django.views.generic import DeleteView
 
 from adress.models import Adress
 from contact.models import Contact
@@ -9,23 +10,32 @@ from utils.utils import get_verbose_names, get_filter_fields, set_paginated_quer
     filter_queryset_from_request
 from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
-
+from django.core.paginator import Paginator
 # Create your views here.
 
 
 class SupplierListView(generic.ListView):
+    template_name = "supplier/supplier_list.html"
+
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Supplier)
-        return queryset
+        queryset = filter_queryset_from_request(self.request, Supplier).order_by("-id")
+        return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Lieferanten"
-        set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
         context["fields"] = ["Lieferant"]
         context["fields"].extend(get_verbose_names(Supplier, exclude=["id", "contact_id"]))
         context["filter_fields"] = get_filter_fields(Supplier, exclude=["id", "contact_id"])
         return context
+
+    def set_pagination(self, queryset):
+        page = self.request.GET.get("page")
+        paginator = Paginator(queryset, 15)
+        if not page:
+            page = 1
+        current_page_object = paginator.page(int(page))
+        return current_page_object
 
 
 class SupplierDetailView(generic.DetailView):
@@ -50,7 +60,7 @@ class SupplierCreateView(generic.FormView):
 
     def form_valid(self, form):
         data = form.cleaned_data
-        supplier = Supplier(supplier_number=data.get("supplier_number"))
+        supplier = Supplier()
         address = Adress(firma=data.get("company"), zip=data.get("zip"), place=data.get("place"),
                          strasse=data.get("street"), hausnummer=data.get("house_number"))
         contact = Contact(billing_address=address)
@@ -98,12 +108,11 @@ class SupplierUpdateView(generic.FormView):
                         'zip': object_.contact.billing_address.zip,
                         'place': object_.contact.billing_address.place,
                         'house_number': object_.contact.billing_address.hausnummer,
-                        "supplier_number": object_.supplier_number}
+                        }
         return form
 
     def form_valid(self, form):
         object_ = self.get_object()
-        object_.supplier_number = form.cleaned_data.get("supplier_number")
         contact = object_.contact
         if contact is None:
             contact = Contact()
@@ -125,3 +134,18 @@ class SupplierUpdateView(generic.FormView):
         except ValidationError:
             return render(self.request, self.template_name, self.get_context_data())
         return super().form_valid(form)
+
+
+class SupplierDeleteView(DeleteView):
+    model = Supplier
+    success_url = reverse_lazy("supplier:list")
+    template_name = "supplier/supplier_confirm_delete.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lieferanten löschen"
+        context["delete_items"] = self.get_object()
+        return context
+
+    def get_object(self, queryset=None):
+        return Supplier.objects.filter(id__in=self.request.GET.getlist('item')).order_by("-id")

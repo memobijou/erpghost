@@ -91,3 +91,15 @@ def update_product_order_or_mission_forms_from_post(related_attribute_name, many
                                                         amount_forms - product_orders_or_missions.count(),
                                                         order_or_mission_key, obj, request,
                                                         product_orders_or_missions.count())
+
+
+def validate_products_are_unique_in_form(POST):
+    available_eans = []
+    duplicates = []
+    for ean in POST.getlist("ean"):
+        if ean not in available_eans:
+            available_eans.append(ean)
+        else:
+            duplicates.append(ean)
+    if len(duplicates) >= 1:
+        return duplicates

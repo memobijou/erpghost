@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <h4>Achtung! Sie haben vor folgende Kunden zu löschen: </h4>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th class="col-md-2">Firma</th>
+                    <th>Adresse</th>
+                    <th>Plz</th>
+                    <th>Ort</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for obj in object %}
+                    <tr>
+                        <td>{{ obj.contact.billing_address.firma |default:''}}</td>
+                        <td>{{ obj.contact.billing_address.strasse |default:''}} {{ obj.contact.adress.hausnummer |default:''}}
+                        </td>
+                        <td>{{ obj.contact.billing_address.zip |default:''}}</td>
+                        <td>{{ obj.contact.billing_address.place |default:''}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h4>Wollen Sie diesen Vorgang wirklich ausführen? Diese Aktion kann nicht rückgängig gemacht werden.</h4>
+
+    <form method="POST" action="?{{ request.GET.urlencode }}">{% csrf_token %}
+        <input type="SUBMIT" class="btn btn-danger" value="Datensätze löschen">
+    </form>
+</div>
+{% endblock %}

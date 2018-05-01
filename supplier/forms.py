@@ -14,7 +14,6 @@ class SupplierForm(forms.Form):
     house_number = forms.CharField(max_length=200, label="Hausnummer")
     place = forms.CharField(max_length=200, label="Ort")
     zip = forms.CharField(max_length=200, label="PLZ")
-    supplier_number = forms.CharField(max_length=200, label="Lieferantennummer")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

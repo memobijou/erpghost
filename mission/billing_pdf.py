@@ -1,3 +1,4 @@
+from django.shortcuts import render
 from django.views import View
 from reportlab.platypus import KeepTogether
 from reportlab.platypus import LongTable
@@ -6,7 +7,7 @@ from client.pdfs import CustomPdf, format_number_thousand_decimal_points, right_
 from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header, size_nine_helvetica_leading_10, \
     add_new_line_to_string_at_index, get_reciver_address_list_from_object, size_nine_helvetica_bold, two_new_lines, \
     get_delivery_address_html_string_from_object, size_nine_helvetica, Table, TableStyle, size_twelve_helvetica_bold, \
-    horizontal_line, size_ten_helvetica, underline
+    horizontal_line, size_ten_helvetica, underline, size_seven_helvetica
 from reportlab.platypus import Paragraph
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from reportlab.lib.styles import ParagraphStyle
@@ -35,6 +36,9 @@ class BillingPdfView(View):
         self.story = []
 
     def get(self, request, *args, **kwargs):
+        exception = self.validate_pdf()
+        if exception is not None:
+            return exception
         logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
         story = self.build_story()
         receiver_address = get_reciver_address_list_from_object(self.mission.customer)
@@ -43,9 +47,8 @@ class BillingPdfView(View):
         return custom_pdf.response
 
     def build_story(self):
-        mission_number = self.mission.mission_number
 
-        your_mission_number = f"<u>Ihre Rechnung: {mission_number}</u>"
+        your_mission_number = f"<u>Ihre Rechnung: {self.mission.billing_number}</u>"
 
         your_delivery_paragraph = Paragraph(your_mission_number, style=size_nine_helvetica_bold)
 
@@ -66,6 +69,7 @@ class BillingPdfView(View):
     def build_right_align_header(self):
         created_date = f"{self.mission.created_date.strftime('%d.%m.%Y')}"
         mission_number = self.mission.mission_number
+        billing_number = self.mission.billing_number
 
         right_align_header_data = []
 
@@ -75,6 +79,11 @@ class BillingPdfView(View):
                 Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
             ],
         )
+
+        right_align_header_data.append([
+            Paragraph("Rechnungs-Nr.", style=size_nine_helvetica_leading_10),
+            Paragraph(add_new_line_to_string_at_index(billing_number, 10), style=size_nine_helvetica_leading_10),
+        ])
 
         if self.mission.customer is not None:
             customer_number = self.mission.customer.customer_number or ""
@@ -86,6 +95,12 @@ class BillingPdfView(View):
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))
 
     def build_before_table(self):
+        warning_text = "<br/>Sehr geehrte Damen, sehr geehrte Herren, wir danken für Ihren Auftrag, den wir unter " \
+                       "Zugrundelegung unserer vereinbarten Liefer- und Zahlungsbedingungen und vorbehaltlich einer " \
+                       "durchzuführenden internen Abstimmung Ihrer Bestellung annehmen. Die Preise auf dieser " \
+                       "Auftragsbestätigung verstehen sich als Netto- Preise nach Abzug von eventuell bestehenden " \
+                       "Rechnungsrabatten."
+        warning_paragraph = Paragraph(warning_text, size_nine_helvetica)
         delivery_address_object = self.client.contact.delivery_address
 
         if self.mission.delivery_address is not None:
@@ -97,6 +112,9 @@ class BillingPdfView(View):
         terms_of_payment = self.mission.terms_of_payment
 
         table_data = [
+            [
+                warning_paragraph
+             ],
             [
                  Paragraph("<br/><b>Lieferadresse:</b> ", style=size_nine_helvetica),
             ],
@@ -128,9 +146,13 @@ class BillingPdfView(View):
         self.story.append(table)
 
     def build_table_title(self):
-        delivery_note_title = f"<br/>Rechnung<br/><br/>"
+        delivery_note_title = f"<br/>Rechnung {self.mission.billing_number}<br/><br/>"
         delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
-        self.story.extend([delivery_note_title_paragraph, mission_horizontal_line])
+        delivery_note_title_warning = f"Das Rechnungsdatum entspricht dem Leistungsdatum<br/>"
+        delivery_note_title_warning_paragraph = Paragraph(delivery_note_title_warning, size_seven_helvetica)
+
+        self.story.extend([delivery_note_title_paragraph, delivery_note_title_warning_paragraph,
+                           mission_horizontal_line])
 
     def build_table(self):
         colwidths = [30, 68, 152, 60, 65, 65]
@@ -221,9 +243,11 @@ class BillingPdfView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def build_after_table(self):
-        first_warning_text = "Die gelieferte Ware bleibt unser Eigentum bis zur Bezahlung sämtlicher auch künftig"\
-                             " entstehender Forderungen aus unserer Geschäftsverbindung. Reklamationen können nur "\
-                             "innerhalb von 2 Tagen nach Lieferung anerkannt werden."
+        first_warning_text = "Es gelten die Allgemeinen Verkaufsbedingungen der BTC GmbH.<br/>"\
+                             "Verkauf erfolgt unter Zugrundelegung unserer Allgemeinen Geschäftsbedingungen.<br/>"\
+                             "AGB's gelesen und Akzeptiert.<br/>"\
+                             "Es besteht auch die Möglichkeit, die Bedingungen unter folgender Internet-Adresse " \
+                             "einzusehen, herunterzuladen oder auszudrucken: http://btcgmbh.eu/agb-geschaeftskunden."
 
         first_warning_paragraph = Paragraph(first_warning_text, size_ten_helvetica)
 
@@ -243,115 +267,23 @@ class BillingPdfView(View):
             ])
         )
 
-        second_warning_text = f"Reklamation von Waren können wir nur anerkennen, wenn diese unverzüglich nach der"\
-                              f" Anlieferung erfolgen. Bitte prüfen Sie bei Lieferungen" \
-                              f" unmittelbar die Ordnungsmäßigkeit"\
-                              f" der Lieferung. Sollten Mängel oder Schäden an von uns gelieferten Waren festgestellt "\
-                              f"werden, bitten wir Sie uns umgehend darüber zu informieren." \
-                              f" Von Rücksendungen - ohne unsere"\
-                              f" vorherige Zustimmung - bitten wir abzusehen."\
-                              f"<br/><br/>"\
-                              f"Retouren müssen nach unseren Richtlinien ordnungsgemäß zurück gesendet werden."
+        self.story.extend([two_new_lines, first_warning_table])
 
-        second_warning_paragraph = Paragraph(second_warning_text, size_ten_helvetica)
+    def validate_pdf(self, *args, **kwargs):
+        context = {"title": "PDF Fehler",
+                   "object": self.mission
+                   }
+        template_name = "mission/pdf_exception.html"
 
-        second_warning_data = [[second_warning_paragraph, Paragraph("", size_ten_helvetica)]]
-
-        second_warning_table = Table(second_warning_data, colWidths=[430, 10])
-
-        second_warning_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        driver_form_title = Paragraph("<br/><br/><b>Ware vollständig erhalten laut Lieferschein</b><br/><br/>",
-                                      size_ten_helvetica)
-
-        driver_data = [
-            [driver_form_title],
-            [Paragraph(f"Name Fahrer:{underline}", size_ten_helvetica)],
-            [],
-            [Paragraph(f"Kennzeichen:{underline}", size_ten_helvetica)],
-            [],
-            [Paragraph(f"Spedition:{underline}", size_ten_helvetica)],
-            [],
-            [],
-            [Paragraph(f"Unterschrift Fahrer/Stempel:{underline}", size_ten_helvetica)],
-            []
-        ]
-
-        driver_table = Table(driver_data, colWidths=[441])
-
-        driver_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        quality_form_title = Paragraph("<br/><br/><b>Qualitätskontrolle</b><br/><br/>", size_ten_helvetica)
-
-        quality_data = [
-            [quality_form_title],
-
-            [Paragraph("Kommissionierer:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph("Kontrolleur:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph("Verlader:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph("Verantwortlicher:", size_ten_helvetica), Paragraph(f"{underline}", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("", size_ten_helvetica), Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-        ]
-
-        quality_form_table = Table(quality_data, colWidths=[100, 339, 0])
-
-        quality_form_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        driver_and_quality_data = [
-            [driver_table, quality_form_table]
-        ]
-
-        driver_and_quality_table = Table(driver_and_quality_data, colWidths=[250, 250])
-
-        self.story.extend([two_new_lines, first_warning_table, KeepTogether(driver_table),
-                           KeepTogether(quality_form_table), two_new_lines, second_warning_table])
+        if self.mission.customer is None or self.mission.customer.contact is None:
+            context["message"] = "Sie müssen dem Auftrag einen Kunden zuweisen, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.terms_of_delivery is None or self.mission.terms_of_delivery == "":
+            context["message"] = "Sie müssen eine Lieferkondition angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.terms_of_payment is None or self.mission.terms_of_payment == "":
+            context["message"] = "Sie müssen eine Zahlungsbedingung angeben, um eine PDF zu generieren."
+            return render(self.request, template_name, context)
+        if self.mission.productmission_set.count() == 0:
+            context["message"] = "Der Auftrag muss mindestens einen Artikel beinhalten, um eine PDF zu generieren."
+            return render(self.request, template_name, context)

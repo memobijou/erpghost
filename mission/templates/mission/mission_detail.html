@@ -7,7 +7,8 @@
         <a style="float:right;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
 
         <p><b>Auftragsnummer: </b> {{object.mission_number}}</p>
-        <p><b>Kunde: </b> {{object.customer.name|default:"/"}}</p>
+        <p><b>Rechnungsnummer: </b> {{object.billing_number}}</p>
+        <p><b>Kunde: </b> {{object.customer.contact.billing_address.firma|default:"/"}}</p>
         <p><b>Lieferdatum: </b> {{object.delivery_date|date:"d.m.Y"}}</p>
         <p><b>Status: </b> {{object.status}}</p>
         <p>
@@ -21,49 +22,51 @@
             {% endif %}
         </p>
 
-
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    {% for field in fields %}
-                        <th>{{field}}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody>
-                    {% for productmission in object.productmission_set.all %}
-                        {% if object.id == productmission.mission.id %}
-                        <tr>
-                            <td>{{productmission.product.ean}}</td>
-                            <td>{{productmission.amount}}</td>
-                            <td style="color:red;">
-                                {% if productmission.missing_amount %}
-                                    {{productmission.missing_amount}}
-                                {% endif %}
-                            </td>
-                            <td>{{productmission.netto_price|default:""}}</td>
-                            <td>
-                                {% if productmission.netto_price %}
-                                {{ productmission.netto_price|multiply:productmission.amount }}
-                                {% else %}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if productmission.confirmed == True %}
-                                    <span class="glyphicon glyphicon-ok " style="color:green;"></span>
-                                {% elif productmission.confirmed == False %}
-                                    <span class="glyphicon glyphicon-remove" style="color:red;"></span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endif %}
-                    {% endfor %}
-            </tbody>
-        </table>
+        {% if object.productmission_set.all %}
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        {% for field in fields %}
+                            <th>{{field}}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                        {% for productmission in object.productmission_set.all %}
+                            {% if object.id == productmission.mission.id %}
+                            <tr>
+                                <td>{{productmission.product.ean}}</td>
+                                <td>{{productmission.amount}}</td>
+                                <td style="color:red;">
+                                    {% if productmission.missing_amount %}
+                                        {{productmission.missing_amount}}
+                                    {% endif %}
+                                </td>
+                                <td>{{productmission.netto_price|default:""}}</td>
+                                <td>
+                                    {% if productmission.netto_price %}
+                                    {{ productmission.netto_price|multiply:productmission.amount }}
+                                    {% else %}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if productmission.confirmed == True %}
+                                        <span class="glyphicon glyphicon-ok " style="color:green;"></span>
+                                    {% elif productmission.confirmed == False %}
+                                        <span class="glyphicon glyphicon-remove" style="color:red;"></span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                        {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
         {% if object.pickable == True %}
             <a href="{% url 'mission:scan' pk=object.id %}" class="btn btn-success" id="scan_btn">SCAN<a>
-            <a href="{% url 'mission:delivery_note' pk=object.id %}" class="btn btn-info">Lieferschein<a>
-            <a href="{% url 'mission:billing_pdf' pk=object.id %}" class="btn btn-info">Rechnung<a>
+            <a href="{% url 'mission:delivery_note' pk=object.id %}" class="btn btn-info pull-right"
+               style="margin-left:15px;">Lieferschein<a>
+            <a href="{% url 'mission:billing_pdf' pk=object.id %}" class="btn btn-info pull-right">Rechnung<a>
         {% endif %}
     </div>
 {% endblock %}

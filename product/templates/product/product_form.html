@@ -3,7 +3,7 @@
 
 {% block content %}
         <form method="POST" id="main_form" enctype="multipart/form-data"> {% csrf_token %}
-            {% if not icecat_status %}
+            {% if not icecat_status and object %}
                 <div class="row">
                     <a href="{% url "product:edit_icecat" pk=object.id %}" class="btn btn-info pull-right" id="icecat_btn">ICECAT Import</a>
                     <br/><br/>
@@ -17,14 +17,14 @@
                         </div>
                     {% endif %}
                     <div class="col-md-6">
-                        {% if icecat %}
+                        {% if object and icecat %}
                             {{ icecat_image_filename }}
                             <div style="max-width:300px; max-height:300px;">
                                 <img src="data:;base64,{{ icecat_image_base64 }}" class="img-responsive" style="max-height: 300px;"/>
                             </div>
                         {% endif %}
 
-                        {% if icecat_status == "FAIL" %}
+                        {% if object and icecat_status == "FAIL" %}
                             <h3 style="color:red;">Artikel auf ICECAT nicht matchbar!</h3>
                             <a href="{% url "product:edit" pk=object.pk %}">Zurück</a>
                         {% else %}

@@ -14,7 +14,6 @@ class CustomerForm(forms.Form):
     house_number = forms.CharField(max_length=200, label="Hausnummer")
     place = forms.CharField(max_length=200, label="Ort")
     zip = forms.CharField(max_length=200, label="PLZ")
-    customer_number = forms.CharField(max_length=200, label="Kundennummer")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

@@ -25,8 +25,6 @@ class ClientSelectView(generic.FormView):
         data = form.cleaned_data
         self.request.session["client"] = data.get("select_client").pk
         self.request.session["client_name"] = data.get("select_client").name
-
-        print(self.request.session.get("client"))
         return super().form_valid(form)
 
 

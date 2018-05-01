@@ -24,6 +24,7 @@ from django.conf import settings
 from django.contrib.auth.views import logout
 from django.conf import settings
 from django.conf.urls.static import static
+from erpghost.views import CustomLoginView
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -34,7 +35,7 @@ urlpatterns = [
     url(r'^position/', include("position.urls", namespace="position")),
     url(r'^column/', include("column.urls", namespace="column")),
     url(r'^api/product_match/(?P<ean_sku>\w+)/$', match_product, name="product_match"),
-    url(r'^login/$', LoginView.as_view(), name="login"),
+    url(r'^login/$', CustomLoginView.as_view(), name="login"),
     url(r'^logout/$', logout, {'next_page': settings.LOGOUT_REDIRECT_URL}, name='logout'),
     url(r'^$', main_view, name="root"),
     url(r'^stock/', include("stock.urls", namespace="stock")),

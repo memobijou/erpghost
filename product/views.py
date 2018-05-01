@@ -1,5 +1,7 @@
 from django.core.paginator import Paginator
 from django.shortcuts import render
+from django.views.generic import CreateView
+from django.views.generic import DeleteView
 from django.views.generic import DetailView
 from django.views.generic import ListView, FormView, UpdateView
 
@@ -16,7 +18,6 @@ from rest_framework.generics import ListAPIView
 from rest_framework import generics
 from product.forms import ImportForm, ProductForm, ProductIcecatForm
 from django.urls import reverse_lazy
-# Create your views here.
 from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
 from import_excel.models import TaskDuplicates
@@ -86,6 +87,31 @@ class ProductUpdateView(UpdateView):
 
     def get_success_url(self):
         return reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")})
+
+
+class ProductCreateView(CreateView):
+    form_class = ProductForm
+    template_name = "product/product_form.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Neuen Artikel anlegen"
+        return context
+
+
+class ProductDeleteView(DeleteView):
+    model = Product
+    success_url = reverse_lazy("product:list")
+    template_name = "product/product_confirm_delete.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Artikel löschen"
+        context["delete_items"] = self.get_object()
+        return context
+
+    def get_object(self, queryset=None):
+        return Product.objects.filter(id__in=self.request.GET.getlist('item')).order_by("-id")
 
 
 class ProductUpdateIcecatView(ProductUpdateView):

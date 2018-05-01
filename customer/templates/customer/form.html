@@ -1,13 +1,47 @@
-{% extends 'snippets/forms/custom_form.html' %}
+{% extends 'base.html' %}
 {% load utils %}
 
-{% block form %}
-        {% if object %}
-            <div class="pull-right">
-                <a href="{% url 'customer:detail' pk=object.pk %}">Zur Ansicht</a>
+{% block content %}
+    <form method="POST">{% csrf_token %}
+        <div class="panel panel-default">
+            <div class="panel-body">
+                {% if object %}
+                    <div class="col-md-12">
+                        <div class="pull-right">
+                            <a href="{% url 'customer:detail' pk=object.pk %}">Zur Ansicht</a>
+                        </div>
+                    </div>
+                {% endif %}
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Rechnungsadresse
+                            </div>
+                            <div class="panel-body">
+                                {{ billing_form.as_p }}
+                                <a>Weitere Rechnungsadresse</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Lieferadresse
+                            </div>
+                            <div class="panel-body">
+                                {{ delivery_form.as_p }}
+                                <a>Weitere Lieferadresse</a>
+                            </div>
+
+                        </div>
+                    </div>
             </div>
-        {% endif %}
-        {% for field in form %}
-                    {% include "snippets/forms/field.html" %}
-        {% endfor %}
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <input type="submit" class="btn btn-primary" value="Speichern">
+            </div>
+        </div>
+    </form>
 {% endblock %}

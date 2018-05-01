@@ -90,10 +90,8 @@ class DeliveryNoteView(View):
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))
 
     def build_before_table(self):
-        delivery_address_object = self.client.contact.delivery_address
+        delivery_address_object = self.mission.customer.contact.delivery_address
 
-        if self.mission.delivery_address is not None:
-            delivery_address_object = self.mission.delivery_address
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
         delivery_date = self.mission.delivery_date

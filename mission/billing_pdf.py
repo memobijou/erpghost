@@ -101,10 +101,8 @@ class BillingPdfView(View):
                        "Auftragsbestätigung verstehen sich als Netto- Preise nach Abzug von eventuell bestehenden " \
                        "Rechnungsrabatten."
         warning_paragraph = Paragraph(warning_text, size_nine_helvetica)
-        delivery_address_object = self.client.contact.delivery_address
 
-        if self.mission.delivery_address is not None:
-            delivery_address_object = self.mission.delivery_address
+        delivery_address_object = self.mission.customer.contact.delivery_address
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
         delivery_date = self.mission.delivery_date

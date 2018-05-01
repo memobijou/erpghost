@@ -20,12 +20,9 @@ class MissionForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Mission._meta.get_field("delivery_date").verbose_name)
 
-    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
-                                              label="Lieferadresse", required=False)
-
     class Meta:
         model = Mission
-        fields = ['delivery_date', 'pickable', 'terms_of_delivery', 'terms_of_payment', "delivery_address", "customer"]
+        fields = ['delivery_date', 'pickable', 'terms_of_delivery', 'terms_of_payment', "customer"]
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
     def __init__(self, **kwargs):

@@ -7,18 +7,14 @@ from client.models import Client
 from adress.models import Adress
 from django.core.validators import MinValueValidator
 
-client_delivery_addresses_ids = []
-
-for client in Client.objects.all():
-    if client.contact.delivery_address is not None:
-        client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
-
 
 class MissionForm(forms.ModelForm):
     delivery_date = forms.DateField(input_formats=['%d/%m/%Y'],
                                     widget=forms.DateTimeInput(format='%d/%m/%Y', attrs={
                                         'class': 'datepicker'
                                     }), label=Mission._meta.get_field("delivery_date").verbose_name)
+
+    # delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(), label="Lieferadresse", required=False)
 
     class Meta:
         model = Mission

@@ -1,16 +1,18 @@
+from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.views import generic
 from django.views.generic import DeleteView
 
 from adress.models import Adress
 from contact.models import Contact
-from supplier.forms import SupplierModelForm, SupplierForm
+from supplier.forms import SupplierModelForm, SupplierForm, AddressForm
 from supplier.models import Supplier
 from utils.utils import get_verbose_names, get_filter_fields, set_paginated_queryset_onview, \
     filter_queryset_from_request
 from django.urls import reverse_lazy
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django import views
 # Create your views here.
 
 
@@ -48,38 +50,46 @@ class SupplierDetailView(generic.DetailView):
         return context
 
 
-class SupplierCreateView(generic.FormView):
-    form_class = SupplierForm
+class SupplierCreateView(views.View):
     template_name = "supplier/form.html"
     success_url = reverse_lazy("supplier:list")
+    form_class = AddressForm
+    context = {}
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Lieferanten anlegen"
-        return context
+    def get(self, request, *args, **kwargs):
+        self.context["title"] = "Neuen Lieferanten anlegen"
+        self.context["billing_form"] = self.form_class(prefix="billing")
+        self.context["delivery_form"] = self.form_class(prefix="delivery")
+        return render(request, self.template_name, self.context)
 
-    def form_valid(self, form):
-        data = form.cleaned_data
+    def post(self, request, *args, **kwargs):
+        billing_form = self.form_class(prefix="billing", data=request.POST)
+        delivery_form = self.form_class(prefix="delivery", data=request.POST)
+
+        if billing_form.is_valid() and delivery_form.is_valid():
+            self.save_new_supplier(billing_form, delivery_form)
+            return HttpResponseRedirect(self.success_url)
+        self.context["billing_form"] = billing_form
+        self.context["delivery_form"] = delivery_form
+        return render(request, self.template_name, self.context)
+
+    def save_new_supplier(self, billing_form, delivery_form):
+        contact = Contact()
+        billing_address = billing_form.save()
+        delivery_address = delivery_form.save()
+        contact.billing_address = billing_address
+        contact.delivery_address = delivery_address
+        contact.save()
         supplier = Supplier()
-        address = Adress(firma=data.get("company"), zip=data.get("zip"), place=data.get("place"),
-                         strasse=data.get("street"), hausnummer=data.get("house_number"))
-        contact = Contact(billing_address=address)
-
-        try:
-            address.save()
-            contact.billing_address = address
-            contact.save()
-            supplier.contact = contact
-            supplier.save()
-        except ValidationError as e:
-            return render(self.request, self.template_name, self.get_context_data())
-        return super().form_valid(form)
+        supplier.contact = contact
+        supplier.save()
 
 
-class SupplierUpdateView(generic.FormView):
-    form_class = SupplierForm
+class SupplierUpdateView(views.View):
+    form_class = AddressForm
     template_name = "supplier/form.html"
     object = None
+    context = {}
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Supplier.objects.get(pk=self.kwargs.get("pk"))
@@ -91,49 +101,31 @@ class SupplierUpdateView(generic.FormView):
     def get_success_url(self):
         return reverse_lazy("supplier:detail", kwargs={"pk": self.kwargs.get("pk")})
 
-    def get_context_data(self, **kwargs):
-            context = super().get_context_data(**kwargs)
-            context["title"] = "Lieferant bearbeiten"
-            context["object"] = self.get_object()
-            return context
+    def get(self, request, *args, **kwargs):
+        self.context["title"] = "Lieferanten bearbeiten"
+        self.context["billing_form"] = self.form_class(prefix="billing", instance=self.object.contact.billing_address)
+        self.context["delivery_form"] = self.form_class(prefix="delivery", instance=self.object.contact.delivery_address)
+        return render(request, self.template_name, self.context)
 
-    def get_form(self, form_class=None):
-        form = super().get_form()
-        object_ = self.get_object()
-        if object_.contact is None or object_.contact.billing_address is None:
-            form.initial = {"supplier_number": object_.supplier_number}
-            return form
-        form.initial = {'company': object_.contact.billing_address.firma,
-                        'street': object_.contact.billing_address.strasse,
-                        'zip': object_.contact.billing_address.zip,
-                        'place': object_.contact.billing_address.place,
-                        'house_number': object_.contact.billing_address.hausnummer,
-                        }
-        return form
+    def post(self, request, *args, **kwargs):
+        billing_form = self.form_class(prefix="billing", data=request.POST)
+        delivery_form = self.form_class(prefix="delivery", data=request.POST)
 
-    def form_valid(self, form):
-        object_ = self.get_object()
-        contact = object_.contact
-        if contact is None:
-            contact = Contact()
-            contact.billing_address = Adress()
-        if contact is not None and contact.billing_address is None:
-            contact.billing_address = Adress()
-        contact.billing_address.firma = form.cleaned_data.get("company")
-        contact.billing_address.strasse = form.cleaned_data.get("street")
-        contact.billing_address.zip = form.cleaned_data.get("zip")
-        contact.billing_address.place = form.cleaned_data.get("place")
-        contact.billing_address.hausnummer = form.cleaned_data.get("house_number")
-        try:
-            billing_address = contact.billing_address
-            billing_address.save()
-            contact.billing_address = billing_address
-            contact.save()
-            object_.contact = contact
-            object_.save()
-        except ValidationError:
-            return render(self.request, self.template_name, self.get_context_data())
-        return super().form_valid(form)
+        if billing_form.is_valid() and delivery_form.is_valid():
+            self.update_supplier(billing_form, delivery_form)
+            return HttpResponseRedirect(self.get_success_url())
+        self.context["billing_form"] = billing_form
+        self.context["delivery_form"] = delivery_form
+        print(self.context)
+        return render(request, self.template_name, self.context)
+
+    def update_supplier(self, billing_form, delivery_form):
+        billing_address = billing_form.save()
+        delivery_address = delivery_form.save()
+        self.object.contact.billing_address = billing_address
+        self.object.contact.delivery_address = delivery_address
+        self.object.contact.save()
+        self.object.save()
 
 
 class SupplierDeleteView(DeleteView):

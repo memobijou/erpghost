@@ -21,3 +21,7 @@ class Contact(models.Model):
     commercial_register = models.CharField(blank=True, null=True, max_length=200, verbose_name="Handelsregister")
     tax_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Steuernummer")
     sales_tax_identification_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Ust-IdNr.")
+    billing_addresses = models.ManyToManyField(Adress, verbose_name="Zusätzliche Rechnungsadressen",
+                                               related_name='billing_contact_many')
+    delivery_addresses = models.ManyToManyField(Adress, verbose_name="Zusätzliche Lieferadressen",
+                                                related_name="delivery_contact_many")

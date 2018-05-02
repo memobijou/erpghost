@@ -31,7 +31,7 @@
     <h4>Wollen Sie diesen Vorgang wirklich ausführen?  Diese Aktion kann nicht rückgängig gemacht werden.</h4>
 
     <form method="POST" action="?{{ request.GET.urlencode }}">{% csrf_token %}
-        <input type="SUBMIT" class="btn btn-danger" value="Datensätze löschen">
+        <input type="SUBMIT" class="btn btn-danger" value="Artikel löschen">
     </form>
 </div>
 {% endblock %}

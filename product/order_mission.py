@@ -16,7 +16,6 @@ def validate_product_order_or_mission_from_post(many_to_many_form_class, amount_
                 data[key] = value
         if many_to_many_form_class(data=data).is_valid() is False:
             invalid_form = True
-
     if invalid_form is True:
         return False
     else:

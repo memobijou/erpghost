@@ -270,8 +270,7 @@
         var table_rows = document.getElementsByClassName("entry_row");
 
         if(table_rows.length == 1){
-            {% if not object_has_products and object %}
-
+            {% if not object_has_products and object.pk %}
                 for(var i = 0; i<table_rows.length; i++){
                     var table_row = table_rows[i];
                     table_row.parentElement.removeChild(table_row);

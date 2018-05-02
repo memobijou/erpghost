@@ -60,8 +60,6 @@ class CustomerCreateView(views.View):
         self.context["title"] = "Neuen Kunden anlegen"
         self.context["billing_form"] = self.form_class(prefix="billing")
         self.context["delivery_form"] = self.form_class(prefix="delivery")
-        self.context["new_billing_form"] = self.form_class(prefix="billing")
-        self.context["new_delivery_form"] = self.form_class(prefix="delivery")
         return render(request, self.template_name, self.context)
 
     def post(self, request, *args, **kwargs):

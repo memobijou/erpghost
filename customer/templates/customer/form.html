@@ -20,8 +20,10 @@
                                 </div>
                                 <div class="panel-body">
                                     {{ billing_form.as_p }}
+                                    {% if new_billing_form %}
                                     <a data-toggle="modal" data-target="#billing_modal" style="cursor:pointer;">
                                         Weitere Rechnungsadresse</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -33,8 +35,10 @@
                                 </div>
                                 <div class="panel-body">
                                     {{ delivery_form.as_p }}
+                                    {% if new_delivery_form %}
                                     <a data-toggle="modal" data-target="#delivery_modal" style="cursor:pointer;">
                                         Weitere Lieferadresse</a>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -46,9 +50,10 @@
                 </div>
             </div>
         </div>
-        {% include 'customer/modal_form.html' with modal_id='billing_modal' modal_title='Rechnungsadresse' form=new_billing_form modal_name="new_billing_subform" forms=billing_forms %}
-        {% include 'customer/modal_form.html' with modal_id='delivery_modal' modal_title='Lieferadresse' form=new_delivery_form modal_name='new_delivery_subform' forms=delivery_forms %}
-
+        {% if new_billing_form and new_delivery_form %}
+            {% include 'customer/modal_form.html' with modal_id='billing_modal' modal_title='Rechnungsadresse' form=new_billing_form modal_name="new_billing_subform" forms=billing_forms %}
+            {% include 'customer/modal_form.html' with modal_id='delivery_modal' modal_title='Lieferadresse' form=new_delivery_form modal_name='new_delivery_subform' forms=delivery_forms %}
+        {% endif %}
     </form>
     <script>
     var save_required_inputs = function(inputs){

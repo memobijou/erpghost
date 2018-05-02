@@ -83,7 +83,7 @@ class MissionCreateView(CreateView):
         self.object = None
 
     def get_context_data(self, *args, **kwargs):
-        context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag anlegen"
         context["ManyToManyForms"] = self.build_product_mission_forms(self.amount_product_mission_forms)
         context["detail_url"] = reverse_lazy("mission:list")
@@ -107,7 +107,7 @@ class MissionCreateView(CreateView):
         return product_mission_forms_list
 
     def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
 
         duplicates = validate_products_are_unique_in_form(self.request.POST)
         if duplicates is not None:
@@ -123,6 +123,7 @@ class MissionCreateView(CreateView):
             context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             create_product_order_or_mission_forms_from_post(ProductMission, ProductMissionForm,
                                                             self.amount_product_mission_forms, "mission", self.object,
                                                             self.request, 0)
@@ -198,7 +199,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
             for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
                     data = {}
                     for k in self.request.POST:
@@ -222,6 +223,8 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
         if valid_product_mission_forms is False:
             context = self.get_context_data(**kwargs)
+            if len(self.request.POST.getlist("ean")) >= 1:
+                context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
             self.object.save()

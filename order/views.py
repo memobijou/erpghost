@@ -164,7 +164,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
             for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
                     data = {}
                     for k in self.request.POST:
@@ -184,10 +184,12 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 
         valid_product_order_forms = \
             validate_product_order_or_mission_from_post(ProductOrderUpdateForm,
-                                                        self.object.productorder_set.all().count(), self.request)
+                                                        len(self.request.POST.getlist("ean")), self.request)
 
         if valid_product_order_forms is False:
             context = self.get_context_data(*args, **kwargs)
+            if len(self.request.POST.getlist("ean")) >= 1:
+                context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
             self.object.save()
@@ -231,7 +233,7 @@ class OrderCreateView(CreateView):
         return product_order_forms_list
 
     def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
 
         duplicates = validate_products_are_unique_in_form(self.request.POST)
         if duplicates is not None:
@@ -246,6 +248,7 @@ class OrderCreateView(CreateView):
             context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             create_product_order_or_mission_forms_from_post(ProductOrder, ProductOrderForm,
                                                             self.amount_product_order_forms, "order", self.object,
                                                             self.request, 0)

@@ -8,7 +8,15 @@
 
 
         <p><b>Name: </b> {{object.contact.billing_address.firma}}</p>
-
+        <p><b>Rechnungsadressen:</b></p>
+        {% for address in object.contact.billing_addresses.all %}
+            {{ address }}<br/>
+        {% endfor %}
+        <br/><br/>
+        <p><b>Lieferadressen:</b></p>
+        {% for address in object.contact.delivery_addresses.all %}
+            {{ address }}<br/>
+        {% endfor %}
     </div>
 
 

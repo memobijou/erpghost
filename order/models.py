@@ -93,9 +93,6 @@ class ProductOrder(models.Model):
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
 
-    class Meta:
-        unique_together = ('order', 'product',)
-
     def __str__(self):
         return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
 

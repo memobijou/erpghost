@@ -14,6 +14,8 @@
                 <td> {{ object.delivery_date|date:"d.m.Y"}} </td>
                 <td> {{ object.status}} </td>
                 <td> {{object.customer|default:""}} </td>
+                <td> {{object.billing_number|default:""}} </td>
+                <td> {{object.delivery_address|default:""}} </td>
                 <td>
                     {{ object.productmission_set.all|get_total_price_order_or_mission }}
                 </td>

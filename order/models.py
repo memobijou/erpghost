@@ -71,12 +71,12 @@ class Order(models.Model):
         self.__original_verified = self.verified
 
     def save(self, force_insert=False, force_update=False, *args, **kwargs):
-        if self.__original_verified != self.verified:
-            if self.verified is True:
-                # name changed - do something here
-                self.status = "AKZEPTIERT"
-            elif self.verified is False:
-                self.status = "ABGELEHNT"
+        # if self.__original_verified != self.verified:
+        #     if self.verified is True:
+        #         # name changed - do something here
+        #         self.status = "AKZEPTIERT"
+        #     elif self.verified is False:
+        #         self.status = "ABGELEHNT"
 
         if self.ordernumber == "":
             today = date.today().strftime('%d%m%y')
@@ -93,25 +93,28 @@ class ProductOrder(models.Model):
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
 
+    class Meta:
+        unique_together = ('order', 'product',)
+
     def __str__(self):
         return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
 
     def save(self, *args, **kwargs):
-        product_orders = self.order.productorder_set.all()
-        all_scanned = True
-        if self.confirmed == "1" or self.confirmed == "0":
-            self.order.status = "WARENEINGANG"
-        else:
-            all_scanned = False
-        for product_order in product_orders:
-            if self.id != product_order.id:
-                if product_order.confirmed is True or product_order.confirmed is False:
-                    self.order.status = "WARENEINGANG"
-                else:
-                    all_scanned = False
-        if all_scanned and product_orders.exists():
-            self.order.status = "POSITIONIEREN"
-        self.order.save()
+        # product_orders = self.order.productorder_set.all()
+        # all_scanned = True
+        # if self.confirmed == "1" or self.confirmed == "0":
+        #     self.order.status = "WARENEINGANG"
+        # else:
+        #     all_scanned = False
+        # for product_order in product_orders:
+        #     if self.id != product_order.id:
+        #         if product_order.confirmed is True or product_order.confirmed is False:
+        #             self.order.status = "WARENEINGANG"
+        #         else:
+        #             all_scanned = False
+        # if all_scanned and product_orders.exists():
+        #     self.order.status = "POSITIONIEREN"
+        # self.order.save()
         super(ProductOrder, self).save(*args, **kwargs)
 
     @property

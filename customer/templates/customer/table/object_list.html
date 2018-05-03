@@ -1,9 +1,16 @@
+<form method="GET" action="{% url 'customer:delete' %}">
+    <div class="col pull-right" style="padding-bottom: 10px;">
+        <button type="submit" class="btn btn-default">Löschen</button>
+    </div>
 {% for object in object_list %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
+            <input type="checkbox" name="item" value="{{object.pk}}" style="cursor:pointer;">
         </td>
 
-            <td> {{ object.name}} </td>
+            <td> {{ object.contact.billing_address.firma}} </td>
+            <td> {{ object.customer_number}} </td>
     </tr>
 {% endfor %}
+</form>

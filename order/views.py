@@ -16,7 +16,8 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from picklist.models import Picklist
 from django.urls import reverse_lazy
 from product.order_mission import validate_product_order_or_mission_from_post, \
-    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post
+    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
+    validate_products_are_unique_in_form
 from django.forms.models import model_to_dict
 
 
@@ -85,6 +86,7 @@ class ScanOrderUpdateView(UpdateView):
         object_ = form.save()
         self.update_scanned_product_order(object_)
         self.store_last_checked_checkbox_in_session()
+        refresh_order_status(object_)
         return HttpResponseRedirect("")
 
     def update_scanned_product_order(self, object_):
@@ -109,22 +111,39 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     login_url = "/login/"
     form_class = OrderForm
 
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Order.objects.get(id=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self, *args, **kwargs):
-        object = Order.objects.get(id=self.kwargs.get("pk"))
-        return object
+        return self.object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(OrderUpdateView, self).get_context_data(**kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["ManyToManyForms"] = self.build_product_order_forms()
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
+        if self.object_has_products() is True:
+            context["object_has_products"] = True
         return context
+
+    def object_has_products(self):
+        object_ = self.get_object()
+        if object_.productorder_set.all().count() >= 1:
+            return True
+        else:
+            return False
 
     def build_product_order_forms(self):
         product_order_forms_list = []
         product_order_forms_list = self.object_instances_to_forms_list(product_order_forms_list)
-        print(f"A: {len(product_order_forms_list)}")
         product_order_forms_list = self.non_object_forms_to_forms_list(product_order_forms_list)
+        if len(product_order_forms_list) == 0:
+            product_order_forms_list.append(ProductOrderForm())
         return product_order_forms_list
 
     def object_instances_to_forms_list(self, forms_list):
@@ -145,7 +164,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
             for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
                     data = {}
                     for k in self.request.POST:
@@ -155,18 +174,28 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+
+        duplicates = validate_products_are_unique_in_form(self.request.POST)
+        if duplicates is not None:
+            context = self.get_context_data(*args, **kwargs)
+            context["duplicates"] = duplicates
+            return render(self.request, self.template_name, context)
 
         valid_product_order_forms = \
             validate_product_order_or_mission_from_post(ProductOrderUpdateForm,
-                                                        self.object.productorder_set.all().count(), self.request)
+                                                        len(self.request.POST.getlist("ean")), self.request)
 
         if valid_product_order_forms is False:
             context = self.get_context_data(*args, **kwargs)
+            if len(self.request.POST.getlist("ean")) >= 1:
+                context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             update_product_order_or_mission_forms_from_post("productorder_set", ProductOrderUpdateForm, "order",
                                                             self.object, self.request, ProductOrder)
+            refresh_order_status(self.object)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -174,6 +203,10 @@ class OrderCreateView(CreateView):
     template_name = "order/form.html"
     form_class = OrderForm
     amount_product_order_forms = 1
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -200,7 +233,13 @@ class OrderCreateView(CreateView):
         return product_order_forms_list
 
     def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+
+        duplicates = validate_products_are_unique_in_form(self.request.POST)
+        if duplicates is not None:
+            context = self.get_context_data(*args, **kwargs)
+            context["duplicates"] = duplicates
+            return render(self.request, self.template_name, context)
 
         valid_product_order_forms = \
             validate_product_order_or_mission_from_post(ProductOrderForm, self.amount_product_order_forms, self.request)
@@ -209,11 +248,38 @@ class OrderCreateView(CreateView):
             context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             create_product_order_or_mission_forms_from_post(ProductOrder, ProductOrderForm,
                                                             self.amount_product_order_forms, "order", self.object,
                                                             self.request, 0)
-
+            refresh_order_status(self.object)
         return HttpResponseRedirect(self.get_success_url())
+
+
+def refresh_order_status(object_):
+    product_orders = object_.productorder_set.all()
+    all_scanned = True
+    not_scanned_at_all = True
+
+    for product_order in product_orders:
+        if product_order.confirmed is True or product_order.confirmed is False:
+            object_.status = "WARENEINGANG"
+            not_scanned_at_all = False
+        else:
+            all_scanned = False
+
+    if all_scanned and product_orders.exists():
+        object_.status = "POSITIONIEREN"
+        object_.save()
+    print(not_scanned_at_all)
+    if not_scanned_at_all is True:
+        if object_.verified is True:
+            # name changed - do something here
+            object_.status = "AKZEPTIERT"
+
+    if object_.verified is False:
+        object_.status = "ABGELEHNT"
+    object_.save()
 
 
 class OrderDetailView(DetailView):
@@ -235,6 +301,7 @@ class OrderListView(ListView):
     def get_queryset(self):
         queryset = filter_queryset_from_request(self.request, Order)
         queryset = filter_complete_and_uncomplete_order_or_mission(self.request, queryset, Order)
+        queryset = queryset.order_by("-id")
         return queryset
 
     def get_context_data(self, *args, **kwargs):

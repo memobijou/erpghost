@@ -1,13 +1,111 @@
-{% extends 'snippets/forms/custom_form.html' %}
+{% extends 'base.html' %}
 {% load utils %}
 
-{% block form %}
-        {% if object %}
-            <div class="pull-right">
-                <a href="{% url 'customer:detail' pk=object.pk %}">Zur Ansicht</a>
+{% block content %}
+    <form method="POST" id="main_form">{% csrf_token %}
+        <div class="form_btn_parent">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    {% if object %}
+                        <div class="col-md-12">
+                            <div class="pull-right">
+                                <a href="{% url 'customer:detail' pk=object.pk %}">Zur Ansicht</a>
+                            </div>
+                        </div>
+                    {% endif %}
+                        <div class="col-md-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Rechnungsadresse
+                                </div>
+                                <div class="panel-body">
+                                    {{ billing_form.as_p }}
+                                    {% if new_billing_form %}
+                                    <a data-toggle="modal" data-target="#billing_modal" style="cursor:pointer;">
+                                        Weitere Rechnungsadresse</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Lieferadresse
+                                </div>
+                                <div class="panel-body">
+                                    {{ delivery_form.as_p }}
+                                    {% if new_delivery_form %}
+                                    <a data-toggle="modal" data-target="#delivery_modal" style="cursor:pointer;">
+                                        Weitere Lieferadresse</a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                </div>
             </div>
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <input type="submit" class="btn btn-primary form_btn" value="Speichern">
+                </div>
+            </div>
+        </div>
+        {% if new_billing_form and new_delivery_form %}
+            {% include 'customer/modal_form.html' with modal_id='billing_modal' modal_title='Rechnungsadresse' form=new_billing_form modal_name="new_billing_subform" forms=billing_forms %}
+            {% include 'customer/modal_form.html' with modal_id='delivery_modal' modal_title='Lieferadresse' form=new_delivery_form modal_name='new_delivery_subform' forms=delivery_forms %}
         {% endif %}
-        {% for field in form %}
-                    {% include "snippets/forms/field.html" %}
-        {% endfor %}
+    </form>
+    <script>
+    var save_required_inputs = function(inputs){
+        var required_inputs = [];
+        for(var i = 0; i<inputs.length; i++){
+            var input = inputs[i];
+            if(input.required === true){
+                required_inputs.push(input);
+            }else{
+            }
+        }
+        return required_inputs
+    };
+
+    var set_inputs_required = function(inputs){
+        for(var i = 0; i<inputs.length; i++){
+            var input = inputs[i];
+            input.setAttribute("required", "");
+        }
+    };
+
+    var remove_inputs_required = function(inputs){
+        for(var i = 0; i<inputs.length; i++){
+            var input = inputs[i];
+            input.removeAttribute("required");
+        }
+    };
+
+    var forms = document.getElementsByClassName("form_btn_parent");
+    var all_inputs = document.getElementsByTagName("input");
+    var all_required_inputs = save_required_inputs(all_inputs);
+
+
+    for(var i = 0; i<forms.length; i++){
+        var form = forms[i];
+        var form_btn = form.querySelector('input[type="submit"]');
+        var form_inputs = form.getElementsByTagName("input");
+
+        (function(form_inputs){
+            form_btn.onclick = function(){
+
+                set_inputs_required(all_required_inputs);
+
+                var form_required_inputs = save_required_inputs(form_inputs);
+
+                remove_inputs_required(all_required_inputs);
+
+                set_inputs_required(form_required_inputs);
+
+            };
+        })(form_inputs);
+
+    }
+    </script>
 {% endblock %}

@@ -1,11 +1,13 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div style="background-color:white;padding:25px;" class="table table-bordered">
-        <div style="text-align:center;">
+    <div class="panel panel-default">
+        <div class="panel-body">
             {% if form.errors %}
                 <div style="color:red">
-                    <p>Dein Username oder Passwort ist falsch. Bitte versuch es noch einmal.</p>
+                    {% for error in form.non_field_errors %}
+                        <h4>{{ error }}</h4>
+                    {% endfor %}
                 </div>
             {% endif %}
 
@@ -17,21 +19,29 @@
                 {% else %}
                 {% endif %}
             {% endif %}
-            <img src="https://trello-attachments.s3.amazonaws.com/584f14c5167f669c8f69949c/58b134adecaad54ce8516659/4d6e7aefc39677a0f57ef3bb5c1d2d0f/033442-rounded-glossy-black-icon-culture-holiday-ghost2.png"
-                 height="80" width="80">
-            <h6>ERPGhost</h6>
+            <form method="post" action="{% url 'login' %}">{% csrf_token %}
+                <div class="col-md-3"></div>
+                <div class="col-md-6">
+                    {{ form.select_client.label_tag }}
+                    {{ form.select_client }}
+                </div>
+                <div class="col-md-3"></div>
 
-            <form method="post" action="{% url 'login' %}">
-                {% csrf_token %}
-                {{ form.username.label_tag }}
-                {{ form.username }}
-                </br>
-                {{ form.password.label_tag }}
-                {{ form.password }}
-                </br></br>
-
-                <input type="submit" class="btn btn-primary" value="login"/>
-                <input type="hidden" name="next" value="{{ next }}"/>
+                <div class="col-md-4"></div>
+                <div class="col-md-4">
+                        <br/>
+                        {{ form.username.label_tag }}
+                        {{ form.username }}
+                        </br>
+                        {{ form.password.label_tag }}
+                        {{ form.password }}
+                        </br></br>
+                        <div class="text-center">
+                            <input type="submit" class="btn btn-primary btn-lg" value="Anmelden"/>
+                        </div>
+                        <input type="hidden" name="next" value="{{ next }}"/>
+                </div>
+                <div class="col-md-4"></div>
             </form>
 
         </div>

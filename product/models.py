@@ -1,5 +1,6 @@
 from django.db import models
 from supplier.models import Supplier
+from django.urls import reverse
 
 
 class Manufacturer(models.Model):
@@ -33,3 +34,6 @@ class Product(models.Model):
     def calc_volume(self):
         if self.height and self.width and self.length:
             return self.height * self.width * self.length
+
+    def get_absolute_url(self):
+        return reverse("product:detail", kwargs={"pk": self.id})

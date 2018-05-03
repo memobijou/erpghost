@@ -1,0 +1,36 @@
+<!-- Modal -->
+
+<div id="{{ modal_id }}" class="modal fade" role="dialog">
+  <div class="modal-dialog">
+
+    <!-- Modal content-->
+    <div class="modal-content">
+
+      <div class="modal-body">
+          {% for f in forms %}
+              <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h4 class="modal-title">{{ modal_title }} {{ forloop.counter }}</h4>
+                </div>
+                <div class="panel-body">
+                  {{ f }}
+                  <br/>
+                </div>
+              </div>
+          {% endfor %}
+          <div class="panel panel-default  form_btn_parent">
+            <div class="panel-heading">
+                <h4 class="modal-title">Neue {{ modal_title }}</h4>
+            </div>
+            <div class="panel-body">
+              {{ form }}
+
+              <br/>
+              <input type="submit" value="Speichern" name="{{ modal_name }}" class="btn btn-primary form_btn">
+            </div>
+          </div>
+      </div>
+    </div>
+
+  </div>
+</div>

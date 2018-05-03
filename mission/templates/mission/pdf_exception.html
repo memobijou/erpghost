@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <a href="{% url 'mission:detail' pk=object.pk %}" class="pull-right">Zurück zur Ansicht</a><br/>
+            <h3 style="color:red;" class="text-center">{{ message }}</h3>
+        </div>
+    </div>
+{% endblock %}

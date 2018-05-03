@@ -14,9 +14,14 @@ class Contact(models.Model):
     email = models.CharField(blank=True, null=True, max_length=200, verbose_name="Email")
     website = models.CharField(blank=True, null=True, max_length=200, verbose_name="Webseite")
     skype_id = models.CharField(blank=True, null=True, max_length=200)
-    adress = models.ForeignKey(Adress, null=True, blank=True, related_name='contact')
+    billing_address = models.ForeignKey(Adress, null=True, blank=True, related_name='billing_contact')
+    delivery_address = models.ForeignKey(Adress, null=True, blank=True, related_name='delivery_contact')
     company_image = models.ImageField(verbose_name="Firmenlogo", blank=True, null=True)
     bank = models.ManyToManyField(Bank)
     commercial_register = models.CharField(blank=True, null=True, max_length=200, verbose_name="Handelsregister")
     tax_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Steuernummer")
     sales_tax_identification_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Ust-IdNr.")
+    billing_addresses = models.ManyToManyField(Adress, verbose_name="Zusätzliche Rechnungsadressen",
+                                               related_name='billing_contact_many')
+    delivery_addresses = models.ManyToManyField(Adress, verbose_name="Zusätzliche Lieferadressen",
+                                                related_name="delivery_contact_many")

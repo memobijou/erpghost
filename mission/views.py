@@ -9,7 +9,8 @@ from reportlab.platypus import SimpleDocTemplate
 from reportlab.platypus import XPreformatted
 
 from product.order_mission import validate_product_order_or_mission_from_post, \
-    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post
+    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
+    validate_products_are_unique_in_form
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
@@ -54,10 +55,12 @@ class MissionListView(ListView):
         context = super(MissionListView, self).get_context_data(*args, **kwargs)
         context["title"] = "Auftrag"
 
-        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission, \
+        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission,\
                                exclude_fields=["id", "pickable"],
                                exclude_filter_fields=["id", "pickable"])
-        context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products"])
+        context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products",
+                                                                "modified_date", "created_date", "terms_of_payment",
+                                                                "terms_of_delivery"])
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Brutto)")
         if context["object_list"].count() > 0:
@@ -75,8 +78,12 @@ class MissionCreateView(CreateView):
     form_class = MissionForm
     amount_product_mission_forms = 1
 
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
     def get_context_data(self, *args, **kwargs):
-        context = super(MissionCreateView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag anlegen"
         context["ManyToManyForms"] = self.build_product_mission_forms(self.amount_product_mission_forms)
         context["detail_url"] = reverse_lazy("mission:list")
@@ -100,7 +107,13 @@ class MissionCreateView(CreateView):
         return product_mission_forms_list
 
     def form_valid(self, form, *args, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+
+        duplicates = validate_products_are_unique_in_form(self.request.POST)
+        if duplicates is not None:
+            context = self.get_context_data(**kwargs)
+            context["duplicates"] = duplicates
+            return render(self.request, self.template_name, context)
 
         valid_product_mission_forms = \
             validate_product_order_or_mission_from_post(ProductMissionForm, self.amount_product_mission_forms,
@@ -110,10 +123,11 @@ class MissionCreateView(CreateView):
             context = self.get_context_data(*args, **kwargs)
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             create_product_order_or_mission_forms_from_post(ProductMission, ProductMissionForm,
                                                             self.amount_product_mission_forms, "mission", self.object,
                                                             self.request, 0)
-
+            refresh_mission_status(self.object)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -131,21 +145,40 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
     login_url = "/login/"
     form_class = MissionForm
 
-    def get_object(self):
-        object = Mission.objects.get(id=self.kwargs.get("pk"))
-        return object
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Mission.objects.get(id=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, *args, **kwargs):
+        return self.object
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["ManyToManyForms"] = self.build_product_mission_forms()
         context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
+        if self.object_has_products() is True:
+            context["object_has_products"] = True
         return context
+
+    def object_has_products(self):
+        object_ = self.get_object()
+        if object_.productmission_set.all().count() >= 1:
+            return True
+        else:
+            return False
 
     def build_product_mission_forms(self):
         product_mission_forms_list = []
         product_mission_forms_list = self.object_instances_to_forms_list(product_mission_forms_list)
         product_mission_forms_list = self.non_object_forms_to_forms_list(product_mission_forms_list)
+        if len(product_mission_forms_list) == 0:
+            product_mission_forms_list.append(ProductMissionForm())
+
         return product_mission_forms_list
 
     def object_instances_to_forms_list(self, forms_list):
@@ -166,7 +199,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
+        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
             for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
                     data = {}
                     for k in self.request.POST:
@@ -176,7 +209,13 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         return forms_list
 
     def form_valid(self, form, **kwargs):
-        self.object = form.save()
+        self.object = form.save(commit=False)
+
+        duplicates = validate_products_are_unique_in_form(self.request.POST)
+        if duplicates is not None:
+            context = self.get_context_data(**kwargs)
+            context["duplicates"] = duplicates
+            return render(self.request, self.template_name, context)
 
         valid_product_mission_forms = \
             validate_product_order_or_mission_from_post(ProductMissionUpdateForm,
@@ -184,11 +223,14 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
         if valid_product_mission_forms is False:
             context = self.get_context_data(**kwargs)
+            if len(self.request.POST.getlist("ean")) >= 1:
+                context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
+            self.object.save()
             update_product_order_or_mission_forms_from_post("productmission_set", ProductMissionUpdateForm, "mission",
                                                             self.object, self.request, ProductMission)
-
+            refresh_mission_status(self.object)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -214,6 +256,7 @@ class ScanMissionUpdateView(UpdateView):
         object_ = form.save()
         self.update_scanned_product_mission(object_)
         self.store_last_checked_checkbox_in_session()
+        refresh_mission_status(object_)
         return HttpResponseRedirect("")
 
     def update_scanned_product_mission(self, object_):
@@ -231,6 +274,34 @@ class ScanMissionUpdateView(UpdateView):
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
+
+
+def refresh_mission_status(object_):
+    product_missions = object_.productmission_set.all()
+    all_scanned = True
+    has_confirmed_false = False
+    not_scanned_at_all = True
+
+    for product_mission in product_missions:
+        if product_mission.confirmed is True or product_mission.confirmed is False:
+            object_.status = "WARENAUSGANG"
+            if product_mission.confirmed is False:
+                has_confirmed_false = True
+            not_scanned_at_all = False
+        else:
+            all_scanned = False
+    if all_scanned is True and product_missions.exists():
+        object_.status = "LIEFERUNG"
+        if has_confirmed_false is True:
+            object_.status = "TEILLIEFERUNG"
+
+    if not_scanned_at_all:
+        if object_.pickable is True:
+            object_.status = "PICKBEREIT"
+
+    if object_.pickable is False:
+        object_.status = "AUSSTEHEND"
+    object_.save()
 
 
 size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)

@@ -532,6 +532,7 @@ def filter_complete_and_uncomplete_order_or_mission(request, queryset, model_cla
             queryset = queryset.filter(pk__in=uncomplete_ids)
     return queryset
 
+
 def exclude_non_model_keys_from_dict(dict_, model_class):
     tmp_dict = {}
     fields = model_class._meta.get_fields()

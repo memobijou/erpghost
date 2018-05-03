@@ -1,10 +1,12 @@
 from django import forms
 
 from adress.models import Adress
+from client.models import Client
 from product.models import Product
 from .models import Order, ProductOrder
 from django.forms import modelform_factory, inlineformset_factory, BaseFormSet, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
+from django.core.validators import MinValueValidator
 
 
 class OrderForm(forms.ModelForm):
@@ -13,7 +15,14 @@ class OrderForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Order._meta.get_field("delivery_date").verbose_name)
 
-    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(contact__client__isnull=False))
+    client_delivery_addresses_ids = []
+
+    for client in Client.objects.all():
+        if client.contact.delivery_address is not None:
+            client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
+
+    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
+                                              label="Lieferadresse", required=False)
 
     class Meta:
         model = Order
@@ -49,8 +58,8 @@ ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, extra=3,
 
 class CommonProductOrderForm(forms.Form):
     ean = forms.CharField(label='EAN', max_length=200)
-    amount = forms.IntegerField(label='Menge')
-    netto_price = forms.FloatField(label="Einzelpreis (Netto)")
+    amount = forms.IntegerField(label='Menge', min_value=1)
+    netto_price = forms.FloatField(label="Einzelpreis (Netto)", min_value=0.1)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

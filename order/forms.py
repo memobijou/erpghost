@@ -17,12 +17,12 @@ class OrderForm(forms.ModelForm):
 
     client_delivery_addresses_ids = []
 
-    for client in Client.objects.all():
-        if client.contact.delivery_address is not None:
-            client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
-
-    delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
-                                              label="Lieferadresse", required=False)
+    # for client in Client.objects.all():
+    #     if client.contact.delivery_address is not None:
+    #         client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
+    #
+    # delivery_address = forms.ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
+    #                                           label="Lieferadresse", required=False)
 
     class Meta:
         model = Order

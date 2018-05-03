@@ -15,7 +15,6 @@ class OrderForm(forms.ModelForm):
                                         'class': 'datepicker'
                                     }), label=Order._meta.get_field("delivery_date").verbose_name)
 
-    client_delivery_addresses_ids = []
 
     # for client in Client.objects.all():
     #     if client.contact.delivery_address is not None:
@@ -31,6 +30,15 @@ class OrderForm(forms.ModelForm):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        client_delivery_addresses_ids = []
+
+        for client in Client.objects.all():
+            if client.contact.delivery_address is not None:
+                client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
+        self.fields["delivery_address"] = forms.\
+            ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
+                             label="Lieferadresse", required=False)
 
         for visible in self.visible_fields():
             if type(visible.field) is not forms.ImageField:

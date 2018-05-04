@@ -10,7 +10,22 @@
         </td>
         <td>
             {% if product.main_image %}
-                <img src="{{ product.main_image.url }}" width="50px" height="50px">
+                <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
+                    <img src="{{ product.main_image.url }}"
+                         class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
+                </div>
+
+                <div class="modal fade">
+                 <!-- Modal -->
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-body">
+                                <img src="{{ product.main_image.url|default:''}}"
+                                 class="img-responsive center-block">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             {% endif %}
         </td>
         <td> {{ object.ean_vollstaendig}} </td>
@@ -99,5 +114,13 @@
               el.className = el.className.replace("chevron-up", "chevron-down");
            }
     };
+
+    var modal_images = document.getElementsByClassName("img-modal");
+    for(var i = 0; i<modal_images.length; i++){
+        modal_images[i].onclick = function(){
+            var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+    }
 
 </script>

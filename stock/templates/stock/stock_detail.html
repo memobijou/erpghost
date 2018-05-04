@@ -60,8 +60,21 @@
 
         {% if product %}
             {% if product.main_image %}
-                <div style="max-height: 200px;max-width: 200px;">
-                    <p><image src="{{ product.main_image.url }}" class="img-responsive"></image></p>
+                <div class="col-md-3">
+                    <p><image src="{{ product.main_image.url }}" class="img-responsive img-modal"
+                              style="cursor:pointer;"></image></p>
+                </div>
+
+                <div class="modal fade">
+                 <!-- Modal -->
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-body">
+                                <img src="{{ product.main_image.url|default:''}}"
+                                 class="img-responsive center-block">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             {% endif %}
             {% if product.short_description %}
@@ -94,7 +107,15 @@
     <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
     </div>
 
-
+<script>
+    var modal_images = document.getElementsByClassName("img-modal");
+    for(var i = 0; i<modal_images.length; i++){
+        modal_images[i].onclick = function(){
+            var modal_div = document.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+    }
+</script>
 
 {% endblock %}
 

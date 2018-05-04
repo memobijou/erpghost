@@ -29,7 +29,7 @@
                                         <td>
                                             <div class="form-group">
                                                 {% for field_error in field.errors %}
-                                                    <p style="color:red;">{{ field_error }}</p>
+                                                    <p style="color:red;" class="error">{{ field_error }}</p>
                                                 {% endfor %}
                                                 {{ field }}
                                                 {% if field.help_text %}
@@ -40,6 +40,7 @@
                                     {% endfor %}
                                     {% if object %}
                                         {% if object_has_products %}
+                                            {% if forloop.counter <= amount_update_forms %}
                                             <td>
                                                 <div class="checkbox">
                                                     <label><input type="checkbox" value="True"
@@ -48,6 +49,12 @@
                                                     <input type="hidden" value="off" name="delete">
                                                 </div>
                                             </td>
+                                            {% else %}
+                                                <td>
+                                                    <span class="glyphicon glyphicon-trash delete-trash"
+                                                          style="color:red; cursor:pointer;font-size:15px;"></span>
+                                                </td>
+                                            {% endif %}
                                         {% else %}
                                             <td>
                                                 <span class="glyphicon glyphicon-trash delete-trash"
@@ -245,6 +252,15 @@
             if(trash_btn_on_create_view){
                 delete_row_on_click(table_row_clone, trash_btn_on_create_view);
             }
+
+            var error_tags = table_row_clone.getElementsByClassName("error");
+
+            for(var i=0; i<error_tags.length; i++){
+                var error_tag = error_tags[i];
+                error_tag.parentElement.removeChild(error_tag)
+
+            }
+
             tbody.appendChild(table_row_clone);
         };
     };

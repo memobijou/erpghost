@@ -129,6 +129,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
         if self.object_has_products() is True:
             context["object_has_products"] = True
+        context["amount_update_forms"] = self.object.productorder_set.count()
         return context
 
     def object_has_products(self):

@@ -102,15 +102,24 @@ class Stock(models.Model):
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(stock_html).render(c))
 
-    def total_amount_ean(self):
+    def total_amount_ean(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-            total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
+            if state is not None:
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
         elif self.sku is not None and self.sku != "":
-            total = Stock.objects.filter(sku=self.sku).aggregate(Sum('bestand'))
+            if state is not None:
+                total = Stock.objects.filter(sku=str(self.sku), zustand__icontains=state).aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(sku=str(self.sku)).aggregate(Sum('bestand'))
         elif self.title is not None and self.title != "":
-            total = Stock.objects.filter(title=self.title).aggregate(Sum('bestand'))
+            if state is not None:
+                total = Stock.objects.filter(title=str(self.title), zustand__icontains=state).aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
         else:
-            return "/"
+            return None
         print("?!?!: " + str(total))
         total = {"bestand__sum": total["bestand__sum"]}
         return total["bestand__sum"]

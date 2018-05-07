@@ -107,7 +107,10 @@ class OrderPdfView(View):
                           "schriftlich mitzuteilen.", size_nine_helvetica)
             ],
             [
-                 Paragraph("<br/><b>Lieferadresse:</b> ", style=size_nine_helvetica),
+                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date.strftime('%d.%m.%Y')}<br/>", style=size_twelve_helvetica_bold),
+            ],
+            [
+                 Paragraph("<br/>Lieferadresse: ", style=size_nine_helvetica),
             ],
             [
                 Paragraph(delivery_address_html_string, style=size_nine_helvetica),
@@ -118,9 +121,6 @@ class OrderPdfView(View):
             [
                 Paragraph(f"Zahlungsbedingungen: {terms_of_payment}<br/>", style=size_nine_helvetica),
             ],
-            [
-                Paragraph(f"Liefertermin: {delivery_date.strftime('%d.%m.%Y')}<br/>", style=size_nine_helvetica),
-            ]
         ]
         table = Table(table_data)
         table.setStyle(

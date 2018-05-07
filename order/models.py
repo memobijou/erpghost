@@ -11,7 +11,7 @@ from django.core.exceptions import ValidationError
 from position.models import Position
 from picklist.models import Picklist
 from datetime import date
-
+import datetime
 
 # Create your models here.
 
@@ -37,6 +37,12 @@ terms_of_delivery_choices = [
     ("EXW - Ab Werk", "EXW - Ab Werk"),
 ]
 
+shipping_choices = [
+    ("Dachser", "Dachser"),
+    ("DPD", "DPD"),
+    ("DHL", "DHL"),
+]
+
 
 class Order(models.Model):
     ordernumber = models.CharField(max_length=13, blank=True, verbose_name="Bestellnummer")
@@ -58,7 +64,18 @@ class Order(models.Model):
         (True, "Ja"),
         (False, "Nein")
     )
+    shipping = models.CharField(choices=shipping_choices, blank=True, null=True, max_length=200,
+                                verbose_name="Spedition")
+    shipping_number_of_pieces = models.IntegerField(blank=True, null=True, verbose_name="Stückzahl Transport")
+    shipping_costs = models.FloatField(blank=True, null=True, verbose_name="Transportkosten")
     verified = models.NullBooleanField(choices=CHOICES, verbose_name="Akzeptiert")
+
+    @property
+    def difference_delivery_date_today(self):
+        today = datetime.date.today()
+        if self.delivery_date is not None:
+            difference_days = today-self.delivery_date
+            return difference_days.days
 
     def __str__(self):
         return self.ordernumber
@@ -151,7 +168,8 @@ class PositionProductOrder(models.Model):
 
 
 class PositionProductOrderPicklist(models.Model):
-    positionproductorder = models.ForeignKey(PositionProductOrder, on_delete=models.CASCADE,blank=True, null=True,related_name='positionsproduct')
+    positionproductorder = models.ForeignKey(PositionProductOrder, on_delete=models.CASCADE,blank=True, null=True,
+                                             related_name='positionsproduct')
     picklist = models.ForeignKey(Picklist, on_delete=models.CASCADE, blank=True, null=True,related_name='artikeln')
     comment = models.CharField(max_length=13)
     pickerid = models.CharField(max_length=13)

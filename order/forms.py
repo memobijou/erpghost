@@ -25,7 +25,8 @@ class OrderForm(forms.ModelForm):
 
     class Meta:
         model = Order
-        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery", 'delivery_address']
+        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery", 'delivery_address',
+                  'shipping', 'shipping_number_of_pieces', 'shipping_costs']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
     def __init__(self, **kwargs):
@@ -36,6 +37,7 @@ class OrderForm(forms.ModelForm):
         for client in Client.objects.all():
             if client.contact.delivery_address is not None:
                 client_delivery_addresses_ids.append(client.contact.delivery_address.pk)
+
         self.fields["delivery_address"] = forms.\
             ModelChoiceField(queryset=Adress.objects.filter(pk__in=client_delivery_addresses_ids),
                              label="Lieferadresse", required=False)

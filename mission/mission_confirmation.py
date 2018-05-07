@@ -3,7 +3,7 @@ from django.views import View
 from reportlab.platypus import KeepTogether
 from reportlab.platypus import LongTable
 
-from client.pdfs import CustomPdf
+from client.pdfs import CustomPdf, format_number_thousand_decimal_points, right_align_bold_paragraph_style
 from client.pdfs import get_logo_and_qr_code_from_client, create_right_align_header, size_nine_helvetica_leading_10, \
     add_new_line_to_string_at_index, get_reciver_address_list_from_object, size_nine_helvetica_bold, two_new_lines, \
     get_delivery_address_html_string_from_object, size_nine_helvetica, Table, TableStyle, size_twelve_helvetica_bold, \
@@ -20,7 +20,7 @@ mission_horizontal_line = Drawing(100, 1)
 mission_horizontal_line.add(Line(0, 0, 423, 0))
 
 
-class DeliveryNoteView(View):
+class MissionConfirmationPdfView(View):
 
     @property
     def mission(self):
@@ -47,12 +47,11 @@ class DeliveryNoteView(View):
         return custom_pdf.response
 
     def build_story(self):
-        mission_number = self.mission.mission_number
 
-        your_mission_number = f"<u>Unsere Auftragsnummer: {mission_number}</u>"
-
+        your_mission_number = f"<u>Unsere Auftragsnummer: {self.mission.mission_number}</u>"
+        print(self.mission.customer_order_number)
         if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
-            your_mission_number = f"<u>Ihre Bestellung: {self.mission.customer_order_number}</u>"
+            your_mission_number = f"<u> Ihrer Bestellung: {self.mission.customer_order_number}</u>"
 
         your_delivery_paragraph = Paragraph(your_mission_number, style=size_nine_helvetica_bold)
 
@@ -73,6 +72,7 @@ class DeliveryNoteView(View):
     def build_right_align_header(self):
         created_date = f"{self.mission.created_date.strftime('%d.%m.%Y')}"
         mission_number = self.mission.mission_number
+        billing_number = self.mission.billing_number
 
         right_align_header_data = []
 
@@ -92,6 +92,10 @@ class DeliveryNoteView(View):
                 Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
             ],
         )
+        right_align_header_data.append([
+            Paragraph("Rechnungs-Nr.", style=size_nine_helvetica_leading_10),
+            Paragraph(add_new_line_to_string_at_index(billing_number, 10), style=size_nine_helvetica_leading_10),
+        ])
 
         if self.mission.customer is not None:
             customer_number = self.mission.customer.customer_number or ""
@@ -103,6 +107,13 @@ class DeliveryNoteView(View):
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))
 
     def build_before_table(self):
+        warning_text = "<br/>Sehr geehrte Damen, sehr geehrte Herren, wir danken für Ihren Auftrag, den wir unter " \
+                       "Zugrundelegung unserer vereinbarten Liefer- und Zahlungsbedingungen und vorbehaltlich einer " \
+                       "durchzuführenden internen Abstimmung Ihrer Bestellung annehmen. Die Preise auf dieser " \
+                       "Auftragsbestätigung verstehen sich als Netto- Preise nach Abzug von eventuell bestehenden " \
+                       "Rechnungsrabatten."
+        warning_paragraph = Paragraph(warning_text, size_nine_helvetica)
+
         delivery_address_object = self.mission.customer.contact.delivery_address
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
@@ -111,6 +122,9 @@ class DeliveryNoteView(View):
         terms_of_payment = self.mission.terms_of_payment
 
         table_data = [
+            [
+                warning_paragraph
+             ],
             [
                 Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date.strftime('%d.%m.%Y')}<br/>",
                           style=size_twelve_helvetica_bold),
@@ -143,12 +157,14 @@ class DeliveryNoteView(View):
         self.story.append(table)
 
     def build_table_title(self):
-        delivery_note_title = f"<br/>Lieferschein<br/><br/>"
+        delivery_note_title = f"<br/>Auftragsbestätigung<br/><br/>"
         delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
-        self.story.extend([delivery_note_title_paragraph, mission_horizontal_line])
+
+        self.story.extend([delivery_note_title_paragraph,
+                           mission_horizontal_line])
 
     def build_table(self):
-        colwidths = [30, 68, 282, 60]
+        colwidths = [30, 68, 152, 60, 65, 65]
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                                      rightIndent=17)
@@ -157,6 +173,8 @@ class DeliveryNoteView(View):
             Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
+            Paragraph("<b>Einzelpreis</b>", style=right_align_paragraph_style),
+            Paragraph("<b>Betrag</b>", style=right_align_paragraph_style),
         ]
 
         data = []
@@ -171,6 +189,11 @@ class DeliveryNoteView(View):
                     Paragraph(productmission.product.ean, style=size_nine_helvetica),
                     Paragraph(productmission.product.title, style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
+                              style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(
+                        (productmission.netto_price * productmission.amount)),
+                              style=right_align_paragraph_style),
                 ],
             )
 
@@ -184,7 +207,44 @@ class DeliveryNoteView(View):
             ])
         )
 
-        self.story.extend([table, mission_horizontal_line])
+        total_netto = 0
+
+        for productmission in self.mission.productmission_set.all():
+            total_netto += productmission.amount * productmission.netto_price
+
+        horizontal_line_betrag = Drawing(20, 1)
+        horizontal_line_betrag.add(Line(425, 0, 200, 0))
+
+        betrag_data = [
+            [
+                Paragraph(f"Nettobetrag",
+                          style=right_align_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto)} €", style=right_align_paragraph_style),
+            ],
+            [
+                Paragraph(f"+ Umsatzsteuer (19,00%)", style=right_align_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto*0.19)} €",
+                          style=right_align_paragraph_style),
+            ],
+            [
+                horizontal_line_betrag,
+            ],
+            [
+                Paragraph(f"GESAMT", style=right_align_bold_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto+(total_netto*0.19))} €",
+                          style=right_align_bold_paragraph_style),
+            ]
+        ]
+        betrag_table = Table(betrag_data, colWidths=[None, 70, 75])
+        betrag_table.setStyle(
+            TableStyle([
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+                ('VALIGN', (0, 0), (-1, -1), "TOP"),
+            ])
+        )
+
+        self.story.extend([table, mission_horizontal_line, KeepTogether(betrag_table)])
 
         # from reportlab.lib import colors
         # table = Table(rows, hAlign='LEFT', colWidths=[doc.width/3.0]*3)
@@ -192,9 +252,11 @@ class DeliveryNoteView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def build_after_table(self):
-        first_warning_text = "Die gelieferte Ware bleibt unser Eigentum bis zur Bezahlung sämtlicher auch künftig"\
-                             " entstehender Forderungen aus unserer Geschäftsverbindung. Reklamationen können nur "\
-                             "innerhalb von 2 Tagen nach Lieferung anerkannt werden."
+        first_warning_text = "Es gelten die Allgemeinen Verkaufsbedingungen der BTC GmbH.<br/>"\
+                             "Verkauf erfolgt unter Zugrundelegung unserer Allgemeinen Geschäftsbedingungen.<br/>"\
+                             "AGB's gelesen und Akzeptiert.<br/>"\
+                             "Es besteht auch die Möglichkeit, die Bedingungen unter folgender Internet-Adresse " \
+                             "einzusehen, herunterzuladen oder auszudrucken: http://btcgmbh.eu/agb-geschaeftskunden."
 
         first_warning_paragraph = Paragraph(first_warning_text, size_ten_helvetica)
 
@@ -214,162 +276,7 @@ class DeliveryNoteView(View):
             ])
         )
 
-        second_warning_text = f"Reklamation von Waren können wir nur anerkennen, wenn diese unverzüglich nach der"\
-                              f" Anlieferung erfolgen. Bitte prüfen Sie bei Lieferungen" \
-                              f" unmittelbar die Ordnungsmäßigkeit"\
-                              f" der Lieferung. Sollten Mängel oder Schäden an von uns gelieferten Waren festgestellt "\
-                              f"werden, bitten wir Sie uns umgehend darüber zu informieren." \
-                              f" Von Rücksendungen - ohne unsere"\
-                              f" vorherige Zustimmung - bitten wir abzusehen."\
-                              f"<br/><br/>"\
-                              f"Retouren müssen nach unseren Richtlinien ordnungsgemäß zurück gesendet werden."
-
-        second_warning_paragraph = Paragraph(second_warning_text, size_ten_helvetica)
-
-        second_warning_data = [[second_warning_paragraph, Paragraph("", size_ten_helvetica)]]
-
-        second_warning_table = Table(second_warning_data, colWidths=[430, 10], spaceBefore=20)
-
-        second_warning_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        driver_form_title = Paragraph("<br/><br/><b>Ware vollständig erhalten laut Lieferschein</b><br/><br/>",
-                                      size_ten_helvetica)
-
-        driver_data = [
-            [
-                driver_form_title
-            ],
-            [
-                 Paragraph(f"{underline}___", size_ten_helvetica),
-                 Paragraph("", size_ten_helvetica)
-            ],
-            [
-                 Paragraph("Name Fahrer", size_nine_helvetica),
-                 Paragraph("", size_ten_helvetica)
-            ],
-
-            [],
-            [
-                Paragraph(f"{underline}___", size_ten_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-            [
-                Paragraph("Kennzeichen", size_nine_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-
-            [],
-            [
-                Paragraph(f"{underline}___", size_ten_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-            [
-                Paragraph("Spedition", size_nine_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-
-            [],
-            [
-                Paragraph(f"{underline}___", size_ten_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-            [
-                Paragraph("Unterschrift Fahrer/Stempel", size_nine_helvetica),
-                Paragraph("", size_ten_helvetica)
-            ],
-
-            [],
-            # [Paragraph(f"Name Fahrer:{underline}", size_ten_helvetica)],
-            # [],
-            # [Paragraph(f"Kennzeichen:{underline}", size_ten_helvetica)],
-            # [],
-            # [Paragraph(f"Spedition:{underline}", size_ten_helvetica)],
-            # [],
-            # [],
-            # [Paragraph(f"Unterschrift Fahrer/Stempel:{underline}", size_ten_helvetica)],
-            # []
-        ]
-
-        driver_table = Table(driver_data, colWidths=[320, 100])
-
-        driver_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        quality_form_title = Paragraph("<br/><br/><b>Qualitätskontrolle</b><br/><br/>", size_ten_helvetica)
-
-        quality_data = [
-            [quality_form_title],
-
-            [Paragraph(f"{underline}___", size_ten_helvetica),
-             Paragraph(f"{underline}___", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("Name Kommissionierer", size_nine_helvetica),
-             Paragraph("Datum/Unterschrift", size_nine_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("Name Kontrolleur", size_nine_helvetica),
-             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("Name Verlader", size_nine_helvetica),
-             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-
-            [],
-
-            [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-             Paragraph("", size_ten_helvetica)],
-
-            [Paragraph("Name Verantwortlicher", size_nine_helvetica),
-             Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-
-            [],
-        ]
-
-        quality_form_table = Table(quality_data, colWidths=[195, 240, 0])
-
-        quality_form_table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
-
-        driver_and_quality_data = [
-            [driver_table],
-            [quality_form_table],
-        ]
-
-        driver_and_quality_table = Table(driver_and_quality_data)
-
-        self.story.extend([first_warning_table, KeepTogether(driver_and_quality_table), second_warning_table])
+        self.story.extend([first_warning_table])
 
     def validate_pdf(self, *args, **kwargs):
         context = {"title": "PDF Fehler",

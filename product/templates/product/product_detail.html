@@ -9,35 +9,85 @@
                         <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
                     </div>
                 {% endif %}
-                <div class="col-md-6">
-                    <p>
-                        <b>EAN: </b> {{ object.ean }}
-                    </p>
-                    <p>
-                        <b>Artikelname: </b> {{ object.title }}
-                    </p>
-                    <p>
-                        <b>Kurzbeschreibung: </b> {{ object.short_description }}
-                    </p>
-                    {% if object.main_image %}
-                        <p>
-                             <img class="img-responsive img-modal" style="cursor:pointer;" src="{{ object.main_image.url }}">
-                        </p>
-                        <div class="modal fade">
-                             <!-- Modal -->
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-body">
-                                        <img src="{{ object.main_image.url|default:''}}"
-                                         class="img-responsive center-block">
+                <div class="col-md-12">
+                    <h3>
+                        {{ object.title }}
+                    </h3>
+                    <br/>
+                </div>
+                {% if object.main_image %}
+                    <div class="col-md-4">
+                            <p>
+                                 <img class="img-responsive img-modal" style="cursor:pointer;" src="{{ object.main_image.url }}">
+                            </p>
+                            <div class="modal fade">
+                                 <!-- Modal -->
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-body">
+                                            <img src="{{ object.main_image.url|default:''}}"
+                                             class="img-responsive center-block">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="col-md-6">
+                    <br/><br/><br/>
+                    {% if object.ean %}
+                    <p>
+                        <b>EAN: </b> {{ object.ean }}
+                    </p>
                     {% endif %}
+                    {% if object.short_description %}
+                        <p>
+                            <b>Kurzbeschreibung: </b> {{ object.short_description }}
+                        </p>
+                    {% endif %}
+                {% if stock.total %}
+                    <br/>
+                        <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ stock.total }}</h4>
+                    <br/>
+                {% endif %}
+                {% if stock.total %}
+                    <div>
+                      <table class="table table-bordered">
+                        <thead>
+                            <th>Neu</th>
+                            <th>A</th>
+                            <th>B</th>
+                            <th>C</th>
+                            <th>D</th>
+                        </thead>
+                        <tbody>
+                            <tr>
+                              <td>
+                                  {{ stock.total_neu|default:''}}
+                              </td>
+                              <td>
+                                  {{ stock.total_a|default:''}}
+                              </td>
+                              <td>
+                                  {{ stock.total_b|default:''}}
+                              </td>
+                              <td>
+                                  {{ stock.total_c|default:''}}
+                              </td>
+                              <td>
+                                  {{ stock.total_d|default:''}}
+                              </td>
+                            </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                {% endif %}
+                {% if object.description %}
                     <p>
                         <b>Beschreibung: </b> {{ object.description }}
                     </p>
+                {% endif %}
                 </div>
             </div>
         </div>

@@ -25,7 +25,7 @@ class Supplier(models.Model):
             if all_suppliers.count() >= 1 and max_supplier_number != "":
                 if max_supplier_number[0].isalpha():
                     max_supplier_number = max_supplier_number[1:]
-                self.supplier_number = f"L{int(max_supplier_number) + 1}"
+                self.supplier_number = f"LF{int(max_supplier_number) + 1}"
             else:
-                self.supplier_number = "L383954521"
+                self.supplier_number = "LF383954521"
         super().save(force_insert=False, force_update=False, *args, **kwargs)

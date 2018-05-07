@@ -60,8 +60,21 @@
 
         {% if product %}
             {% if product.main_image %}
-                <div style="max-height: 200px;max-width: 200px;">
-                    <p><image src="{{ product.main_image.url }}" class="img-responsive"></image></p>
+                <div class="col-md-3">
+                    <p><image src="{{ product.main_image.url }}" class="img-responsive img-modal"
+                              style="cursor:pointer;"></image></p>
+                </div>
+
+                <div class="modal fade">
+                 <!-- Modal -->
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-body">
+                                <img src="{{ product.main_image.url|default:''}}"
+                                 class="img-responsive center-block">
+                            </div>
+                        </div>
+                    </div>
                 </div>
             {% endif %}
             {% if product.short_description %}
@@ -86,15 +99,59 @@
         {% if object.aufnahme_datum %}
             <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
         {% endif %}
-        <p><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ object.total_amount_ean }}</p>
+        <br/>
+        <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ object.total_amount_ean }}</h4>
+            <br/>
+        {% if stock.total %}
+        <div class="col-md-6" style="margin:-15px;">
+          <table class="table table-bordered">
+            <thead>
+                <th>Neu</th>
+                <th>A</th>
+                <th>B</th>
+                <th>C</th>
+                <th>D</th>
+            </thead>
+            <tbody>
+                <tr>
+                  <td>
+                      {{ stock.total_neu|default:''}}
+                  </td>
+                  <td>
+                      {{ stock.total_a|default:''}}
+                  </td>
+                  <td>
+                      {{ stock.total_b|default:''}}
+                  </td>
+                  <td>
+                      {{ stock.total_c|default:''}}
+                  </td>
+                  <td>
+                      {{ stock.total_d|default:''}}
+                  </td>
+                </tr>
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        </div>
+        <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
+        <br/>
+        <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
+    </div>
     </div>
 
-    <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
-    <br/>
-    <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
-    </div>
 
 
+<script>
+    var modal_images = document.getElementsByClassName("img-modal");
+    for(var i = 0; i<modal_images.length; i++){
+        modal_images[i].onclick = function(){
+            var modal_div = document.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+    }
+</script>
 
 {% endblock %}
 

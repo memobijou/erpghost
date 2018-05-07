@@ -21,9 +21,9 @@ class Customer(models.Model):
             if all_customers.count() >= 1 and max_customer_number != "":
                 if max_customer_number[0].isalpha():
                     max_customer_number = max_customer_number[1:]
-                self.customer_number = f"K{int(max_customer_number) + 1}"
+                self.customer_number = f"KD{int(max_customer_number) + 1}"
             else:
-                self.customer_number = "K533454723"
+                self.customer_number = "KD533454723"
         super().save(force_insert=False, force_update=False, *args, **kwargs)
 
     def get_absolute_url(self):

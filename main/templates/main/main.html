@@ -1,3 +1,29 @@
 {% extends 'base.html' %}
 
-<title>ERPGhost</title>
+{% block content %}
+    <div class="panel panel-deafult">
+        <div class="panel-body">
+            <div class="col-md-12" style="padding:5px;">
+                <div class="col-md-6 pull-right">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            Statistik
+                        </div>
+                        <div class="panel-body">
+                            <p class="" style="font-size:25px;">Anzahl Artikel: <b>{{ products.count }}</b></p>
+                            <p class="" style="font-size:25px;">Lagerbestand:
+                                <b>{{ whole_stocking.bestand__sum }}</b></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                {% include 'main/orders.html' with heading_text='Fällige Bestellungen' table_header_text='Bestell-Nr.' %}
+            </div>
+            <div class="col-md-6">
+                {% include 'main/missions.html' with heading_text='Fällige Aufträge' table_header_text='Auftrags-Nr.' %}
+            </div>
+        </div>
+
+    </div>
+{% endblock %}

@@ -13,12 +13,28 @@
             <td> {{ object.delivery_date|date:"d.m.Y"}} </td>
             <td> {{ object.status}} </td>
             <td> {{ object.supplier|default:""}} </td>
+            <td> {{ object.shipping|default:""}} </td>
+            <td> {{ object.shipping_number_of_pieces|default:""}} </td>
+            <td> {{ object.shipping_costs|format_number_thousand_decimal_points|default:''}} </td>
             <td>
-                {{ object.productorder_set.all|get_total_price_order_or_mission }}
+                {% if object.difference_delivery_date_today > 0 %}
+                 <span class="label label-danger">
+                     {{ object.difference_delivery_date_today }} Tage
+                 </span>
+
+                {% elif object.difference_delivery_date_today <= 0 %}
+                     <span class="label label-success">
+                         {{ object.difference_delivery_date_today|cut:"-"  }} Tage
+                     </span>
+                {% endif %}
             </td>
             <td>
-                {{ object.productorder_set.all|get_total_price_order_or_mission|netto_to_brutto }}
+                {{ object.productorder_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
             </td>
+            <td>
+                {{ object.productorder_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
+            </td>
+
             <td>
                 {% if object.verified == True %}
                     <span class="glyphicon glyphicon-ok " style="color:green;"></span>

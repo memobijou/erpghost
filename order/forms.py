@@ -25,7 +25,8 @@ class OrderForm(forms.ModelForm):
 
     class Meta:
         model = Order
-        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery", 'delivery_address']
+        fields = ['delivery_date', 'verified', 'supplier', "terms_of_payment", "terms_of_delivery", 'delivery_address',
+                  'shipping', 'shipping_number_of_pieces', 'shipping_costs']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
     def __init__(self, **kwargs):

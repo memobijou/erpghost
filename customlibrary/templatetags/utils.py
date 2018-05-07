@@ -141,6 +141,7 @@ def has_group(request, name):
 def multiply(value, arg):
     return value*arg
 
+
 @register.filter
 def get_total_price_order_or_mission(order_or_mission_products):
     total = 0
@@ -149,8 +150,18 @@ def get_total_price_order_or_mission(order_or_mission_products):
             total = total + (product_order_or_mission.netto_price * product_order_or_mission.amount)
     return total
 
+
 @register.filter
 def netto_to_brutto(netto):
     if netto == 0:
         return 0
     return netto+(netto*0.19)
+
+
+@register.filter
+def format_number_thousand_decimal_points(number):
+    if number is None:
+        return
+    print(number)
+    number = '{:,.2f}'.format(number).replace(",", "X").replace(".", ",").replace("X", ".")
+    return number

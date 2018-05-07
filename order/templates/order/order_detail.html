@@ -32,16 +32,17 @@
                         {% if object.id == productorder.order.id %}
                         <tr>
                             <td>{{productorder.product}}</td>
+                            <td>{{productorder.product.title}}</td>
                             <td>{{productorder.amount}}</td>
                             <td style="color:red;">
                                 {% if productorder.missing_amount %}
                                     {{productorder.missing_amount}}
                                 {% endif %}
                             </td>
-                            <td>{{productorder.netto_price|default:""}}</td>
+                            <td>{{productorder.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                             <td>
                                 {% if productorder.netto_price %}
-                                {{ productorder.netto_price|multiply:productorder.amount }}
+                                {{ productorder.netto_price|multiply:productorder.amount|format_number_thousand_decimal_points }}
                                 {% else %}
                                 {% endif %}
                             </td>

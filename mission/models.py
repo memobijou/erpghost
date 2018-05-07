@@ -6,7 +6,7 @@ from adress.models import Adress
 from customer.models import Customer
 from product.models import Product
 from datetime import date
-from order.models import terms_of_delivery_choices, terms_of_payment_choices
+from order.models import terms_of_delivery_choices, terms_of_payment_choices, shipping_choices
 from django.db.models import Max
 
 
@@ -17,6 +17,9 @@ class Mission(models.Model):
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
     products = models.ManyToManyField(Product, through="ProductMission")
     customer = models.ForeignKey(Customer, null=True, blank=True, related_name='mission', verbose_name="Kunde")
+    customer_order_number = models.CharField(max_length=200, null=True, blank=True,
+                                             verbose_name="Bestellnummer vom Kunden")
+
     billing_number = models.CharField(max_length=200, blank=True, verbose_name="Rechnungsnummer")
     CHOICES = (
         (None, "----"),
@@ -30,10 +33,21 @@ class Mission(models.Model):
     delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse")
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
+    shipping = models.CharField(choices=shipping_choices, blank=True, null=True, max_length=200,
+                                verbose_name="Spedition")
+    shipping_number_of_pieces = models.IntegerField(blank=True, null=True, verbose_name="Stückzahl Transport")
+    shipping_costs = models.FloatField(blank=True, null=True, max_length=200, verbose_name="Transportkosten")
     pickable = models.NullBooleanField(choices=CHOICES, verbose_name="Pickbereit")
 
+    @property
+    def difference_delivery_date_today(self):
+        today = datetime.date.today()
+        if self.delivery_date is not None:
+            difference_days = today-self.delivery_date
+            return difference_days.days
+
     def __init__(self, *args, **kwargs):
-        super(Mission, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__original_pickable = self.pickable
 
     def save(self, *args, **kwargs):
@@ -87,31 +101,17 @@ class ProductMission(models.Model):
         else:
             return self.amount
 
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     self.__original_amount = self.amount
+    #     self.__original_netto_price = self.netto_price
+    #     self.__original_product = self.product
+    #     self.__original_pk = self.pk
+    #
     # def save(self, *args, **kwargs):
-    #     print(f"safe rein: {self.confirmed}")
-    #     product_missions = self.mission.productmission_set.all()
-    #     all_scanned = True
-    #     has_confirmed_false = False
-    #     if self.confirmed == "0":
-    #         has_confirmed_false = True
-    #
-    #     if self.confirmed == "1" or self.confirmed == "0":
-    #         self.mission.status = "WARENAUSGANG"
-    #     else:
-    #         all_scanned = False
-    #
-    #     for product_mission in product_missions:
-    #         if self.id != product_mission.id:
-    #             if product_mission.confirmed is True or product_mission.confirmed is False:
-    #                 self.mission.status = "WARENAUSGANG"
-    #                 if product_mission.confirmed is False:
-    #                     has_confirmed_false = True
-    #             else:
-    #                 all_scanned = False
-    #     if all_scanned is True and product_missions.exists():
-    #         self.mission.status = "LIEFERUNG"
-    #         if has_confirmed_false is True:
-    #             self.mission.status = "TEILLIEFERUNG"
-    #
+    #     if self.pk is not None and (self.__original_amount != self.amount
+    #                                 or self.__original_netto_price != self.netto_price
+    #                                 or self.__original_product != self.product):
+    #         self.status = "AUSSTEHEND"
     #     self.mission.save()
     #     super().save(*args, **kwargs)

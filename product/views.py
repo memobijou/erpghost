@@ -59,11 +59,28 @@ class ProductListView(ListView):
         total_stocks = []
         for q in queryset:
             stock = Stock.objects.filter(ean_vollstaendig=q.ean).first()
+            stock_dict = {}
+
             if stock is not None:
                 total = stock.total_amount_ean()
-                total_stocks.append(total)
+                total_neu = stock.total_amount_ean(state='Neu')
+                total_a = stock.total_amount_ean(state='A')
+                total_b = stock.total_amount_ean(state='B')
+                total_c = stock.total_amount_ean(state='C')
+                total_d = stock.total_amount_ean(state='D')
+
+                stock_dict["total"] = total
+                stock_dict["total_neu"] = total_neu
+                stock_dict["total_a"] = total_a
+                stock_dict["total_b"] = total_b
+                stock_dict["total_c"] = total_c
+                stock_dict["total_d"] = total_d
+                print(stock_dict)
+                total_stocks.append(stock_dict)
             else:
-                total_stocks.append("/")
+                stock_dict["total"] = None
+                total_stocks.append(stock_dict)
+                print(stock_dict)
         return total_stocks
 
     def build_fields(self):
@@ -106,12 +123,12 @@ class ProductDeleteView(DeleteView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Artikel löschen"
+        context["Title"] = "Artikel löschen"
         context["delete_items"] = self.get_object()
         return context
 
     def get_object(self, queryset=None):
-        return Product.objects.filter(id__in=self.request.GET.getlist('item')).order_by("-id")
+        return Product.objects.filter(id__in=self.request.GET.getlist('item'))
 
 
 class ProductUpdateIcecatView(ProductUpdateView):
@@ -226,7 +243,31 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Artikel Detailansicht"
+        context["stock"] = self.get_product_stocks()
         return context
+
+    def get_product_stocks(self):
+        query = self.get_object()
+        stock = Stock.objects.filter(ean_vollstaendig=query.ean).first()
+        stock_dict = {}
+
+        if stock is not None:
+            total = stock.total_amount_ean()
+            total_neu = stock.total_amount_ean(state='Neu')
+            total_a = stock.total_amount_ean(state='A')
+            total_b = stock.total_amount_ean(state='B')
+            total_c = stock.total_amount_ean(state='C')
+            total_d = stock.total_amount_ean(state='D')
+
+            stock_dict["total"] = total
+            stock_dict["total_neu"] = total_neu
+            stock_dict["total_a"] = total_a
+            stock_dict["total_b"] = total_b
+            stock_dict["total_c"] = total_c
+            stock_dict["total_d"] = total_d
+        else:
+            stock_dict["total"] = None
+        return stock_dict
 
 
 class IncomeListView(ListAPIView):

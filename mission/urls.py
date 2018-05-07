@@ -3,6 +3,7 @@ from .views import MissionListView, MissionCreateView, MissionDetailView, Missio
     MissionDeleteView, GenerateInvoicePdf
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.billing_pdf import BillingPdfView
+from mission.mission_confirmation import MissionConfirmationPdfView
 
 urlpatterns = [
     url(r'^$', MissionListView.as_view(), name="list"),
@@ -14,5 +15,5 @@ urlpatterns = [
     url(r'^invoice_pdf/$', GenerateInvoicePdf.as_view(), name="invoice"),
     url(r'^(?P<pk>\d+)/delivery_note/$', DeliveryNoteView.as_view(), name="delivery_note"),
     url(r'^(?P<pk>\d+)/billing_pdf/$', BillingPdfView.as_view(), name="billing_pdf"),
-
+    url(r'^(?P<pk>\d+)/mission_confirmation/$', MissionConfirmationPdfView.as_view(), name="mission_confirmation_pdf"),
 ]

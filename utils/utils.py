@@ -57,6 +57,7 @@ def search_all_wareneingang_products():
 
     return (gefunden_array)
 
+
 def search_positions_for_order(ordernummer):
     all_positions = Position.objects.all()
     wePosition = Position.objects.get(halle="WE")
@@ -107,6 +108,7 @@ def search_positions_for_order(ordernummer):
 
     return (gefundenarray,allemyarray)
 
+
 def save_picklist(thelist,ordername,position):
     thelist = list(set(thelist))
     zurPostion = PositionProductOrder.objects.filter(productorder__in=thelist).exclude(positions=position).exclude(status=True)
@@ -124,6 +126,7 @@ def save_picklist(thelist,ordername,position):
         pos.belegt = False
         pos.save()
     return zurPostion
+
 
 class BaseValidationError(ValueError):
     pass

@@ -42,7 +42,8 @@ class CustomPdf:
         self.doc.build(self.story, canvasmaker=CustomCanvas)
 
     def add_sender_address_to_story(self, client):
-        sender_address = f"{client.contact.billing_address.firma} - {client.contact.billing_address.strasse} "\
+        sender_address = f"<br/><br/><br/>{client.contact.billing_address.firma} - " \
+                         f"{client.contact.billing_address.strasse} "\
                          f"{client.contact.billing_address.hausnummer}- {client.contact.billing_address.zip} "\
                          f"{client.contact.billing_address.place}"
         self.story.append(Paragraph(sender_address, size_seven_helvetica))
@@ -117,7 +118,7 @@ class CustomCanvas(canvas.Canvas):
         """
 
         if len(self.pages) == 0:
-            self.draw_logo(433, 740, self.logo_width, self.logo_height)
+            self.draw_logo(433, 705, self.logo_width, self.logo_height)
 
         self.pages.append(dict(self.__dict__))
         self._startPage()
@@ -182,7 +183,7 @@ def get_logo_and_qr_code_from_client(request, client):
     return logo_url, qr_code_url
 
 
-def create_right_align_header(date, x_position=280, additional_data=None):
+def create_right_align_header(date, x_position=230, additional_data=None):
 
     date = add_new_line_to_string_at_index(date, 10)
 
@@ -196,7 +197,7 @@ def create_right_align_header(date, x_position=280, additional_data=None):
     if additional_data is not None:
         right_table_data.extend(additional_data)
 
-    right_table = Table(data=right_table_data)
+    right_table = Table(data=right_table_data, colWidths=[80, 100])
 
     right_table.setStyle(
         TableStyle([
@@ -212,7 +213,7 @@ def create_right_align_header(date, x_position=280, additional_data=None):
         ["", right_table],
     ]
 
-    table = Table(data, splitByRow=True, colWidths=[x_position, 100])
+    table = Table(data, splitByRow=True, colWidths=[x_position, 100], spaceAfter=30, spaceBefore=50)
 
     table.setStyle(
         TableStyle([
@@ -222,7 +223,7 @@ def create_right_align_header(date, x_position=280, additional_data=None):
         ])
     )
 
-    return [Paragraph("<br/><br/><br/><br/><br/><br/>", style=size_eleven_helvetica), table]
+    return [table]
 
 
 def get_reciver_address_list_from_object(object_):

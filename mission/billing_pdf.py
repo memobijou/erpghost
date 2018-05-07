@@ -48,13 +48,16 @@ class BillingPdfView(View):
 
     def build_story(self):
 
-        your_mission_number = f"<u>Ihre Rechnung: {self.mission.billing_number}</u>"
+        your_mission_number = f"<u>Unsere Auftragsnummer: {self.mission.mission_number}</u>"
+        print(self.mission.customer_order_number)
+        if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
+            your_mission_number = f"<u> Ihrer Bestellung: {self.mission.customer_order_number}</u>"
 
         your_delivery_paragraph = Paragraph(your_mission_number, style=size_nine_helvetica_bold)
 
         self.build_right_align_header()
 
-        self.story.extend([two_new_lines, your_delivery_paragraph])
+        self.story.extend([your_delivery_paragraph])
 
         self.build_before_table()
 
@@ -73,9 +76,19 @@ class BillingPdfView(View):
 
         right_align_header_data = []
 
+        if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
+            print(self.mission.customer_order_number)
+            right_align_header_data.append(
+                [
+                    Paragraph("Ihre Bestellung", style=size_nine_helvetica_leading_10),
+                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 10),
+                              style=size_nine_helvetica_leading_10),
+                ],
+            )
+
         right_align_header_data.append(
             [
-                Paragraph("Bestellung", style=size_nine_helvetica_leading_10),
+                Paragraph("Unser Auftrag", style=size_nine_helvetica_leading_10),
                 Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
             ],
         )
@@ -114,7 +127,11 @@ class BillingPdfView(View):
                 warning_paragraph
              ],
             [
-                 Paragraph("<br/><b>Lieferadresse:</b> ", style=size_nine_helvetica),
+                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date.strftime('%d.%m.%Y')}<br/>",
+                          style=size_twelve_helvetica_bold),
+            ],
+            [
+                 Paragraph("<br/>Lieferadresse: ", style=size_nine_helvetica),
             ],
             [
                 Paragraph(delivery_address_html_string, style=size_nine_helvetica),
@@ -125,9 +142,6 @@ class BillingPdfView(View):
             [
                 Paragraph(f"Zahlungsbedingungen: {terms_of_payment}<br/>", style=size_nine_helvetica),
             ],
-            [
-                Paragraph(f"Liefertermin: {delivery_date.strftime('%d.%m.%Y')}<br/>", style=size_nine_helvetica),
-            ]
         ]
         table = Table(table_data)
         table.setStyle(
@@ -224,7 +238,7 @@ class BillingPdfView(View):
                           style=right_align_bold_paragraph_style),
             ]
         ]
-        betrag_table = Table(betrag_data, colWidths=[None, 70, 75])
+        betrag_table = Table(betrag_data, colWidths=[None, 90, 75])
         betrag_table.setStyle(
             TableStyle([
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -253,7 +267,7 @@ class BillingPdfView(View):
             [first_warning_paragraph, Paragraph("", size_ten_helvetica)],
         ]
 
-        first_warning_table = Table(first_warning_data, colWidths=[430, 10])
+        first_warning_table = Table(first_warning_data, colWidths=[430, 10], spaceBefore=20)
 
         first_warning_table.setStyle(
             TableStyle([
@@ -265,7 +279,7 @@ class BillingPdfView(View):
             ])
         )
 
-        self.story.extend([two_new_lines, first_warning_table])
+        self.story.extend([first_warning_table])
 
     def validate_pdf(self, *args, **kwargs):
         context = {"title": "PDF Fehler",

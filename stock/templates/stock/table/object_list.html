@@ -1,4 +1,4 @@
-{% for object, product in object_list_zip %}
+{% for object, product, stock in object_list_zip %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
@@ -35,7 +35,41 @@
         <td> {{object.title|default:""}} </td>
         <td> {{object.sku|default:""}} </td>
 
-        <td> {{object.total_amount_ean}} </td>
+        <td>
+              <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>
+                <br/>
+            {% if stock.total %}
+              <table class="table table-bordered">
+                <thead>
+                    <th>Neu</th>
+                    <th>A</th>
+                    <th>B</th>
+                    <th>C</th>
+                    <th>D</th>
+                </thead>
+                <tbody>
+                    <tr>
+                      <td>
+                          {{ stock.total_neu|default:''}}
+                      </td>
+                      <td>
+                          {{ stock.total_a|default:''}}
+                      </td>
+                      <td>
+                          {{ stock.total_b|default:''}}
+                      </td>
+                      <td>
+                          {{ stock.total_c|default:''}}
+                      </td>
+                      <td>
+                          {{ stock.total_d|default:''}}
+                      </td>
+                    </tr>
+                </tbody>
+              </table>
+            {% endif %}
+            </div>
+            </td>
     </tr>
 
     <tr id="collapse_{{ forloop.counter }}" class="collapse">

@@ -46,7 +46,11 @@ class StockListView(LoginRequiredMixin, ListView):
 
         context["object_list"] = self.get_queryset()
 
-        context["object_list_zip"] = zip(context["object_list"], self.get_products())
+        products = self.get_products()
+
+        product_stocks = self.get_product_stocks()
+
+        context["object_list_zip"] = zip(context["object_list"], products, product_stocks)
 
         context["filter_fields"] = self.get_filter_fields(exclude=self.exclude_fields)
 
@@ -56,6 +60,33 @@ class StockListView(LoginRequiredMixin, ListView):
         context["filter_fields"] = self.build_filter_fields(exclude=self.exclude_fields)
 
         return context
+
+    def get_product_stocks(self):
+        queryset = self.get_queryset()
+        total_stocks = []
+        for q in queryset:
+            stock = Stock.objects.filter(ean_vollstaendig=q.ean_vollstaendig).first()
+            stock_dict = {}
+            if stock is not None:
+                total = stock.total_amount_ean()
+                total_neu = stock.total_amount_ean(state='Neu')
+                total_a = stock.total_amount_ean(state='A')
+                total_b = stock.total_amount_ean(state='B')
+                total_c = stock.total_amount_ean(state='C')
+                total_d = stock.total_amount_ean(state='D')
+
+                stock_dict["total"] = total
+                stock_dict["total_neu"] = total_neu
+                stock_dict["total_a"] = total_a
+                stock_dict["total_b"] = total_b
+                stock_dict["total_c"] = total_c
+                stock_dict["total_d"] = total_d
+
+                total_stocks.append(stock_dict)
+            else:
+                stock_dict["total"] = None
+                total_stocks.append(stock_dict)
+        return total_stocks
 
     def get_searched_position(self):
         GET_value = self.request.GET.get("lagerplatz", "").strip()
@@ -202,7 +233,28 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
         context["product"] = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
+        context["stock"] = self.get_product_stocks()
         return context
+
+    def get_product_stocks(self):
+        query = self.get_object()
+        stock = Stock.objects.filter(ean_vollstaendig=query.ean_vollstaendig).first()
+        stock_dict = {}
+        if stock is not None:
+            total = stock.total_amount_ean()
+            total_neu = stock.total_amount_ean(state='Neu')
+            total_a = stock.total_amount_ean(state='A')
+            total_b = stock.total_amount_ean(state='B')
+            total_c = stock.total_amount_ean(state='C')
+            total_d = stock.total_amount_ean(state='D')
+
+            stock_dict["total"] = total
+            stock_dict["total_neu"] = total_neu
+            stock_dict["total_a"] = total_a
+            stock_dict["total_b"] = total_b
+            stock_dict["total_c"] = total_c
+            stock_dict["total_d"] = total_d
+        return stock_dict
 
 
 class StockUpdateView(LoginRequiredMixin, UpdateView):

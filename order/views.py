@@ -193,10 +193,18 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
                 context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
+            original_order = Order.objects.get(pk=self.object.pk)
+
+            original_order_products = []
+
+            for q in original_order.productorder_set.all():
+                dict_ = {"product": str(q.product), "netto_price": q.netto_price, "amount": q.amount}
+                original_order_products.append(dict_)
+
             self.object.save()
             update_product_order_or_mission_forms_from_post("productorder_set", ProductOrderUpdateForm, "order",
                                                             self.object, self.request, ProductOrder)
-            refresh_order_status(self.object)
+            refresh_order_status(self.object, original_order_products=original_order_products)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -257,7 +265,7 @@ class OrderCreateView(CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
 
-def refresh_order_status(object_):
+def refresh_order_status(object_, original_order_products=None):
     product_orders = object_.productorder_set.all()
     all_scanned = True
     not_scanned_at_all = True
@@ -280,6 +288,24 @@ def refresh_order_status(object_):
 
     if object_.verified is False:
         object_.status = "ABGELEHNT"
+
+    if original_order_products is not None:
+        print(f"{object_.productorder_set.count()} --- {len(original_order_products)}")
+        if object_.productorder_set.count() != len(original_order_products):
+            object_.status = "AUSSTEHEND"
+            object_.verified = False
+        else:
+            has_changes = False
+            for before_save_row, after_save_row in zip(original_order_products, object_.productorder_set.all()):
+                if str(before_save_row.get("product")) != str(after_save_row.product)\
+                        or str(before_save_row.get("netto_price")) != str(after_save_row.netto_price)\
+                        or str(before_save_row.get("amount")) != str(after_save_row.amount):
+                            has_changes = True
+                            break
+            print(f"HAS CHANGES: {has_changes}")
+            if has_changes is True:
+                object_.status = "AUSSTEHEND"
+                object_.verified = False
     object_.save()
 
 
@@ -294,6 +320,8 @@ class OrderDetailView(DetailView):
         set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id"])
+        context["fields"].insert(1, "Titel")
+        context["fields"][0] = "EAN / SKU"
         context["fields"].insert(len(context["fields"])-1, "Gesamtpreis (Netto)")
         return context
 
@@ -314,10 +342,12 @@ class OrderListView(ListView):
         context["fields"] = get_verbose_names(Order, exclude=["id", "products", "invoice", "terms_of_payment",
                                                               "terms_of_delivery", "created_date", "modified_date",
                                                               "delivery_address_id"])
+        context["fields"].insert(len(context["fields"])-1, "Fälligkeit")
         context["fields"].insert(len(context["fields"])-1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"])-1, "Gesamt (Brutto)")
         set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
-        context["filter_fields"] = get_filter_fields(Order, exclude=["id", "products", "verified", "supplier_id", "invoice"])
+        context["filter_fields"] = get_filter_fields(Order, exclude=["id", "products", "verified", "supplier_id",
+                                                                     "invoice", "created_date", "modified_date"])
         context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT", "ABGELEHNT",
                                                 "WARENEINGANG", "POSITIONIEREN",] }]
         context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]

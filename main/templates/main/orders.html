@@ -1,0 +1,46 @@
+<div class="panel panel-default">
+    <div class="panel-heading">
+        {{ heading_text }}
+    </div>
+    <div class="panel-body">
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>{{ table_header_text }}</th>
+                        <th>Lieferdatum</th>
+                        <th>Fälligkeit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                        <tr>
+                            <td>
+                                {{ order.ordernumber }}
+                            </td>
+                            <td>
+                                {{ order.delivery_date }}
+                            </td>
+                            <td>
+                                {% if order.difference_delivery_date_today > 0 %}
+                                 <span class="label label-danger">
+                                     {{ order.difference_delivery_date_today }} Tage
+                                 </span>
+
+                            {% elif order.difference_delivery_date_today <= 0 %}
+                                 <span class="label label-success">
+                                     {{ order.difference_delivery_date_today|cut:"-"  }} Tage
+                                 </span>
+                            {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'order:detail' pk=order.pk %}">Ansicht</a><br/>
+                                <a href="{% url 'order:update' pk=order.pk %}">Bearbeiten</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

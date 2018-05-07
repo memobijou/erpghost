@@ -41,6 +41,8 @@ class MissionDetailView(DetailView):
         set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"], \
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
+        context["fields"].insert(1, "Titel")
+        context["fields"][0] = "EAN / SKU"
         context["fields"].insert(len(context["fields"]) - 1, "Gesamtpreis (Netto)")
         return context
 
@@ -52,7 +54,7 @@ class MissionListView(ListView):
         return queryset
 
     def get_context_data(self, *args, **kwargs):
-        context = super(MissionListView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
         context["title"] = "Auftrag"
 
         set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Mission,\
@@ -61,12 +63,14 @@ class MissionListView(ListView):
         context["fields"] = get_verbose_names(Mission, exclude=["id", "supplier_id", "products",
                                                                 "modified_date", "created_date", "terms_of_payment",
                                                                 "terms_of_delivery"])
+        context["fields"].insert(len(context["fields"]) - 1, "Fälligkeit")
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Brutto)")
         if context["object_list"].count() > 0:
             set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
         context["filter_fields"] = get_filter_fields(Mission, exclude=["id", "products", "supplier_id",
-                                                                       "invoice", "pickable"])
+                                                                       "invoice", "pickable", "modified_date",
+                                                                       "created_date"])
         context["option_fields"] = [
             {"status": ["WARENAUSGANG", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "LIEFERUNG"]}]
         context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
@@ -124,6 +128,7 @@ class MissionCreateView(CreateView):
             return render(self.request, self.template_name, context)
         else:
             self.object.save()
+
             create_product_order_or_mission_forms_from_post(ProductMission, ProductMissionForm,
                                                             self.amount_product_mission_forms, "mission", self.object,
                                                             self.request, 0)
@@ -163,6 +168,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         if self.object_has_products() is True:
             context["object_has_products"] = True
+        context["amount_update_forms"] = self.object.productmission_set.count()
         return context
 
     def object_has_products(self):
@@ -227,10 +233,19 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                 context["object_has_products"] = True
             return render(self.request, self.template_name, context)
         else:
+            original_mission = Mission.objects.get(pk=self.object.pk)
+
+            original_mission_products = []
+            for q in original_mission.productmission_set.all():
+                dict_ = {"product": str(q.product), "netto_price": q.netto_price, "amount": q.amount}
+                original_mission_products.append(dict_)
+
+            print(original_mission_products)
+            print(len(original_mission_products))
             self.object.save()
             update_product_order_or_mission_forms_from_post("productmission_set", ProductMissionUpdateForm, "mission",
                                                             self.object, self.request, ProductMission)
-            refresh_mission_status(self.object)
+            refresh_mission_status(self.object, original_mission_products=original_mission_products)
         return HttpResponseRedirect(self.get_success_url())
 
 
@@ -276,7 +291,7 @@ class ScanMissionUpdateView(UpdateView):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
 
 
-def refresh_mission_status(object_):
+def refresh_mission_status(object_, original_mission_products=None):
     product_missions = object_.productmission_set.all()
     all_scanned = True
     has_confirmed_false = False
@@ -301,6 +316,24 @@ def refresh_mission_status(object_):
 
     if object_.pickable is False:
         object_.status = "AUSSTEHEND"
+
+    if original_mission_products is not None:
+        print(f"{object_.productmission_set.count()} --- {len(original_mission_products)}")
+        if object_.productmission_set.count() != len(original_mission_products):
+            object_.status = "AUSSTEHEND"
+            object_.pickable = False
+        else:
+            has_changes = False
+            for before_save_row, after_save_row in zip(original_mission_products, object_.productmission_set.all()):
+                if str(before_save_row.get("product")) != str(after_save_row.product)\
+                        or str(before_save_row.get("netto_price")) != str(after_save_row.netto_price)\
+                        or str(before_save_row.get("amount")) != str(after_save_row.amount):
+                            has_changes = True
+                            break
+            print(f"HAS CHANGES: {has_changes}")
+            if has_changes is True:
+                object_.status = "AUSSTEHEND"
+                object_.pickable = False
     object_.save()
 
 

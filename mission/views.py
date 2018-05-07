@@ -64,6 +64,7 @@ class MissionListView(ListView):
                                                                 "modified_date", "created_date", "terms_of_payment",
                                                                 "terms_of_delivery"])
         context["fields"].insert(len(context["fields"]) - 1, "Fälligkeit")
+        # ignore
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Netto)")
         context["fields"].insert(len(context["fields"]) - 1, "Gesamt (Brutto)")
         if context["object_list"].count() > 0:

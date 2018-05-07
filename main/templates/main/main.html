@@ -3,8 +3,9 @@
 {% block content %}
     <div class="panel panel-deafult">
         <div class="panel-body">
-            <div class="col-md-12" style="padding:5px;">
-                <div class="col-md-6 pull-right">
+            <div class="row" style="padding:5px;">
+                <div class="col-md-6"></div>
+                <div class="col-md-6">
                     <div class="panel panel-default">
                         <div class="panel-heading">
                             Statistik
@@ -17,11 +18,13 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
-                {% include 'main/orders.html' with heading_text='Fällige Bestellungen' table_header_text='Bestell-Nr.' %}
-            </div>
-            <div class="col-md-6">
-                {% include 'main/missions.html' with heading_text='Fällige Aufträge' table_header_text='Auftrags-Nr.' %}
+            <div class="row">
+                <div class="col-md-6">
+                    {% include 'main/orders.html' with heading_text='Fällige Bestellungen' table_header_text='Bestell-Nr.' %}
+                </div>
+                <div class="col-md-6">
+                    {% include 'main/missions.html' with heading_text='Fällige Aufträge' table_header_text='Auftrags-Nr.' %}
+                </div>
             </div>
         </div>
 

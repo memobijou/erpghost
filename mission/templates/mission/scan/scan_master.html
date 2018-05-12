@@ -1,0 +1,58 @@
+<div class="table-responsive col-md-12">
+    <table class="table table-bordered table-condensed">
+        <thead>
+            <th></th>
+            <th>Bild</th>
+            <th>EAN</th>
+            <th>SKU</th>
+            <th>Menge</th>
+            <th>Fehlende Menge</th>
+            <th>Reale Menge</th>
+            <th>Einzelpreis (Netto)</th>
+        </thead>
+        <tbody>
+            {% for product_mission, amount, missing_amount, real_amount in mission_products %}
+                <tr
+                    {% if product_mission.confirmed == True %}
+                        class="success"
+                    {% elif product_mission.confirmed == False %}
+                        class="danger"
+                    {% endif %}
+                >
+                    <td  style="cursor: pointer;" class="collapse_click"
+                         collapse_id="{{ forloop.counter }}">
+                        <span class="glyphicon glyphicon-chevron-down"></span>
+                    </td>
+                    <td>
+                        {% if product_mission.product.main_image %}
+                            <div style="max-height: 80px;max-width:80px;">
+                                <img src="{{ product_mission.product.main_image.url }}"
+                                                style="max-height:80px;" class="img-responsive">
+                            </div>
+                        {% endif %}
+                    </td>
+                    <td>{{ product_mission.product.ean }}</td>
+                    <td>{{ product_mission.product.sku }}</td>
+                    <td>{{ amount }}</td>
+                    <td>{{ missing_amount }}</td>
+                    <td>{{ real_amount }}</td>
+                    <td>{{ product_mission.netto_price }}</td>
+                </tr>
+                <tr id="collapse_{{ forloop.counter }}"
+                    {% if product_mission.confirmed == True %}
+                        class="collapse success"
+                    {% elif product_mission.confirmed == False %}
+                        class="collapse danger"
+                    {% else %}
+                        class="collapse"
+                    {% endif %}
+                >
+                    <td colspan="8">
+                        <p><b>Artikelname: </b>{{ product_mission.product.title }}</p>
+                        <p><b>Kurzbeschreibung: </b>{{ product_mission.product.short_description }}</p>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,222 @@
+<script type="text/javascript">
+    var collapse_tds = document.getElementsByClassName("collapse_click");
+
+    for(var i = 0; i<collapse_tds.length; i++){
+        var collapse_td = collapse_tds[i];
+
+        collapse_td.onclick = function(){
+            var arrow_down = this.getElementsByClassName("glyphicon-chevron-down")[0];
+            var arrow_up = this.getElementsByClassName("glyphicon-chevron-up")[0];
+
+            var collapse_row = function(click_element){
+                var collapse_row = document.getElementById("collapse_" + click_element.getAttribute("collapse_id"));
+                $(collapse_row).collapse("toggle");
+            };
+
+            if(arrow_down){
+                arrow_down.className = arrow_down.className.replace("down", "up");
+                collapse_row(this);
+
+            }
+            else if(arrow_up){
+                arrow_up.className = arrow_up.className.replace("up", "down");
+                collapse_row(this);
+            }
+
+        }
+    }
+
+    var focus_checkboxes = document.getElementsByClassName("focus");
+
+    var scan_inputs = document.getElementsByClassName("scan_input");
+
+    var matches = {"scan_sku": false, "scan_ean": false};
+
+    var confirm_detail_view = document.getElementById("confirm_detail_view");
+    var match_ean = document.getElementById("match_ean");
+    var match_amount = document.getElementById("match_amount");
+    var match_img = document.getElementById("match_img");
+    var match_title = document.getElementById("match_title");
+    var match_sku = document.getElementById("match_sku");
+
+
+    var hidden_confirmed = document.getElementsByName("confirmed")[0];
+    var hidden_product_id = document.getElementsByName("product_id")[0];
+    var hidden_missing_amount = document.getElementsByName("missing_amount")[0];
+
+    var match_amount_value = null;
+
+    var focus_inputs_on_checkbox_click = function(){
+        for(var i = 0;i<focus_checkboxes.length; i++){
+            var focus_checkbox = focus_checkboxes[i];
+            focus_checkbox.onclick = function(){
+                uncheck_and_unfcous_other_checkboxes_and_inputs(this);
+                window.onclick = function(){};
+                set_focus_on_input(this);
+            };
+        }
+    };
+
+    var set_focus_on_input = function(clicked_checkbox){
+        var input = clicked_checkbox.parentElement.parentElement.getElementsByTagName("input")[0];
+        if(clicked_checkbox.checked == true) {
+            window.onclick = function(){
+                input.focus();
+            };
+            window.onload = function () {
+                input.focus();
+            }
+        }
+    };
+
+    var uncheck_and_unfcous_other_checkboxes_and_inputs = function(clicked_checkbox){
+        var clicked_input = clicked_checkbox.parentElement.parentElement.getElementsByTagName("input")[0];
+        for(var i = 0; i<focus_checkboxes.length; i++){
+            var checkbox = focus_checkboxes[i];
+            var input = checkbox.parentElement.parentElement.getElementsByTagName("input")[0];
+            if(checkbox != clicked_checkbox && input != clicked_input){
+                checkbox.checked = false;
+                clicked_input.blur();
+            }
+        }
+    };
+
+
+    var main = function(){
+        for(var i = 0; i<scan_inputs.length; i++){
+            var scan_input = scan_inputs[i];
+            scan_input.oninput = function(){
+                extract_information_from_input_match(this);
+            }
+        }
+    };
+
+    var extract_information_from_input_match = function(input){
+        if(input.value.length == 13){
+            {% for product_mission in object.productmission_set.all %}
+                {% if product_mission.product.ean %}
+                    if(input.value == "{{ product_mission.product.ean }}"){
+                        matches[input.id] = true;
+
+                        match_ean.innerHTML = "{{ product_mission.product.ean }}";
+                        match_amount.innerHTML = "{{ product_mission.amount }}";
+                        match_amount_value = "{{ product_mission.amount }}";
+                        {% if product_mission.product.main_image %}
+                            match_img.src = "{{ product_mission.product.main_image.url }}";
+                        {% endif %}
+                        confirm_detail_view.style.display = "";
+                        match_title.innerHTML = "<b>{{ product_mission.product.title }}</b>";
+                        match_sku.innerHTML = "{{ product_mission.product.sku }}";
+
+                        hidden_product_id.value = "{{ product_mission.id }}";
+                    }
+                {% endif %}
+            {% endfor %}
+        }
+        else if(input.value.length == 14){
+         input.value = input.value[input.value.length-1];
+        }
+
+        if(input.value.length != 13){
+            matches[input.id] = false;
+            var has_match = false;
+
+            for(var k in matches){
+                if(matches[k] == true){
+                    has_match = true;
+                }
+            }
+
+            if(has_match == false){
+                confirm_detail_view.style.display = "none";
+                match_ean.innerHTML = "";
+                match_amount.innerHTML = "";
+                match_img.src = "";
+                match_title.innerHTML = "";
+                match_sku.innerHTML = "";
+            }
+        }
+
+    };
+
+    var focus_checked_input = function(){
+      for(var i = 0; i<focus_checkboxes.length; i++){
+          var focus_checkbox = focus_checkboxes[i];
+          if(focus_checkbox.checked == true){
+            set_focus_on_input(focus_checkbox);
+          }
+      }
+    };
+
+
+    var set_hidden_input_values_on_confirmation = function(){
+        var confirm_btn = document.getElementById("confirm_btn");
+        var reject_btn = document.getElementById("reject_btn");
+        var confirm_form = document.getElementById("confirm_form");
+
+        confirm_btn.onclick = function(e){
+            e.preventDefault();
+            window.onclick = function(){};
+            hidden_confirmed.value = "1";
+            set_last_checked_checkbox_in_hidden_input();
+
+            confirm_form.submit();
+        };
+
+        reject_btn.onclick = function(e){
+            e.preventDefault();
+            hidden_confirmed.value = "0";
+
+            var missing_amount = prompt("Bitte trage die fehlende Menge ein");
+
+            if(!missing_amount){
+                return;
+            }
+
+            missing_amount = parseInt(missing_amount);
+            match_amount_value = parseInt(match_amount_value);
+
+            while(missing_amount >match_amount_value || missing_amount <= 0 || isNaN(missing_amount)){
+                missing_amount = prompt("Sie können nur ein Zahl von 1 bis " + match_amount_value + " eingeben");
+                if(!missing_amount){
+                    return;
+                }
+
+            }
+
+            hidden_missing_amount.value = missing_amount;
+
+            set_last_checked_checkbox_in_hidden_input();
+
+            confirm_form.submit();
+        };
+    };
+
+    var extract_information_from_input_onload = function(){
+        for(var i = 0; i<scan_inputs.length; i++){
+            extract_information_from_input_match(scan_inputs[i]);
+        }
+
+
+    };
+
+
+    var set_last_checked_checkbox_in_hidden_input = function(){
+        var hidden_last_checked_input = document.getElementsByName("last_checked")[0];
+        for(var i = 0; i<focus_checkboxes.length; i++){
+            var checkbox = focus_checkboxes[i];
+            if(checkbox.checked == true){
+                hidden_last_checked_input.value = checkbox.id;
+            }
+        }
+    };
+
+    focus_checked_input();
+    extract_information_from_input_onload();
+    focus_inputs_on_checkbox_click();
+    main();
+    set_hidden_input_values_on_confirmation();
+
+
+
+</script>

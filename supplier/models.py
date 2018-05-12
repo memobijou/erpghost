@@ -24,7 +24,7 @@ class Supplier(models.Model):
             # Da supplier_number ein Charfield ist wird es nicht die höchste Nummer packen, ist aber hier egal
             if all_suppliers.count() >= 1 and max_supplier_number != "":
                 if max_supplier_number[0].isalpha():
-                    max_supplier_number = max_supplier_number[1:]
+                    max_supplier_number = max_supplier_number[2:]
                 self.supplier_number = f"LF{int(max_supplier_number) + 1}"
             else:
                 self.supplier_number = "LF383954521"

@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load utils %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if billing_delivery_note_products %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>EAN / SKU</th>
+                            <th>Tatsächliche Menge</th>
+                            <th>Einzelpreis (Netto)</th>
+                            <th>Gesamtpreis (Netto)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for product_mission, real_amount in billing_delivery_note_products %}
+                            {% if real_amount > 0 %}
+                                <tr>
+                                    <td>
+                                        {{ product_mission.product }}
+                                    </td>
+                                    <td>
+                                        {{ real_amount }}
+                                    </td>
+                                    <td>
+                                        {{product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}
+                                    </td>
+                                        <td>
+                                            {% if product_mission.netto_price %}
+                                            {{ product_mission.netto_price|multiply:real_amount|format_number_thousand_decimal_points }}
+                                            {% else %}
+                                            {% endif %}
+                                        </td>
+                                </tr>
+                            {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <form method="POST">{% csrf_token %}
+                    <div class="text-center">
+                        <input type="submit" class="btn btn-primary btn-lg" value="Rechnung und Lieferschein generieren">
+                    </div>
+                </form>
+            </div>
+            {% else %}
+                <h3>Alle Rechnungen und Lieferscheine wurden bereits erstellt.</h3>
+                <h4>Es können keine neuen Lieferscheine oder Rechnungen generiert werden</h4>
+            {% endif %}
+        </div>
+
+    </div>
+{% endblock %}

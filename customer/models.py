@@ -20,7 +20,7 @@ class Customer(models.Model):
 
             if all_customers.count() >= 1 and max_customer_number != "":
                 if max_customer_number[0].isalpha():
-                    max_customer_number = max_customer_number[1:]
+                    max_customer_number = max_customer_number[2:]
                 self.customer_number = f"KD{int(max_customer_number) + 1}"
             else:
                 self.customer_number = "KD533454723"

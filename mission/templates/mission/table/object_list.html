@@ -16,6 +16,7 @@
                 <td> {{object.customer|default:""}} </td>
                 <td> {{object.customer_order_number|default:""}} </td>
                 <td> {{object.billing_number|default:""}} </td>
+                <td> {{object.delivery_note_number|default:""}} </td>
                 <td> {{object.delivery_address|default:""}} </td>
                 <td> {{ object.shipping|default:''}} </td>
                 <td> {{ object.shipping_number_of_pieces|default:''}} </td>
@@ -39,9 +40,9 @@
                     {{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
                 </td>
                 <td>
-                    {% if object.pickable == True %}
+                    {% if object.confirmed == True %}
                         <span class="glyphicon glyphicon-ok " style="color:green;"></span>
-                    {% elif object.pickable == False %}
+                    {% elif object.confirmed == False %}
                         <span class="glyphicon glyphicon-remove " style="color:red;"></span>
                     {%  endif %}
                 </td>

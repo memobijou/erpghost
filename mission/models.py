@@ -8,6 +8,13 @@ from product.models import Product
 from datetime import date
 from order.models import terms_of_delivery_choices, terms_of_payment_choices, shipping_choices
 from django.db.models import Max
+from django.core.exceptions import ValidationError
+
+CHOICES = (
+    (None, "----"),
+    (True, "Ja"),
+    (False, "Nein")
+)
 
 
 # Create your models here.
@@ -21,11 +28,8 @@ class Mission(models.Model):
                                              verbose_name="Bestellnummer vom Kunden")
 
     billing_number = models.CharField(max_length=200, blank=True, verbose_name="Rechnungsnummer")
-    CHOICES = (
-        (None, "----"),
-        (True, "Ja"),
-        (False, "Nein")
-    )
+    delivery_note_number = models.CharField(max_length=200, blank=True, verbose_name="Lieferscheinnummer")
+
     terms_of_payment = models.CharField(choices=terms_of_payment_choices, blank=True, null=True, max_length=200,
                                         verbose_name="Zahlungsbedingung")
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
@@ -37,7 +41,7 @@ class Mission(models.Model):
                                 verbose_name="Spedition")
     shipping_number_of_pieces = models.IntegerField(blank=True, null=True, verbose_name="Stückzahl Transport")
     shipping_costs = models.FloatField(blank=True, null=True, max_length=200, verbose_name="Transportkosten")
-    pickable = models.NullBooleanField(choices=CHOICES, verbose_name="Pickbereit")
+    confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
 
     @property
     def difference_delivery_date_today(self):
@@ -48,13 +52,13 @@ class Mission(models.Model):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.__original_pickable = self.pickable
+        self.__original_confirmed = self.confirmed
 
     def save(self, *args, **kwargs):
-        # if self.__original_pickable != self.pickable:
-        #     if self.pickable is True:
+        # if self.__original_confirmed != self.confirmed:
+        #     if self.confirmed is True:
         #             self.status = "PICKBEREIT"
-        #     elif self.pickable is False:
+        #     elif self.confirmed is False:
         #         self.status = "AUSSTEHEND"
 
         if self.mission_number == "":
@@ -72,6 +76,19 @@ class Mission(models.Model):
                 self.billing_number = f"R{int(max_billing_number) + 1}"
             else:
                 self.billing_number = "R135454321"
+
+        if self.delivery_note_number == "":
+            all_missions = Mission.objects.all()
+            max_delivery_note_number = all_missions.aggregate(Max('delivery_note_number'))\
+                .get("delivery_note_number__max")
+
+            if all_missions.count() >= 1 and max_delivery_note_number != "":
+                if max_delivery_note_number[0].isalpha():
+                    max_delivery_note_number = max_delivery_note_number[2:]
+                self.delivery_note_number = f"LS" \
+                                            f"{int(max_delivery_note_number) + 1}"
+            else:
+                self.delivery_note_number = "LS535454321"
 
         super().save(force_insert=False, force_update=False, *args, **kwargs)
 
@@ -101,17 +118,21 @@ class ProductMission(models.Model):
         else:
             return self.amount
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.__original_amount = self.amount
-    #     self.__original_netto_price = self.netto_price
-    #     self.__original_product = self.product
-    #     self.__original_pk = self.pk
-    #
     # def save(self, *args, **kwargs):
-    #     if self.pk is not None and (self.__original_amount != self.amount
-    #                                 or self.__original_netto_price != self.netto_price
-    #                                 or self.__original_product != self.product):
-    #         self.status = "AUSSTEHEND"
-    #     self.mission.save()
+    #     self.full_clean()
     #     super().save(*args, **kwargs)
+
+
+class RealAmount(models.Model):
+    product_mission = models.ForeignKey(ProductMission)
+    real_amount = models.IntegerField(blank=True, null=True)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
+    billing_number = models.CharField(blank=True, null=True, max_length=200)
+    delivery_note_number = models.CharField(blank=True, null=True, max_length=200)
+    confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
+
+    @property
+    def real_amount_minus_missing_amount(self):
+        if self.missing_amount is None:
+            return self.real_amount
+        return self.real_amount-self.missing_amount

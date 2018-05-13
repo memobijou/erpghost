@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load utils %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if products_from_stock %}
+
+            <p style="font-size:20px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
+            <p style="font-size:20px;"><b>Lieferdatum: </b>{{ object.delivery_date }}</p>
+            <div class="col-md-6" style="padding:0;">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        Rechnungsadresse
+                    </div>
+                    <div class="panel-body">
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
+                            {{ object.customer.contact.billing_address.firma }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                            {{ object.customer.contact.billing_address.strasse }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                            {{ object.customer.contact.billing_address.place }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                            {{ object.customer.contact.billing_address.zip }}</p>
+                        {% if object.customer.contact.billing_address.adresszusatz %}
+                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                            {{ object.customer.contact.billing_address.adresszusatz }}</p>
+                        {% endif %}
+                        {% if object.customer.contact.billing_address.adresszusatz2 %}
+                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                            {{ object.customer.contact.billing_address.adresszusatz2 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6" style="pading:0">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        Lieferadresse
+                    </div>
+                    <div class="panel-body">
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
+                            {{ object.customer.contact.delivery_address.firma }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                            {{ object.customer.contact.delivery_address.strasse }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                            {{ object.customer.contact.delivery_address.place }}</p>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                            {{ object.customer.contact.delivery_address.zip }}</p>
+                        {% if object.customer.contact.delivery_address.adresszusatz %}
+                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                            {{ object.customer.contact.delivery_address.adresszusatz }}</p>
+                        {% endif %}
+                        {% if object.customer.contact.delivery_address.adresszusatz2 %}
+                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                            {{ object.customer.contact.delivery_address.adresszusatz2 }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        <br/>
+
+        <div class="col-md-12" style="padding-right:15px;padding-left: 0px;">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <div class="thead">
+                            <tr>
+                                <th>EAN / SKU</th>
+                                <th>Menge</th>
+                                <th>Lagerbestand</th>
+                                <th>Einzelpreis (Netto)</th>
+                                <th>Gesamtpreis (Netto)</th>
+                            </tr>
+                        </div>
+                        <div class="tbody">
+                            {% for product_mission, amount, product_stock, available_product_stock in products_from_stock %}
+                                <tr>
+                                    <td>{{ product_mission.product }}</td>
+                                    <td>{{ amount }}</td>
+                                    <td>{{ available_product_stock }}/{{ product_stock }}</td>
+                                    <td>{{ product_mission.netto_price|format_number_thousand_decimal_points }}</td>
+                                    <td>{{ product_mission.netto_price|multiply:amount|format_number_thousand_decimal_points }}</td>
+
+                                </tr>
+                            {% endfor %}
+                        </div>
+                    </table>
+                </div>
+            </div>
+            <div class="text-center">
+                <form method="POST">{% csrf_token %}
+                    <input type="submit" class="btn btn-primary btn-lg" value="Lieferschein und Rechnung erstellen">
+                </form>
+            </div>
+        </div>
+        {% else %}
+                <h3>Alle Rechnungen und Lieferscheine wurden bereits erstellt.</h3>
+                <h4>Es können keine neuen Lieferscheine oder Rechnungen generiert werden.</h4>
+                <h4>Passen Sie gegebenfalls die Lagerbestände an.</h4>
+        {% endif %}
+    </div>
+{% endblock %}

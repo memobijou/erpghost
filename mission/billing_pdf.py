@@ -33,6 +33,7 @@ class BillingPdfView(View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.partial_billing_number = None
         self.story = []
 
     def get(self, request, *args, **kwargs):
@@ -74,6 +75,9 @@ class BillingPdfView(View):
         mission_number = self.mission.mission_number
         billing_number = self.mission.billing_number
 
+        if self.partial_billing_number is not None:
+            billing_number = self.partial_billing_number
+
         right_align_header_data = []
 
         if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
@@ -81,7 +85,7 @@ class BillingPdfView(View):
             right_align_header_data.append(
                 [
                     Paragraph("Ihre Bestellung", style=size_nine_helvetica_leading_10),
-                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 10),
+                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 20),
                               style=size_nine_helvetica_leading_10),
                 ],
             )
@@ -89,20 +93,20 @@ class BillingPdfView(View):
         right_align_header_data.append(
             [
                 Paragraph("Unser Auftrag", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(mission_number, 20), style=size_nine_helvetica_leading_10),
             ],
         )
 
         right_align_header_data.append([
             Paragraph("Rechnungs-Nr.", style=size_nine_helvetica_leading_10),
-            Paragraph(add_new_line_to_string_at_index(billing_number, 10), style=size_nine_helvetica_leading_10),
+            Paragraph(add_new_line_to_string_at_index(billing_number, 20), style=size_nine_helvetica_leading_10),
         ])
 
         if self.mission.customer is not None:
             customer_number = self.mission.customer.customer_number or ""
             right_align_header_data.append([
                 Paragraph("Kunden-Nr.", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(customer_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(customer_number, 20), style=size_nine_helvetica_leading_10),
             ])
 
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))
@@ -158,7 +162,12 @@ class BillingPdfView(View):
         self.story.append(table)
 
     def build_table_title(self):
-        delivery_note_title = f"<br/>Rechnung {self.mission.billing_number}<br/><br/>"
+        billing_number = self.mission.billing_number
+
+        if self.partial_billing_number is not None:
+            billing_number = self.partial_billing_number
+
+        delivery_note_title = f"<br/>Rechnung {billing_number}<br/><br/>"
         delivery_note_title_paragraph = Paragraph(delivery_note_title, size_twelve_helvetica_bold)
         delivery_note_title_warning = f"Das Rechnungsdatum entspricht dem Leistungsdatum<br/>"
         delivery_note_title_warning_paragraph = Paragraph(delivery_note_title_warning, size_seven_helvetica)

@@ -43,7 +43,7 @@ class ProductListView(ListView):
         context["object_list"] = self.get_queryset()
         context["object_list_zip"] = zip(context["object_list"], self.get_product_stocks())
         print(context["object_list"])
-        context["filter_fields"] = get_filter_fields(Product, exclude=["id"])
+        context["filter_fields"] = get_filter_fields(Product, exclude=["id", "main_image"])
         return context
 
     def set_pagination(self, queryset):
@@ -63,13 +63,14 @@ class ProductListView(ListView):
 
             if stock is not None:
                 total = stock.total_amount_ean()
+                available_total = stock.available_total_amount()
                 total_neu = stock.total_amount_ean(state='Neu')
                 total_a = stock.total_amount_ean(state='A')
                 total_b = stock.total_amount_ean(state='B')
                 total_c = stock.total_amount_ean(state='C')
                 total_d = stock.total_amount_ean(state='D')
 
-                stock_dict["total"] = total
+                stock_dict["total"] = f"{available_total} / {total}"
                 stock_dict["total_neu"] = total_neu
                 stock_dict["total_a"] = total_a
                 stock_dict["total_b"] = total_b

@@ -1,5 +1,6 @@
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
+from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, View
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -11,10 +12,11 @@ from reportlab.platypus import XPreformatted
 from product.order_mission import validate_product_order_or_mission_from_post, \
     create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
     validate_products_are_unique_in_form
+from stock.models import Stock
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
-from mission.models import Mission, ProductMission
+from mission.models import Mission, ProductMission, RealAmount
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -28,23 +30,229 @@ from reportlab.platypus.tables import Table, TableStyle
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import Frame, NextPageTemplate, PageBreak
 from django.forms.models import model_to_dict
+from django.views import View
+
+
+class MissionBillingFormView(View):
+    template_name = "mission/billing_form.html"
+    object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        context = {}
+        context["object"] = self.object
+        context["title"] = "Rechnung und Lieferschein generieren"
+        context["billing_delivery_note_products"] = self.get_billing_delivery_note_products()
+        return render(request, self.template_name, context)
+
+    def get_billing_delivery_note_products(self):
+        billing_products = []
+
+        for product_mission in self.object.productmission_set.all():
+            if product_mission.confirmed is None:
+                continue
+            real_amount = 0
+            for real_amount_row in product_mission.realamount_set.all():
+                real_amount += real_amount_row.real_amount
+            if (product_mission.real_amount - real_amount) <= 0:
+                continue
+            billing_products.append((product_mission, product_mission.real_amount - real_amount))
+        return billing_products
+
+    def post(self, request, *args, **kwargs):
+
+        bulk_instances = []
+
+        new_billing_number = self.get_new_billing_number()
+        new_delivery_note_number = self.get_new_delivery_note_number()
+
+        for product_mission in self.object.productmission_set.all():
+            if product_mission.confirmed is None:
+                continue
+            real_amount = product_mission.real_amount
+            all_amounts_sum = 0
+            for real_amount_row in product_mission.realamount_set.all():
+                all_amounts_sum += real_amount_row.real_amount
+
+            real_amount -= all_amounts_sum
+
+            if product_mission.realamount_set.count() == 0:
+                real_amount = product_mission.real_amount
+            if all_amounts_sum < product_mission.real_amount:
+                bulk_instances.append(RealAmount(product_mission=product_mission, billing_number=new_billing_number,
+                                                 delivery_note_number=new_delivery_note_number,
+                                                 real_amount=real_amount))
+        RealAmount.objects.bulk_create(bulk_instances)
+        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
+
+    def get_new_billing_number(self):
+        max_billing_number = self.get_max_billing_number()
+        if max_billing_number is not None and "-" in max_billing_number:
+            billing_number = f'{self.object.billing_number}-{int(max_billing_number.split("-", 1)[1])+1}'
+        else:
+            billing_number = f"{self.object.billing_number}-1"
+        return billing_number
+
+    def get_new_delivery_note_number(self):
+        max_delivery_note_number = self.get_max_delivery_note_number()
+        if max_delivery_note_number is not None and "-" in max_delivery_note_number:
+            delivery_note_number = \
+                f'{self.object.delivery_note_number}-{int(max_delivery_note_number.split("-", 1)[1])+1}'
+        else:
+            delivery_note_number = f"{self.object.delivery_note_number}-1"
+        return delivery_note_number
+
+    def get_billing_numbers(self):
+        billing_numbers = []
+        product_missions = self.object.productmission_set.all()
+        for product_mission in product_missions:
+
+            for real_amount in product_mission.realamount_set.all():
+                if real_amount.billing_number not in billing_numbers:
+                    billing_numbers.append(real_amount.billing_number)
+        return billing_numbers
+
+    def get_delivery_note_numbers(self):
+        delivery_note_numbers = []
+        product_missions = self.object.productmission_set.all()
+        for product_mission in product_missions:
+            for real_amount in product_mission.realamount_set.all():
+                if real_amount.delivery_note_number not in delivery_note_numbers:
+                    delivery_note_numbers.append(real_amount.delivery_note_number)
+        return delivery_note_numbers
+
+    def get_max_billing_number(self):
+        billing_numbers = self.get_billing_numbers()
+
+        max_billing_number = None
+        billing_number_counter = 0
+        for billing_number in billing_numbers:
+            if "-" in billing_number and max_billing_number is None:
+                max_billing_number = billing_number
+                continue
+
+            if "-" in billing_number:
+                if int(billing_number.split("-", 1)[1]) > billing_number_counter:
+                    max_billing_number = billing_number
+                    billing_number_counter = int(billing_number.split("-", 1)[1])
+
+        return max_billing_number
+
+    def get_max_delivery_note_number(self):
+        delivery_note_numbers = self.get_delivery_note_numbers()
+
+        max_delivery_note_number = None
+        delivery_note_number_counter = 0
+
+        for delivery_note_number in delivery_note_numbers:
+            if "-" in delivery_note_number and max_delivery_note_number is None:
+                max_delivery_note_number = delivery_note_number
+                continue
+
+            if "-" in delivery_note_number:
+                if int(delivery_note_number.split("-", 1)[1]) > delivery_note_number_counter:
+                    max_delivery_note_number = delivery_note_number
+                    delivery_note_number_counter = int(delivery_note_number.split("-", 1)[1])
+
+        return max_delivery_note_number
 
 
 class MissionDetailView(DetailView):
+    object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self):
-        obj = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
-        return obj
+        return self.object
 
     def get_context_data(self, *args, **kwargs):
-        context = super(MissionDetailView, self).get_context_data(*args, **kwargs)
+        context = super().get_context_data(*args, **kwargs)
         context["title"] = "Auftrag " + context["object"].mission_number
-        set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"], \
+        set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],\
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
         context["fields"].insert(1, "Titel")
+        context["fields"].insert(4, "Reale Menge")
         context["fields"][0] = "EAN / SKU"
         context["fields"].insert(len(context["fields"]) - 1, "Gesamtpreis (Netto)")
+        context["products_from_stock"] = self.get_products_from_stock()
+        context["real_amounts"] = self.get_real_amounts()
         return context
+
+    def get_real_amounts(self):
+        real_amounts = []
+
+        for mission_product in self.object.productmission_set.all():
+            billing_numbers_and_delivery_note_numbers = \
+                mission_product.realamount_set.values("billing_number", "delivery_note_number").distinct()
+
+            for dict_ in billing_numbers_and_delivery_note_numbers:
+                billing_number = dict_.get('billing_number')
+                delivery_note_number = dict_.get('delivery_note_number')
+
+                real_amount_rows = RealAmount.objects.filter(billing_number=billing_number,
+                                                             delivery_note_number=delivery_note_number)
+
+                self.add_real_amount_to_list(real_amount_rows, real_amounts)
+
+        real_amounts.sort(key=lambda real_amounts: real_amounts[0].billing_number)
+
+        return real_amounts
+
+    def add_real_amount_to_list(self, real_amount_rows, real_amounts_list):
+        for real_amount_rows_from_list in real_amounts_list:
+            for query in real_amount_rows_from_list:
+                for row in real_amount_rows:
+                    if query.billing_number == row.billing_number:
+                        return
+        real_amounts_list.append(real_amount_rows)
+
+    def get_products_from_stock(self):
+        billing_products = []
+        print(billing_products)
+        for product_mission in self.object.productmission_set.all():
+            product_stock = self.get_product_stock(product_mission.product)
+            available_product_stock = self.get_available_product_stock(product_mission.product)
+
+            amount = product_mission.amount
+
+            missing_amount = product_mission.amount
+
+            all_amounts_sum = 0
+
+            for real_amount_row in product_mission.realamount_set.all():
+                all_amounts_sum += real_amount_row.real_amount
+
+            missing_amount -= all_amounts_sum
+
+            real_amount = amount-missing_amount
+
+            if missing_amount == 0:
+                missing_amount = ""
+
+            print(f"ABI: {real_amount}")
+
+            billing_products.append((product_mission,  missing_amount,  product_stock, real_amount,
+                                     available_product_stock))
+            print(billing_products)
+        return billing_products
+
+    def get_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.total_amount_ean()
+
+    def get_available_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.available_total_amount()
 
 
 class MissionListView(ListView):
@@ -197,11 +405,11 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                 for k in self.request.POST:
                     if k in ProductMissionUpdateForm.base_fields:
                         data[k] = self.request.POST.getlist(k)[i]
-                forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
             else:
                 data = model_to_dict(product_mission)
                 data["ean"] = product_mission.product.ean
-                forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
             i += 1
         return forms_list
 
@@ -225,8 +433,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
             return render(self.request, self.template_name, context)
 
         valid_product_mission_forms = \
-            validate_product_order_or_mission_from_post(ProductMissionUpdateForm,
-                                                        self.object.productmission_set.all().count(), self.request)
+            self.validate_product_order_or_mission_from_post(self.object.productmission_set.all().count(), self.request)
 
         if valid_product_mission_forms is False:
             context = self.get_context_data(**kwargs)
@@ -249,24 +456,76 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
             refresh_mission_status(self.object, original_mission_products=original_mission_products)
         return HttpResponseRedirect(self.get_success_url())
 
+    def validate_product_order_or_mission_from_post(self, amount_forms, request):
+        invalid_form = False
+        print(request.POST)
+
+        for field in ProductMissionUpdateForm.base_fields:
+            amount_forms = len(request.POST.getlist(field))
+
+        for i in range(0, amount_forms):
+            data = {}
+            for key in request.POST:
+                if key in ProductMissionUpdateForm.base_fields:
+                    value = request.POST.getlist(key)[i]
+                    data[key] = value
+            print(data)
+            print(self.kwargs.get("pk"))
+            print(data.get("ean"))
+            product_mission=ProductMission.objects.filter(mission_id=self.kwargs.get("pk"), product__ean=data.get("ean")).first()
+            print(f"bro: {product_mission}")
+            if ProductMissionUpdateForm(data=data, product_mission=product_mission).is_valid() is False:
+                invalid_form = True
+        if invalid_form is True:
+            return False
+        else:
+            return True
+
 
 class ScanMissionUpdateView(UpdateView):
-    template_name = "scan/scan.html"
+    template_name = "mission/scan/scan.html"
     form_class = modelform_factory(ProductMission, fields=("confirmed",))
+
+    def __init__(self):
+        super().__init__()
+        self.context = {}
 
     def get_object(self, *args, **kwargs):
         object = Mission.objects.get(pk=self.kwargs.get("pk"))
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
-        context["title"] = "Warenausgang"
-        product_missions = context.get("object").productmission_set.all()
-        context["product_orders_or_missions"] = product_missions
-        context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
-        context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["object"] = self.get_object(*args, **kwargs)
+        self.context["title"] = "Warenausgang"
+        product_missions = self.context.get("object").productmission_set.all()
+        self.context["real_amounts"] = self.get_real_amounts()
+        self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
+        self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
+        return self.context
+
+    def get_real_amounts(self):
+        real_amounts = []
+
+        billing_number = self.kwargs.get("billing_number")
+
+        for mission_product in self.object.productmission_set.all():
+
+            real_amount_rows = RealAmount.objects.filter(billing_number=billing_number)
+
+            self.add_real_amount_to_list(real_amount_rows, real_amounts)
+
+        # real_amounts.sort(key=lambda real_amounts: real_amounts[0])
+        print(real_amounts)
+        return real_amounts
+
+    def add_real_amount_to_list(self, real_amount_rows, real_amounts_list):
+        for real_amount_rows_from_list in real_amounts_list:
+            for query in real_amount_rows_from_list:
+                for row in real_amount_rows:
+                    if query.billing_number == row.billing_number:
+                        return
+        real_amounts_list.append(real_amount_rows)
 
     def form_valid(self, form, *args, **kwargs):
         object_ = form.save()
@@ -279,14 +538,16 @@ class ScanMissionUpdateView(UpdateView):
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
-        for product_mission in object_.productmission_set.all():
-            if str(product_mission.pk) == str(product_id):
-                if confirmed_bool == "0":
-                    product_mission.missing_amount = missing_amount
-                elif confirmed_bool == "1":
-                    product_mission.missing_amount = None
-                product_mission.confirmed = confirmed_bool
-                product_mission.save()
+
+        for real_amount_rows in self.get_real_amounts():
+            for real_amount_row in real_amount_rows:
+                if str(real_amount_row.product_mission.pk) == str(product_id):
+                    if confirmed_bool == "0":
+                        real_amount_row.missing_amount = missing_amount
+                    elif confirmed_bool == "1":
+                        real_amount_row.missing_amount = None
+                    real_amount_row.confirmed = confirmed_bool
+                    real_amount_row.save()
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
@@ -312,17 +573,17 @@ def refresh_mission_status(object_, original_mission_products=None):
             object_.status = "TEILLIEFERUNG"
 
     if not_scanned_at_all:
-        if object_.pickable is True:
+        if object_.confirmed is True:
             object_.status = "PICKBEREIT"
 
-    if object_.pickable is False:
+    if object_.confirmed is False:
         object_.status = "AUSSTEHEND"
 
     if original_mission_products is not None:
         print(f"{object_.productmission_set.count()} --- {len(original_mission_products)}")
         if object_.productmission_set.count() != len(original_mission_products):
             object_.status = "AUSSTEHEND"
-            object_.pickable = False
+            object_.confirmed = False
         else:
             has_changes = False
             for before_save_row, after_save_row in zip(original_mission_products, object_.productmission_set.all()):
@@ -331,231 +592,200 @@ def refresh_mission_status(object_, original_mission_products=None):
                         or str(before_save_row.get("amount")) != str(after_save_row.amount):
                             has_changes = True
                             break
-            print(f"HAS CHANGES: {has_changes}")
+
             if has_changes is True:
                 object_.status = "AUSSTEHEND"
-                object_.pickable = False
+                object_.confirmed = False
     object_.save()
 
 
-size_seven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=7)
-size_nine_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9)
-size_ten_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=10)
-size_eleven_helvetica = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=11)
-size_twelve_helvetica_bold = ParagraphStyle(name="normal", fontName="Helvetica-Bold", fontSize=12)
-size_nine_helvetica_bold = ParagraphStyle(name="normal", fontName="Helvetica-Bold", fontSize=9)
-size_nine_helvetica_left_indent_310 = ParagraphStyle(name="normal", fontName="Helvetica", fontSize=9,
-                                                     leftIndent=310, align="RIGHT")
-underline = "_____________________________"
-spaces_13 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
-spaces_4 = "&nbsp;&nbsp;&nbsp;&nbsp;"
-two_new_lines = Paragraph("<br/><br/>", style=size_nine_helvetica)
-horizontal_line = Drawing(100, 1)
-horizontal_line.add(Line(0, 0, 425, 0))
+class MissionStockCheckForm(View):
+    template_name = "mission/stock_check.html"
 
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+        self.object = None
 
-class GenerateInvoicePdf(View):
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Mission.objects.get(pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
-        response = HttpResponse(content_type='application/pdf')
-        doc = SimpleDocTemplate(response)
+        self.context["title"] = "Lieferschein und Rechnung"
+        self.context["object"] = self.object
+        self.context["products_from_stock"] = self.get_products_from_stock()
 
-        # FOOTER
+        return render(request, self.template_name, self.context)
 
-        def footer(canvas, doc):
-            canvas.saveState()
-            footer_style = ParagraphStyle("footer_style", alignment=TA_CENTER, fontSize=7)
-            from reportlab.lib.utils import ImageReader
-            # logo = ImageReader('http://127.0.0.1:8000/static/btclogo.jpg')
-            # canvas.drawImage(logo, 440, 740, width=1 * inch, height=1 * inch)
-            from reportlab.platypus import Image
-            logo = Image('http://127.0.0.1:8000/static/btclogo.jpg', width=1 * inch, height=1 * inch)
-            w, h = logo.wrap(doc.width, doc.bottomMargin)
-            logo.drawOn(canvas, 440, h+650)
-            p_ = Paragraph(
-                f"<b>Baschar Trading Center GmbH | Orber Straße 16 | 60386 Frankfurt a.M.</b>"
-                f"<br/>"
-                f"tel +49 (0) 69 20 23 50 93 | fax +49 (0) 69 20 32 89 52 | info@btcgmbh.eu | www.btcgmbh.eu"
-                f"<br/>"
-                f"Frankfurter Sparkasse | BIC: HELADEF1822 | IBAN: DE73 5005 0201 0200 5618 47"
-                f"<br/>"
-                f"Amtsgericht Ffm HRB 87651 | St.Nr. 45 229 07653 | Ust-IdNr. DE 270211471"
-                f"<br/>"
-                f"Geschäftsführer: Mohamed Makansi"
-                f"<br/>",
-                footer_style)
-            w, h = p_.wrap(doc.width, doc.bottomMargin)
-            p_.drawOn(canvas, doc.leftMargin + 30, h - 55)
-            qr_code = ImageReader('http://127.0.0.1:8000/static/qrcodebtc.png')
-            canvas.drawImage(qr_code, doc.leftMargin + 30, h - 55, width=1 * inch, height=1 * inch)
-            canvas.restoreState()
-        first_page_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height, id='first_frame')
-        next_page_frame = Frame(doc.leftMargin, doc.bottomMargin-50, doc.width, doc.height, id='last_frame')
+    def get_products_from_stock(self):
+        billing_products = []
+        print(billing_products)
+        for product_mission in self.object.productmission_set.all():
 
-        first_template = PageTemplate(id='first', frames=[first_page_frame], onPage=footer)
-        next_template = PageTemplate(id='next', frames=[next_page_frame], onPage=footer)
+            product_stock = self.get_product_stock(product_mission.product)
+            available_product_stock = self.get_available_product_stock(product_mission.product)
 
-        doc.addPageTemplates([first_template, next_template])
+            amount = product_mission.amount
 
-        story = self.build_story(
-            sender_address="Baschar Trading Center GmbH - Orber Str. 16 - 60386 Frankfurt am Main",
-            receiver_address="Impex Service GmbH<br/>Kopernikusstr.17<br/>50126 Bergheim<br/>",
-            your_delivery="<u>Ihre Bestellung: 501800279</u>",
-            delivery_address="<br/>Lieferadresse:<br/>"
-                             "Impex Service GmbH<br/>LGZ3 / Technologiepark West<br/>"
-                             "Zum Frenser Feld 11.6<br/>50127 Bergheim",
-            delivery_conditions="Lieferbedingungen: CIF, Lieferung Frei Haus"
-                                "<br/>Zahlungsbedingungen: 14 Tage Netto<br/>",
-            delivery_note_title="<br/>Lieferschein 12352<br/><br/>",
-            driver_form=f"Ware vollständig erhalten laut Lieferschein<br/><br/>"
-                        f"Name Fahrer:{underline}<br/><br/>"
-                        f"Kennzeichen:{underline}<br/><br/>"
-                        f"Spedition:{underline}<br/><br/><br/>"
-                        f"Unterschrift Fahrer/Stempel:{underline}",
-            warning=f"Reklamation von Waren können wir nur anerkennen, wenn diese unverzüglich nach der"
-                    f" Anlieferugn erfolgen. Bitte prüfen Sie bei Lieferungen unmittelbar die Ordnungsmäßigkeit"
-                    f" der Lieferung. Sollten Mängel oder Schäden an von uns gelieferten Waren festgestellt "
-                    f"werden, bitten wir Sie uns umgehend darüber zu informieren. Von Rücksendungen - ohne unsere"
-                    f" vorherige Zustimmung - bitten wir abzusehen."
-            ,
-            date_customer_delivery_note=f"Datum{spaces_13}<b>06.03.2018"
-                                        f"</b><br/>Kunde{spaces_13}<b>32442</b>"
-                                        f"<br/>Lieferschein"f"{spaces_4}<b>12352</b><br/>"
-        )
+            all_amounts_sum = 0
 
-        #doc.build(story, onFirstPage=footer, onLaterPages=footer)
-        doc.build(story)
+            for real_amount_row in product_mission.realamount_set.all():
+                all_amounts_sum += real_amount_row.real_amount
 
-        return response
+            amount -= all_amounts_sum
 
-    def build_story(self, sender_address="", receiver_address="", date_customer_delivery_note="",
-                    your_delivery="", delivery_address="", delivery_conditions="", delivery_note_title="",
-                    driver_form="", warning=""):
-        sender_address_para = Paragraph(sender_address,
-                                        style=size_seven_helvetica)
-        receiver_address_para = Paragraph(receiver_address,
-                                          style=size_nine_helvetica_bold)
+            if available_product_stock < amount:
+                amount = available_product_stock
 
-        story = [sender_address_para, receiver_address_para]
-        return story
+            if available_product_stock >= amount > 0:
+                billing_products.append((product_mission, amount, product_stock, available_product_stock))
+            print(billing_products)
+        return billing_products
 
-    def create_table(self):
-        data = []
+    def get_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.total_amount_ean()
 
-        right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
-                                                     rightIndent=17)
+        # if product.sku is not None:
+        #     stock = Stock.objects.filter(sku=product.sku).first()
+        #     if stock is not None:
+        #         return stock.total_amount_ean()
 
-        header = [
-            Paragraph("<b>Pos</b>", style=size_nine_helvetica),
-            Paragraph("<b>Art-Nr.</b>", style=size_nine_helvetica),
-            Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
-            Paragraph("<b>Menge</b>", style=right_align_paragraph_style)
-        ]
+    def get_available_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.available_total_amount()
 
-        data.append(header)
+    def post(self, request, *args, **kwargs):
 
-        data.append(
-            [
-                Paragraph(add_new_line_to_string_at_index("1", 20),
-                          style=size_nine_helvetica),
-                Paragraph(add_new_line_to_string_at_index("871869263453453453453443519456123456", 20),
-                          style=size_nine_helvetica),
-                Paragraph(add_new_line_to_string_at_index("Sodastream", 50), style=size_nine_helvetica),
-                Paragraph(add_new_line_to_string_at_index("54", 20), style=right_align_paragraph_style)
-            ],
-        )
+        bulk_instances = []
 
-        data.append(
-            [
-                Paragraph(add_new_line_to_string_at_index("2", 20),
-                          style=size_nine_helvetica),
-                Paragraph(add_new_line_to_string_at_index("8718692619456123456", 20), style=size_nine_helvetica),
-                Paragraph(
-                    "Sodastream EASY Wassersprudler weiß EAN: 8718692619456Sodastream EASY Wassersprudler weiß EAN: "
-                    "8718692619456",
-                    style=size_nine_helvetica),
-                Paragraph(add_new_line_to_string_at_index("43", 20),
-                          style=right_align_paragraph_style)
-            ]
-        )
+        new_billing_number = self.get_new_billing_number()
+        new_delivery_note_number = self.get_new_delivery_note_number()
 
-        for i in range(0, 6):
-            data.append(
-                [
-                    Paragraph(add_new_line_to_string_at_index(f"{i+3}", 20),
-                              style=size_nine_helvetica),
-                    Paragraph(add_new_line_to_string_at_index("8718692619456123456", 20), style=size_nine_helvetica),
-                    Paragraph(
-                        "Sodastream EASY Wassersprudler weiß EAN: 8718692619456Sodastream EASY Wassersprudler weiß EAN: "
-                        "8718692619456",
-                        style=size_nine_helvetica),
-                    Paragraph(add_new_line_to_string_at_index("43", 20),
-                              style=right_align_paragraph_style)
-                ]
-            )
+        for product_mission in self.object.productmission_set.all():
+            product_stock = self.get_product_stock(product_mission.product)
+            available_product_stock = self.get_available_product_stock(product_mission.product)
 
-        # from reportlab.lib import colors
-        # table = Table(rows, hAlign='LEFT', colWidths=[doc.width/3.0]*3)
-        # table.setStyle(TableStyle([('INNERGRID', (0, 0), (-1, -1), 0.25, colors.black),
-        #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
+            amount = product_mission.amount
 
-        table = Table(data)
-        from reportlab.lib import colors
+            all_amounts_sum = 0
 
-        table.setStyle(
-            TableStyle([
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-                ('VALIGN', (0, 0), (-1, -1), "TOP"),
-            ])
-        )
+            for real_amount_row in product_mission.realamount_set.all():
+                all_amounts_sum += real_amount_row.real_amount
 
-        return table
+            amount -= all_amounts_sum
+
+            if available_product_stock < amount:
+                amount = available_product_stock
+
+            if available_product_stock >= amount > 0:
+                bulk_instances.append(RealAmount(product_mission=product_mission, billing_number=new_billing_number,
+                                                 delivery_note_number=new_delivery_note_number,
+                                                 real_amount=amount))
+        print(bulk_instances)
+        RealAmount.objects.bulk_create(bulk_instances)
+        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
+
+    def get_new_billing_number(self):
+        max_billing_number = self.get_max_billing_number()
+        if max_billing_number is not None and "-" not in max_billing_number:
+            billing_number = f'{self.object.billing_number}-2'
+        elif max_billing_number is not None and "-" in max_billing_number:
+            billing_number = f'{self.object.billing_number}-{int(max_billing_number.split("-", 1)[1])+1}'
+        else:
+            billing_number = f"{self.object.billing_number}"
+        return billing_number
+
+    def get_new_delivery_note_number(self):
+        max_delivery_note_number = self.get_max_delivery_note_number()
+        if max_delivery_note_number is not None and "-" not in max_delivery_note_number:
+            delivery_note_number = f'{self.object.delivery_note_number}-2'
+        elif max_delivery_note_number is not None and "-" in max_delivery_note_number:
+            delivery_note_number = \
+                f'{self.object.delivery_note_number}-{int(max_delivery_note_number.split("-", 1)[1])+1}'
+        else:
+            delivery_note_number = f"{self.object.delivery_note_number}"
+        return delivery_note_number
+
+    def get_billing_numbers(self):
+        billing_numbers = []
+        product_missions = self.object.productmission_set.all()
+        for product_mission in product_missions:
+
+            for real_amount in product_mission.realamount_set.all():
+                if real_amount.billing_number not in billing_numbers:
+                    billing_numbers.append(real_amount.billing_number)
+        return billing_numbers
+
+    def get_delivery_note_numbers(self):
+        delivery_note_numbers = []
+        product_missions = self.object.productmission_set.all()
+        for product_mission in product_missions:
+            for real_amount in product_mission.realamount_set.all():
+                if real_amount.delivery_note_number not in delivery_note_numbers:
+                    delivery_note_numbers.append(real_amount.delivery_note_number)
+        return delivery_note_numbers
+
+    def get_max_billing_number(self):
+        billing_numbers = self.get_billing_numbers()
+
+        max_billing_number = None
+        billing_number_counter = 0
+
+        for billing_number in billing_numbers:
+            if max_billing_number is None:
+                max_billing_number = billing_number
+                continue
+
+            if billing_number_counter == 1:
+                if "-" not in billing_number:
+                    billing_number += "-2"
+
+            if "-" in billing_number:
+                if int(billing_number.split("-", 1)[1]) > billing_number_counter:
+                    max_billing_number = billing_number
+                    billing_number_counter = int(billing_number.split("-", 1)[1])
+
+        return max_billing_number
+
+    def get_max_delivery_note_number(self):
+        delivery_note_numbers = self.get_delivery_note_numbers()
+
+        max_delivery_note_number = None
+        delivery_note_number_counter = 0
+
+        for delivery_note_number in delivery_note_numbers:
+            if max_delivery_note_number is None:
+                max_delivery_note_number = delivery_note_number
+                continue
+
+            if delivery_note_number_counter == 1:
+                if "-" not in delivery_note_number:
+                    delivery_note_number += "-2"
+
+            if "-" in delivery_note_number:
+                if int(delivery_note_number.split("-", 1)[1]) > delivery_note_number_counter:
+                    max_delivery_note_number = delivery_note_number
+                    delivery_note_number_counter = int(delivery_note_number.split("-", 1)[1])
+
+        return max_delivery_note_number
 
 
-def add_new_line_to_string_at_index(string, index):
-    import textwrap
-    return '<br/>'.join(textwrap.wrap(string, index))
+class ConfirmView(View):
+    def post(self, request, *args, **kwargs):
+        self.object.confirmed = True
+        self.object.save()
+        original_mission = Mission.objects.get(pk=self.object.pk)
 
+        original_mission_products = []
+        for q in original_mission.productmission_set.all():
+            dict_ = {"product": str(q.product), "netto_price": q.netto_price, "amount": q.amount}
+            original_mission_products.append(dict_)
 
-class PageNumCanvas(canvas.Canvas):
-    """
-    http://code.activestate.com/recipes/546511-page-x-of-y-with-reportlab/
-    http://code.activestate.com/recipes/576832/
-    """
-
-    # ----------------------------------------------------------------------
-    def __init__(self, *args, **kwargs):
-        """Constructor"""
-        canvas.Canvas.__init__(self, *args, **kwargs)
-        self.pages = []
-
-    # ----------------------------------------------------------------------
-    def showPage(self):
-        """
-        On a page break, add information to the list
-        """
-        self.pages.append(dict(self.__dict__))
-        self._startPage()
-
-    # ----------------------------------------------------------------------
-    def save(self):
-        """
-        Add the page number to each page (page x of y)
-        """
-        page_count = len(self.pages)
-
-        for page in self.pages:
-            self.__dict__.update(page)
-            self.draw_page_number(page_count)
-            canvas.Canvas.showPage(self)
-
-        canvas.Canvas.save(self)
-
-    # ----------------------------------------------------------------------
-    def draw_page_number(self, page_count):
-        """
-        Add the page number
-        """
-        page = f"Seite {self._pageNumber} von {page_count}"
-        self.setFont("Helvetica", 9)
-        self.drawRightString(530, 10, page)
+        refresh_mission_status(self.object, original_mission_products=original_mission_products)
+        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.object.pk}))

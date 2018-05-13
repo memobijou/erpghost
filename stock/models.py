@@ -5,6 +5,8 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
+from mission.models import RealAmount
+
 
 class Stock(models.Model):
     IGNORE_CHOICES = (
@@ -105,7 +107,8 @@ class Stock(models.Model):
     def total_amount_ean(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             if state is not None:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).\
+                    aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
         elif self.sku is not None and self.sku != "":
@@ -124,6 +127,45 @@ class Stock(models.Model):
         total = {"bestand__sum": total["bestand__sum"]}
         return total["bestand__sum"]
 
+    def available_total_amount(self, state=None):
+        if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
+            if state is not None:
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).\
+                    aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
+
+            real_amounts = RealAmount.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
+            total_reserved = 0
+            for real_amount in real_amounts:
+                total_reserved += real_amount.real_amount
+
+            total["bestand__sum"] -= total_reserved
+
+        elif self.sku is not None and self.sku != "":
+            if state is not None:
+                total = Stock.objects.filter(sku=str(self.sku), zustand__icontains=state).aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(sku=str(self.sku)).aggregate(Sum('bestand'))
+        elif self.title is not None and self.title != "":
+            if state is not None:
+                total = Stock.objects.filter(title=str(self.title), zustand__icontains=state).aggregate(Sum('bestand'))
+            else:
+                total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
+            real_amounts = RealAmount.objects.filter(product_mission__product__title=self.title)
+            total_reserved = 0
+            for real_amount in real_amounts:
+                total_reserved += real_amount.real_amount
+
+            total["bestand__sum"] -= total_reserved
+        else:
+            return None
+        print("?!?!: " + str(total))
+        total = {"bestand__sum": total["bestand__sum"]}
+
+
+
+        return total["bestand__sum"]
 
 class Stockdocument(models.Model):
     document = models.FileField(upload_to='documents/', null=True, blank=False)

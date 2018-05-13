@@ -18,7 +18,7 @@ class MissionForm(forms.ModelForm):
 
     class Meta:
         model = Mission
-        fields = ['delivery_date', 'pickable', 'terms_of_delivery', 'terms_of_payment', "customer",
+        fields = ['delivery_date', 'confirmed', 'terms_of_delivery', 'terms_of_payment', "customer",
                   'customer_order_number', 'shipping', 'shipping_number_of_pieces', 'shipping_costs']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
@@ -55,7 +55,6 @@ class CommonProductMissionForm(forms.Form):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         for visible in self.visible_fields():
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField:
@@ -80,4 +79,16 @@ class ProductMissionForm(CommonProductMissionForm):
 
 class ProductMissionUpdateForm(CommonProductMissionForm):
     # delete = forms.BooleanField(label="Löschen", required=False)
-    pass
+    def __init__(self, **kwargs):
+        self.product_mission = kwargs.pop("product_mission")
+        super().__init__(**kwargs)
+
+    def clean_amount(self):
+
+        sum_all_amounts = 0
+
+        for real_amount_row in self.product_mission.realamount_set.all():
+            sum_all_amounts += real_amount_row.real_amount
+
+        if self.cleaned_data.get('amount') < sum_all_amounts:
+            raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")

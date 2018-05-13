@@ -3,6 +3,14 @@ from mission.billing_pdf import *
 
 
 class PartialPdfView(BillingPdfView):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.partial_billing_number = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.partial_billing_number = self.kwargs.get("billing_number")
+        return super().dispatch(request, *args, **kwargs)
+
     def build_table(self):
         colwidths = [30, 68, 152, 60, 65, 65]
 

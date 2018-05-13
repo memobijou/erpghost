@@ -9,7 +9,7 @@
             {% if object.status == "TEILLIEFERUNG" %}
                 <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:billing_form' pk=object.id %}">Rechnung und Lieferschein erstellen </a>
             {% endif %}
-                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lagerbestand prüfen</a>
+                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferschein und Rechnung generieren</a>
         </div>
 
         <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
@@ -94,7 +94,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                                {% for productmission, missing_amount, stock, real_amount in products_from_stock %}
+                                {% for productmission, missing_amount, stock, real_amount, available_product_stock in products_from_stock %}
                                     {% if object.id == productmission.mission.id %}
                                     <tr>
                                         <td>{{productmission.product}}</td>
@@ -103,11 +103,11 @@
                                         <td style="color:red;">
                                             {{ missing_amount }}
                                         </td>
-                                        <td>
-                                            {{ real_amount|default:'' }}
+                                        <td style="color:green;">
+                                            {{ real_amount|default:'0' }}
                                         </td>
                                         <td>
-                                            {{ stock|default:'' }}
+                                            {{ available_product_stock }}/{{ stock|default:'' }}
                                         </td>
                                         <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                         <td>
@@ -125,9 +125,7 @@
             {% endif %}
         </div>
             <div class="col-md-12" style="padding-right: 0">
-                {% if object.confirmed == True %}
-                    <a href="{% url 'mission:scan' pk=object.id %}" class="btn btn-success" id="scan_btn">SCAN</a>
-                {% endif %}
+
 
                 <a href="{% url 'mission:mission_confirmation_pdf' pk=object.id %}" class="btn btn-info pull-right" style="margin-right:15px;">
                 Auftragsbestätigung</a>
@@ -180,7 +178,7 @@
                                                 <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
                                                 <td>{{ real_amount_row.real_amount }}</td>
                                                 <td style="color:red;">{{ real_amount_row.missing_amount|default:'' }}</td>
-                                                <td>{{ real_amount_row.real_amount_minus_missing_amount }}</td>
+                                                <td style="color:green;">{{ real_amount_row.real_amount_minus_missing_amount }}</td>
                                                 <td>{{real_amount_row.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                                 <td>
                                                     {% if real_amount_row.product_mission.netto_price %}
@@ -199,7 +197,7 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                                <a href="" class="btn btn-success">Zum Warenausgang</a>
+                                <a href="{% url 'mission:scan' pk=object.pk billing_number=real_amount_rows.first.billing_number %}" class="btn btn-success">Zum Warenausgang</a>
                                 <a href="" class="btn btn-info">Pickschein</a>
 
                             </div>

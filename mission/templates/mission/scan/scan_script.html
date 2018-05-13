@@ -93,24 +93,26 @@
 
     var extract_information_from_input_match = function(input){
         if(input.value.length == 13){
-            {% for product_mission in object.productmission_set.all %}
-                {% if product_mission.product.ean %}
-                    if(input.value == "{{ product_mission.product.ean }}"){
-                        matches[input.id] = true;
+            {% for real_amount_rows in real_amounts %}
+                    {% for real_amount_row in real_amount_rows %}
+                        {% if real_amount_row.product_mission.product.ean %}
+                            if(input.value == "{{ real_amount_row.product_mission.product.ean }}"){
+                                matches[input.id] = true;
 
-                        match_ean.innerHTML = "{{ product_mission.product.ean }}";
-                        match_amount.innerHTML = "{{ product_mission.amount }}";
-                        match_amount_value = "{{ product_mission.amount }}";
-                        {% if product_mission.product.main_image %}
-                            match_img.src = "{{ product_mission.product.main_image.url }}";
+                                match_ean.innerHTML = "{{ real_amount_row.product_mission.product.ean }}";
+                                match_amount.innerHTML = "{{ real_amount_row.real_amount }}";
+                                match_amount_value = "{{ real_amount_row.real_amount }}";
+                                {% if real_amount_row.product_mission.product.main_image %}
+                                    match_img.src = "{{ real_amount_row.product_mission.product.main_image.url }}";
+                                {% endif %}
+                                confirm_detail_view.style.display = "";
+                                match_title.innerHTML = "<b>{{ real_amount_row.product_mission.product.title }}</b>";
+                                match_sku.innerHTML = "{{ real_amount_row.product_mission.product.sku }}";
+
+                                hidden_product_id.value = "{{ real_amount_row.product_mission.id }}";
+                            }
                         {% endif %}
-                        confirm_detail_view.style.display = "";
-                        match_title.innerHTML = "<b>{{ product_mission.product.title }}</b>";
-                        match_sku.innerHTML = "{{ product_mission.product.sku }}";
-
-                        hidden_product_id.value = "{{ product_mission.id }}";
-                    }
-                {% endif %}
+                {% endfor %}
             {% endfor %}
         }
         else if(input.value.length == 14){

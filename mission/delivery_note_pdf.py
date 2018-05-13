@@ -33,6 +33,7 @@ class DeliveryNoteView(View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.partial_delivery_note_number = None
         self.story = []
 
     def get(self, request, *args, **kwargs):
@@ -81,7 +82,7 @@ class DeliveryNoteView(View):
             right_align_header_data.append(
                 [
                     Paragraph("Ihre Bestellung", style=size_nine_helvetica_leading_10),
-                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 10),
+                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 20),
                               style=size_nine_helvetica_leading_10),
                 ],
             )
@@ -89,7 +90,20 @@ class DeliveryNoteView(View):
         right_align_header_data.append(
             [
                 Paragraph("Unser Auftrag", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(mission_number, 20), style=size_nine_helvetica_leading_10),
+            ],
+        )
+
+        delivery_note_number = self.mission.delivery_note_number
+
+        if self.partial_delivery_note_number is not None:
+            partial_delivery_note_number = self.partial_delivery_note_number
+
+        right_align_header_data.append(
+            [
+                Paragraph("Lieferschein", style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(partial_delivery_note_number, 20),
+                          style=size_nine_helvetica_leading_10),
             ],
         )
 
@@ -97,7 +111,7 @@ class DeliveryNoteView(View):
             customer_number = self.mission.customer.customer_number or ""
             right_align_header_data.append([
                 Paragraph("Kunden-Nr.", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(customer_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(customer_number, 20), style=size_nine_helvetica_leading_10),
             ])
 
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))

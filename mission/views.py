@@ -200,7 +200,7 @@ class MissionDetailView(DetailView):
 
                 self.add_real_amount_to_list(real_amount_rows, real_amounts)
 
-        # real_amounts.sort(key=lambda real_amounts: real_amounts[0])
+        real_amounts.sort(key=lambda real_amounts: real_amounts[0].billing_number)
 
         return real_amounts
 
@@ -217,20 +217,28 @@ class MissionDetailView(DetailView):
         print(billing_products)
         for product_mission in self.object.productmission_set.all():
             product_stock = self.get_product_stock(product_mission.product)
-            stock = 0
-            if product_stock is None:
-                stock = 0
+            available_product_stock = self.get_available_product_stock(product_mission.product)
 
             amount = product_mission.amount
 
-            if product_stock >= amount:
-                stock = amount
-            else:
-                stock = product_stock
+            missing_amount = product_mission.amount
 
-            real_amount = amount-(amount-stock)
+            all_amounts_sum = 0
 
-            billing_products.append((product_mission,  amount-stock,  product_stock, real_amount))
+            for real_amount_row in product_mission.realamount_set.all():
+                all_amounts_sum += real_amount_row.real_amount
+
+            missing_amount -= all_amounts_sum
+
+            real_amount = amount-missing_amount
+
+            if missing_amount == 0:
+                missing_amount = ""
+
+            print(f"ABI: {real_amount}")
+
+            billing_products.append((product_mission,  missing_amount,  product_stock, real_amount,
+                                     available_product_stock))
             print(billing_products)
         return billing_products
 
@@ -239,6 +247,12 @@ class MissionDetailView(DetailView):
             stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
             if stock is not None:
                 return stock.total_amount_ean()
+
+    def get_available_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.available_total_amount()
 
 
 class MissionListView(ListView):
@@ -391,11 +405,11 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                 for k in self.request.POST:
                     if k in ProductMissionUpdateForm.base_fields:
                         data[k] = self.request.POST.getlist(k)[i]
-                forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
             else:
                 data = model_to_dict(product_mission)
                 data["ean"] = product_mission.product.ean
-                forms_list.append(ProductMissionUpdateForm(data=data))
+                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
             i += 1
         return forms_list
 
@@ -419,8 +433,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
             return render(self.request, self.template_name, context)
 
         valid_product_mission_forms = \
-            validate_product_order_or_mission_from_post(ProductMissionUpdateForm,
-                                                        self.object.productmission_set.all().count(), self.request)
+            self.validate_product_order_or_mission_from_post(self.object.productmission_set.all().count(), self.request)
 
         if valid_product_mission_forms is False:
             context = self.get_context_data(**kwargs)
@@ -443,62 +456,76 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
             refresh_mission_status(self.object, original_mission_products=original_mission_products)
         return HttpResponseRedirect(self.get_success_url())
 
+    def validate_product_order_or_mission_from_post(self, amount_forms, request):
+        invalid_form = False
+        print(request.POST)
+
+        for field in ProductMissionUpdateForm.base_fields:
+            amount_forms = len(request.POST.getlist(field))
+
+        for i in range(0, amount_forms):
+            data = {}
+            for key in request.POST:
+                if key in ProductMissionUpdateForm.base_fields:
+                    value = request.POST.getlist(key)[i]
+                    data[key] = value
+            print(data)
+            print(self.kwargs.get("pk"))
+            print(data.get("ean"))
+            product_mission=ProductMission.objects.filter(mission_id=self.kwargs.get("pk"), product__ean=data.get("ean")).first()
+            print(f"bro: {product_mission}")
+            if ProductMissionUpdateForm(data=data, product_mission=product_mission).is_valid() is False:
+                invalid_form = True
+        if invalid_form is True:
+            return False
+        else:
+            return True
+
 
 class ScanMissionUpdateView(UpdateView):
     template_name = "mission/scan/scan.html"
     form_class = modelform_factory(ProductMission, fields=("confirmed",))
+
+    def __init__(self):
+        super().__init__()
+        self.context = {}
 
     def get_object(self, *args, **kwargs):
         object = Mission.objects.get(pk=self.kwargs.get("pk"))
         return object
 
     def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
-        context["title"] = "Warenausgang"
-        product_missions = context.get("object").productmission_set.all()
-        context["mission_products"] = self.get_products_from_stock()
-        context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
-        context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["object"] = self.get_object(*args, **kwargs)
+        self.context["title"] = "Warenausgang"
+        product_missions = self.context.get("object").productmission_set.all()
+        self.context["real_amounts"] = self.get_real_amounts()
+        self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
+        self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
+        return self.context
 
-    def get_products_from_stock(self):
-        billing_products = []
-        print(billing_products)
-        for product_mission in self.object.productmission_set.all():
-            product_stock = self.get_product_stock(product_mission.product)
-            stock = 0
-            if product_stock is None:
-                stock = 0
+    def get_real_amounts(self):
+        real_amounts = []
 
-            amount = product_mission.amount
+        billing_number = self.kwargs.get("billing_number")
 
-            all_amounts_sum = 0
+        for mission_product in self.object.productmission_set.all():
 
-            for real_amount_row in product_mission.realamount_set.all():
-                all_amounts_sum += real_amount_row.real_amount
+            real_amount_rows = RealAmount.objects.filter(billing_number=billing_number)
 
-            if all_amounts_sum < amount:
-                amount -= all_amounts_sum
+            self.add_real_amount_to_list(real_amount_rows, real_amounts)
 
-            if amount <= 0:
-                continue
+        # real_amounts.sort(key=lambda real_amounts: real_amounts[0])
+        print(real_amounts)
+        return real_amounts
 
-            else:
-                if product_stock >= amount:
-                    stock = amount
-                else:
-                    stock = product_stock
-
-            billing_products.append((product_mission, amount,  amount-stock,  stock))
-            print(billing_products)
-        return billing_products
-
-    def get_product_stock(self, product):
-        if product.ean is not None:
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
-            if stock is not None:
-                return stock.total_amount_ean()
+    def add_real_amount_to_list(self, real_amount_rows, real_amounts_list):
+        for real_amount_rows_from_list in real_amounts_list:
+            for query in real_amount_rows_from_list:
+                for row in real_amount_rows:
+                    if query.billing_number == row.billing_number:
+                        return
+        real_amounts_list.append(real_amount_rows)
 
     def form_valid(self, form, *args, **kwargs):
         object_ = form.save()
@@ -511,14 +538,16 @@ class ScanMissionUpdateView(UpdateView):
         confirmed_bool = self.request.POST.get("confirmed")
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
-        for product_mission in object_.productmission_set.all():
-            if str(product_mission.pk) == str(product_id):
-                if confirmed_bool == "0":
-                    product_mission.missing_amount = missing_amount
-                elif confirmed_bool == "1":
-                    product_mission.missing_amount = None
-                product_mission.confirmed = confirmed_bool
-                product_mission.save()
+
+        for real_amount_rows in self.get_real_amounts():
+            for real_amount_row in real_amount_rows:
+                if str(real_amount_row.product_mission.pk) == str(product_id):
+                    if confirmed_bool == "0":
+                        real_amount_row.missing_amount = missing_amount
+                    elif confirmed_bool == "1":
+                        real_amount_row.missing_amount = None
+                    real_amount_row.confirmed = confirmed_bool
+                    real_amount_row.save()
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
@@ -583,7 +612,7 @@ class MissionStockCheckForm(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        self.context["title"] = "Auftrag zum Versenden freigeben"
+        self.context["title"] = "Lieferschein und Rechnung"
         self.context["object"] = self.object
         self.context["products_from_stock"] = self.get_products_from_stock()
 
@@ -593,12 +622,12 @@ class MissionStockCheckForm(View):
         billing_products = []
         print(billing_products)
         for product_mission in self.object.productmission_set.all():
+
             product_stock = self.get_product_stock(product_mission.product)
-            stock = 0
-            if product_stock is None:
-                stock = 0
+            available_product_stock = self.get_available_product_stock(product_mission.product)
 
             amount = product_mission.amount
+
             all_amounts_sum = 0
 
             for real_amount_row in product_mission.realamount_set.all():
@@ -606,16 +635,11 @@ class MissionStockCheckForm(View):
 
             amount -= all_amounts_sum
 
-            if amount <= 0:
-                continue
+            if available_product_stock < amount:
+                amount = available_product_stock
 
-            else:
-                if product_stock >= amount:
-                    stock = amount
-                else:
-                    stock = product_stock
-
-            billing_products.append((product_mission, amount,  amount-stock,  stock))
+            if available_product_stock >= amount > 0:
+                billing_products.append((product_mission, amount, product_stock, available_product_stock))
             print(billing_products)
         return billing_products
 
@@ -630,6 +654,12 @@ class MissionStockCheckForm(View):
         #     if stock is not None:
         #         return stock.total_amount_ean()
 
+    def get_available_product_stock(self, product):
+        if product.ean is not None:
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                return stock.available_total_amount()
+
     def post(self, request, *args, **kwargs):
 
         bulk_instances = []
@@ -639,49 +669,47 @@ class MissionStockCheckForm(View):
 
         for product_mission in self.object.productmission_set.all():
             product_stock = self.get_product_stock(product_mission.product)
+            available_product_stock = self.get_available_product_stock(product_mission.product)
 
-            if product_stock == 0:
-                continue
-
-            if product_stock < product_mission.amount:
-                real_amount = product_mission.amount-(product_mission.amount-product_stock)
-            else:
-                real_amount = product_mission.amount
-
-            if real_amount <= 0:
-                continue
+            amount = product_mission.amount
 
             all_amounts_sum = 0
 
             for real_amount_row in product_mission.realamount_set.all():
                 all_amounts_sum += real_amount_row.real_amount
-            real_amount -= all_amounts_sum
 
-            print(f"{real_amount} --- {all_amounts_sum}")
+            amount -= all_amounts_sum
 
-            if real_amount <= (product_mission.amount-all_amounts_sum):
+            if available_product_stock < amount:
+                amount = available_product_stock
+
+            if available_product_stock >= amount > 0:
                 bulk_instances.append(RealAmount(product_mission=product_mission, billing_number=new_billing_number,
                                                  delivery_note_number=new_delivery_note_number,
-                                                 real_amount=real_amount))
+                                                 real_amount=amount))
         print(bulk_instances)
         RealAmount.objects.bulk_create(bulk_instances)
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
     def get_new_billing_number(self):
         max_billing_number = self.get_max_billing_number()
-        if max_billing_number is not None and "-" in max_billing_number:
+        if max_billing_number is not None and "-" not in max_billing_number:
+            billing_number = f'{self.object.billing_number}-2'
+        elif max_billing_number is not None and "-" in max_billing_number:
             billing_number = f'{self.object.billing_number}-{int(max_billing_number.split("-", 1)[1])+1}'
         else:
-            billing_number = f"{self.object.billing_number}-1"
+            billing_number = f"{self.object.billing_number}"
         return billing_number
 
     def get_new_delivery_note_number(self):
         max_delivery_note_number = self.get_max_delivery_note_number()
-        if max_delivery_note_number is not None and "-" in max_delivery_note_number:
+        if max_delivery_note_number is not None and "-" not in max_delivery_note_number:
+            delivery_note_number = f'{self.object.delivery_note_number}-2'
+        elif max_delivery_note_number is not None and "-" in max_delivery_note_number:
             delivery_note_number = \
                 f'{self.object.delivery_note_number}-{int(max_delivery_note_number.split("-", 1)[1])+1}'
         else:
-            delivery_note_number = f"{self.object.delivery_note_number}-1"
+            delivery_note_number = f"{self.object.delivery_note_number}"
         return delivery_note_number
 
     def get_billing_numbers(self):
@@ -708,10 +736,15 @@ class MissionStockCheckForm(View):
 
         max_billing_number = None
         billing_number_counter = 0
+
         for billing_number in billing_numbers:
-            if "-" in billing_number and max_billing_number is None:
+            if max_billing_number is None:
                 max_billing_number = billing_number
                 continue
+
+            if billing_number_counter == 1:
+                if "-" not in billing_number:
+                    billing_number += "-2"
 
             if "-" in billing_number:
                 if int(billing_number.split("-", 1)[1]) > billing_number_counter:
@@ -727,9 +760,13 @@ class MissionStockCheckForm(View):
         delivery_note_number_counter = 0
 
         for delivery_note_number in delivery_note_numbers:
-            if "-" in delivery_note_number and max_delivery_note_number is None:
+            if max_delivery_note_number is None:
                 max_delivery_note_number = delivery_note_number
                 continue
+
+            if delivery_note_number_counter == 1:
+                if "-" not in delivery_note_number:
+                    delivery_note_number += "-2"
 
             if "-" in delivery_note_number:
                 if int(delivery_note_number.split("-", 1)[1]) > delivery_note_number_counter:

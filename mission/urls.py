@@ -12,7 +12,7 @@ urlpatterns = [
     url(r'^create/$', MissionCreateView.as_view(), name="create"),
     url(r'^(?P<pk>\d+)/$', MissionDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/edit/$', MissionUpdateView.as_view(), name="update"),
-    url(r'^(?P<pk>\d+)/scan/$', ScanMissionUpdateView.as_view(), name="scan"),
+    url(r'^(?P<pk>\d+)/scan/(?P<billing_number>[-\w]+)/$', ScanMissionUpdateView.as_view(), name="scan"),
     url(r'^delete/$', MissionDeleteView.as_view(), name="delete"),
     url(r'^(?P<pk>\d+)/delivery_note/$', DeliveryNoteView.as_view(), name="delivery_note"),
     url(r'^(?P<pk>\d+)/delivery_note/(?P<delivery_note_number>[-\w]+)/$', PartialDeliveryNoteView.as_view(),

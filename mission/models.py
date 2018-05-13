@@ -8,6 +8,7 @@ from product.models import Product
 from datetime import date
 from order.models import terms_of_delivery_choices, terms_of_payment_choices, shipping_choices
 from django.db.models import Max
+from django.core.exceptions import ValidationError
 
 CHOICES = (
     (None, "----"),
@@ -117,19 +118,8 @@ class ProductMission(models.Model):
         else:
             return self.amount
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.__original_amount = self.amount
-    #     self.__original_netto_price = self.netto_price
-    #     self.__original_product = self.product
-    #     self.__original_pk = self.pk
-    #
     # def save(self, *args, **kwargs):
-    #     if self.pk is not None and (self.__original_amount != self.amount
-    #                                 or self.__original_netto_price != self.netto_price
-    #                                 or self.__original_product != self.product):
-    #         self.status = "AUSSTEHEND"
-    #     self.mission.save()
+    #     self.full_clean()
     #     super().save(*args, **kwargs)
 
 

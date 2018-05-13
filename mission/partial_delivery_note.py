@@ -3,6 +3,14 @@ from mission.delivery_note_pdf import *
 
 
 class PartialDeliveryNoteView(DeliveryNoteView):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.partial_delivery_note_number = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.partial_delivery_note_number = self.kwargs.get("delivery_note_number")
+        return super().dispatch(request, *args, **kwargs)
+
     def build_table(self):
         colwidths = [30, 68, 282, 60]
 

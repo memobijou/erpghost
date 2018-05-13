@@ -11,11 +11,12 @@
             <th>Einzelpreis (Netto)</th>
         </thead>
         <tbody>
-            {% for product_mission, amount, missing_amount, real_amount in mission_products %}
+            {% for real_amount_rows in real_amounts %}
+                {% for real_amount_row in real_amount_rows %}
                 <tr
-                    {% if product_mission.confirmed == True %}
+                    {% if real_amount_row.confirmed == True %}
                         class="success"
-                    {% elif product_mission.confirmed == False %}
+                    {% elif real_amount_row.confirmed == False %}
                         class="danger"
                     {% endif %}
                 >
@@ -24,19 +25,19 @@
                         <span class="glyphicon glyphicon-chevron-down"></span>
                     </td>
                     <td>
-                        {% if product_mission.product.main_image %}
+                        {% if real_amount_row.product_mission.product.main_image %}
                             <div style="max-height: 80px;max-width:80px;">
-                                <img src="{{ product_mission.product.main_image.url }}"
+                                <img src="{{ real_amount_row.product_mission.product.main_image.url }}"
                                                 style="max-height:80px;" class="img-responsive">
                             </div>
                         {% endif %}
                     </td>
-                    <td>{{ product_mission.product.ean }}</td>
-                    <td>{{ product_mission.product.sku }}</td>
-                    <td>{{ amount }}</td>
-                    <td>{{ missing_amount }}</td>
-                    <td>{{ real_amount }}</td>
-                    <td>{{ product_mission.netto_price }}</td>
+                    <td>{{ real_amount_row.product_mission.product.ean }}</td>
+                    <td>{{ real_amount_row.product_mission.product.sku }}</td>
+                    <td>{{ real_amount_row.real_amount }}</td>
+                    <td>{{ real_amount_row.missing_amount|default:"" }}</td>
+                    <td>{{ real_amount_row.real_amount_minus_missing_amount }}</td>
+                    <td>{{ real_amount_row.product_mission.netto_price }}</td>
                 </tr>
                 <tr id="collapse_{{ forloop.counter }}"
                     {% if product_mission.confirmed == True %}
@@ -48,10 +49,11 @@
                     {% endif %}
                 >
                     <td colspan="8">
-                        <p><b>Artikelname: </b>{{ product_mission.product.title }}</p>
-                        <p><b>Kurzbeschreibung: </b>{{ product_mission.product.short_description }}</p>
+                        <p><b>Artikelname: </b>{{ real_amount_row.product_mission.product.title }}</p>
+                        <p><b>Kurzbeschreibung: </b>{{ real_amount_row.product_mission.product.short_description }}</p>
                     </td>
                 </tr>
+                {% endfor %}
             {% endfor %}
         </tbody>
     </table>

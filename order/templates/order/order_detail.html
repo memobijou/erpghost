@@ -30,7 +30,13 @@
                 <tbody>
                         {% for productorder in object.productorder_set.all %}
                         {% if object.id == productorder.order.id %}
-                        <tr>
+                        <tr
+                            {% if productorder.confirmed == True %}
+                                class="success"
+                            {% elif productorder.confirmed == False %}
+                                class="danger"
+                            {% endif %}
+                        >
                             <td>{{productorder.product}}</td>
                             <td>{{productorder.product.title}}</td>
                             <td>{{productorder.amount}}</td>
@@ -46,12 +52,6 @@
                                 {% else %}
                                 {% endif %}
                             </td>
-                            <td>
-                                {% if productorder.confirmed == True %}
-                                    <span class="glyphicon glyphicon-ok " style="color:green;"></span>
-                                {% elif productorder.confirmed == False %}
-                                    <span class="glyphicon glyphicon-remove" style="color:red;"></span>
-                                {% endif %}                        </td>
                         </tr>
                         {% endif %}
                         {% endfor %}

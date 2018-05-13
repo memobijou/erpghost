@@ -175,7 +175,7 @@ class MissionDetailView(DetailView):
         context["title"] = "Auftrag " + context["object"].mission_number
         set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],\
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
-        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id"])
+        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
         context["fields"].insert(1, "Titel")
         context["fields"].insert(4, "Reale Menge")
         context["fields"][0] = "EAN / SKU"
@@ -372,9 +372,11 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["ManyToManyForms"] = self.build_product_mission_forms()
         context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
+
         if self.object_has_products() is True:
             context["object_has_products"] = True
         context["amount_update_forms"] = self.object.productmission_set.count()

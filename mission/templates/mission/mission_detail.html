@@ -56,7 +56,7 @@
                         Lieferadresse
                     </div>
                     <div class="panel-body">
-                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
+                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
                             {{ object.customer.contact.delivery_address.firma }}</p>
                         <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
                             {{ object.customer.contact.delivery_address.strasse }}</p>
@@ -173,7 +173,14 @@
                                     </thead>
                                     <tbody>
                                         {% for real_amount_row in real_amount_rows %}
-                                            <tr>
+                                            <tr
+                                                {% if real_amount_row.confirmed == True %}
+                                                    class="success"
+                                                {% elif real_amount_row.confirmed == False %}
+                                                    class="danger"
+                                                {% endif %}
+
+                                            >
                                                 <td>{{ real_amount_row.product_mission.product }}</td>
                                                 <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
                                                 <td>{{ real_amount_row.real_amount }}</td>
@@ -184,13 +191,6 @@
                                                     {% if real_amount_row.product_mission.netto_price %}
                                                     {{ real_amount_row.product_mission.netto_price|multiply:real_amount_row.real_amount|format_number_thousand_decimal_points }}
                                                     {% else %}
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    {% if real_amount_row.confirmed == True %}
-                                                        <span class="glyphicon glyphicon-ok " style="color:green;"></span>
-                                                    {% elif real_amount_row.confirmed == False %}
-                                                        <span class="glyphicon glyphicon-remove" style="color:red;"></span>
                                                     {% endif %}
                                                 </td>
                                             </tr>

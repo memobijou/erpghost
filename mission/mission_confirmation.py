@@ -92,10 +92,10 @@ class MissionConfirmationPdfView(View):
                 Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
             ],
         )
-        right_align_header_data.append([
-            Paragraph("Rechnungs-Nr.", style=size_nine_helvetica_leading_10),
-            Paragraph(add_new_line_to_string_at_index(billing_number, 10), style=size_nine_helvetica_leading_10),
-        ])
+        # right_align_header_data.append([
+        #     Paragraph("Rechnungs-Nr.", style=size_nine_helvetica_leading_10),
+        #     Paragraph(add_new_line_to_string_at_index(billing_number, 10), style=size_nine_helvetica_leading_10),
+        # ])
 
         if self.mission.customer is not None:
             customer_number = self.mission.customer.customer_number or ""

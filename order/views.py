@@ -319,7 +319,7 @@ class OrderDetailView(DetailView):
         context["title"] = "Bestellung " + context["object"].ordernumber
         set_object_ondetailview(context=context, ModelClass=Order, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
-        context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id"])
+        context["fields"] = get_verbose_names(ProductOrder, exclude=["id", "order_id", "confirmed"])
         context["fields"].insert(1, "Titel")
         context["fields"][0] = "EAN / SKU"
         context["fields"].insert(len(context["fields"])-1, "Gesamtpreis (Netto)")

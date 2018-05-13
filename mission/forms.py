@@ -18,7 +18,7 @@ class MissionForm(forms.ModelForm):
 
     class Meta:
         model = Mission
-        fields = ['delivery_date', 'confirmed', 'terms_of_delivery', 'terms_of_payment', "customer",
+        fields = ['delivery_date', 'terms_of_delivery', 'terms_of_payment', "customer",
                   'customer_order_number', 'shipping', 'shipping_number_of_pieces', 'shipping_costs']
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
@@ -86,6 +86,9 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
     def clean_amount(self):
 
         sum_all_amounts = 0
+
+        if self.product_mission is None:
+            return
 
         for real_amount_row in self.product_mission.realamount_set.all():
             sum_all_amounts += real_amount_row.real_amount

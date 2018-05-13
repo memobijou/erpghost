@@ -48,14 +48,16 @@ class Order(models.Model):
     ordernumber = models.CharField(max_length=13, blank=True, verbose_name="Bestellnummer")
     delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
     status = models.CharField(max_length=25, null=True, blank=True, default="OFFEN", verbose_name="Status")
-    supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order', verbose_name="Lieferant")
+    supplier = models.ForeignKey(Supplier, null=True, blank=True, related_name='order', verbose_name="Lieferant",
+                                 on_delete=models.SET_NULL)
     products = models.ManyToManyField(Product, through="ProductOrder")
     invoice = models.ManyToManyField(Invoice, through="InvoiceOrder")
     terms_of_payment = models.CharField(choices=terms_of_payment_choices, blank=True, null=True, max_length=200,
                                         verbose_name="Zahlungsbedingung")
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
                                          verbose_name="Lieferkonditionen")
-    delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse")
+    delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse",
+                                         on_delete=models.SET_NULL)
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
 

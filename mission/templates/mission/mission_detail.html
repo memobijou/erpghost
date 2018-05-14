@@ -15,16 +15,7 @@
         <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
         <p style="font-size:15px;"><b>Lieferdatum: </b>{{ object.delivery_date }}</p>
         <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
-        <p style="font-size:15px;">
-            <b>Pickbereit: </b>
-            {% if object.confirmed == True %}
-                <span class="glyphicon glyphicon-ok " style="color:green;"></span>
-            {% elif object.confirmed == False %}
-                <span class="glyphicon glyphicon-remove" style="color:red;"></span>
-            {% else %}
-                ---
-            {% endif %}
-        </p>
+
             <div class="col-md-6" style="padding:0;">
                 <div class="panel panel-default">
                     <div class="panel-heading">

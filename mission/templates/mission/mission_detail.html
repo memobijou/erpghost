@@ -6,10 +6,7 @@
         <div class="panel-body">
         <div class="col-md-12">
             <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
-            {% if object.status == "TEILLIEFERUNG" %}
-                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:billing_form' pk=object.id %}">Rechnung und Lieferschein erstellen </a>
-            {% endif %}
-                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferschein und Rechnung generieren</a>
+            <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferschein und Rechnung generieren</a>
         </div>
 
         <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>

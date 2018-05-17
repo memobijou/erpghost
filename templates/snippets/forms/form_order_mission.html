@@ -16,7 +16,8 @@
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>EAN</th>
+                            <th>EAN / SKU</th>
+                            <th>Zustand</th>
                             <th>Menge</th>
                             <th>Einzelpreis(Netto)</th>
                         </tr>
@@ -71,7 +72,7 @@
                             {% endfor %}
                     </tbody>
                 </table>
-                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary" id="main_form_submit_btn">
+                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary btn-lg" id="main_form_submit_btn">
             </div>
             <div class="col-md-4" id="product_content">
             </div>
@@ -84,7 +85,7 @@
 
     var GET_ = function (value, input) {
       var xhr = new XMLHttpRequest();
-      var url = "/product/api?ean=" + value.toString();
+      var url = "/product/api?ean=" + value.toString() + "&sku=" + value.toString();
 
       xhr.onreadystatechange = function(){
           if(xhr.readyState == 4 && xhr.status >= 200 && xhr.status <= 299){

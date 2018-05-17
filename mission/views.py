@@ -219,9 +219,6 @@ class MissionDetailView(DetailView):
             product_stock = self.get_product_stock(product_mission.product)
             available_product_stock = self.get_available_product_stock(product_mission.product)
 
-            if available_product_stock is None:
-                available_product_stock = 0
-
             amount = product_mission.amount
 
             missing_amount = product_mission.amount
@@ -678,9 +675,6 @@ class MissionStockCheckForm(View):
         for product_mission in self.object.productmission_set.all():
             product_stock = self.get_product_stock(product_mission.product)
             available_product_stock = self.get_available_product_stock(product_mission.product)
-
-            if available_product_stock is None:
-                available_product_stock = 0
 
             amount = product_mission.amount
 

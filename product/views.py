@@ -1,4 +1,6 @@
 from django.core.paginator import Paginator
+from django.db.models import Q
+from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.views.generic import CreateView
 from django.views.generic import DeleteView
@@ -7,8 +9,9 @@ from django.views.generic import ListView, FormView, UpdateView
 
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
+from sku.models import Sku
 from stock.models import Stock
-from .models import Product
+from .models import Product, ProductImage
 from order.models import ProductOrder
 from utils.utils import get_queries_as_json, set_field_names_onview, \
     handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request, \
@@ -16,7 +19,7 @@ from utils.utils import get_queries_as_json, set_field_names_onview, \
 from .serializers import ProductSerializer, IncomeSerializer
 from rest_framework.generics import ListAPIView
 from rest_framework import generics
-from product.forms import ImportForm, ProductForm, ProductIcecatForm
+from product.forms import ImportForm, ProductForm, ProductIcecatForm, PurchasingPriceForm
 from django.urls import reverse_lazy
 from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
@@ -27,6 +30,7 @@ import requests
 from django.core import files
 import base64
 import json
+import imghdr
 
 
 class ProductListView(ListView):
@@ -62,20 +66,14 @@ class ProductListView(ListView):
             stock_dict = {}
 
             if stock is not None:
-                total = stock.total_amount_ean()
+                total = stock.get_total_stocks()
                 available_total = stock.available_total_amount()
-                total_neu = stock.total_amount_ean(state='Neu')
-                total_a = stock.total_amount_ean(state='A')
-                total_b = stock.total_amount_ean(state='B')
-                total_c = stock.total_amount_ean(state='C')
-                total_d = stock.total_amount_ean(state='D')
-
-                stock_dict["total"] = f"{available_total} / {total}"
-                stock_dict["total_neu"] = total_neu
-                stock_dict["total_a"] = total_a
-                stock_dict["total_b"] = total_b
-                stock_dict["total_c"] = total_c
-                stock_dict["total_d"] = total_d
+                stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+                stock_dict["total_neu"] = total.get("Neu")
+                stock_dict["total_a"] = total.get("A")
+                stock_dict["total_b"] = total.get("B")
+                stock_dict["total_c"] = total.get("C")
+                stock_dict["total_d"] = total.get("D")
                 print(stock_dict)
                 total_stocks.append(stock_dict)
             else:
@@ -95,26 +93,213 @@ class ProductListView(ListView):
 class ProductUpdateView(UpdateView):
     form_class = ProductForm
 
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+        self.object = None
+
     def get_object(self):
-        return Product.objects.get(pk=self.kwargs.get("pk"))
+        self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Artikel bearbeiten"
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Artikel bearbeiten"
+        self.context["purchasing_forms"] = self.initialize_purchasing_forms()
+        return self.context
+
+    def initialize_purchasing_forms(self):
+        sku_instances = self.get_sku_instances()
+        new_sku = sku_instances[0]
+        A_sku = sku_instances[1]
+        B_sku = sku_instances[2]
+        C_sku = sku_instances[3]
+        D_sku = sku_instances[4]
+
+        purchasing_forms = [(new_sku.first(), PurchasingPriceForm(data=new_sku.values("purchasing_price").first())),
+                            (A_sku.first(), PurchasingPriceForm(data=A_sku.values("purchasing_price").first())),
+                            (B_sku.first(), PurchasingPriceForm(data=B_sku.values("purchasing_price").first())),
+                            (C_sku.first(), PurchasingPriceForm(data=C_sku.values("purchasing_price").first())),
+                            (D_sku.first(), PurchasingPriceForm(data=D_sku.values("purchasing_price").first()))]
+        return purchasing_forms
 
     def get_success_url(self):
         return reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")})
+
+    def form_valid(self, form):
+        more_images = self.request.FILES.getlist("more_images")
+        validation_msg = self.validate_files_are_images(more_images)
+        purchasing_prices_forms = self.get_purchasing_prices_forms()
+        purchasing_prices_forms_are_valid = self.validate_purchasing_prices_forms(purchasing_prices_forms)
+
+        if validation_msg is True and purchasing_prices_forms_are_valid is True:
+            self.delete_checked_images(self.request.POST.getlist("to_delete_more_images"))
+            self.upload_more_images(more_images)
+            self.update_sku_purchasing_prices()
+        else:
+            if validation_msg is not True:
+                form.add_error('more_images', validation_msg)
+            self.context["form"] = form
+            self.context["purchasing_forms"] = purchasing_prices_forms
+            self.context["title"] = "Artikel bearbeiten"
+            return render(self.request, "product/product_form.html", self.context)
+        return super().form_valid(form)
+
+    def get_purchasing_prices_forms(self):
+        post_forms = []
+
+        for purchasing_price in self.request.POST.getlist("purchasing_price"):
+            purchasing_price_form = PurchasingPriceForm(data={"purchasing_price": purchasing_price})
+            post_forms.append(purchasing_price_form)
+
+        purchasing_price_forms = []
+        print(purchasing_price_forms)
+        for sku, price in zip(self.get_sku_instances(), post_forms):
+            purchasing_price_forms.append((sku, price))
+        return purchasing_price_forms
+
+    def validate_purchasing_prices_forms(self, purchasing_forms):
+        is_valid = True
+        for sku, price_form in purchasing_forms:
+            if price_form.is_valid() is False:
+                is_valid = False
+                break
+        if is_valid is True:
+            return True
+        else:
+            return False
+
+    def get_sku_instances(self):
+        new_sku = Sku.objects.filter(product_id=self.object.pk, state="Neu")
+        A_sku = Sku.objects.filter(product_id=self.object.pk, state="A")
+        B_sku = Sku.objects.filter(product_id=self.object.pk, state="B")
+        C_sku = Sku.objects.filter(product_id=self.object.pk, state="C")
+        D_sku = Sku.objects.filter(product_id=self.object.pk, state="D")
+        return [new_sku, A_sku, B_sku, C_sku, D_sku]
+
+    def update_sku_purchasing_prices(self):
+        print(self.object)
+        for sku, purchasing_price in zip(self.object.sku_set.all().order_by("sku"),
+                                         self.request.POST.getlist("purchasing_price")):
+            if purchasing_price is not None and purchasing_price != "":
+                sku.purchasing_price = float(purchasing_price)
+                sku.save()
+            else:
+                sku.purchasing_price = None
+                sku.save()
+        print(self.request.POST)
+
+    def validate_files_are_images(self, more_images):
+        msg = f"Folgende Dateien sind keine Bilder: \n"
+        non_image_files = []
+        for file in more_images:
+            if imghdr.what(file) is None:
+                non_image_files.append(file)
+                msg += f"{str(file)},\n"
+        if len(non_image_files) > 0:
+            msg = msg[:-1]
+            return msg
+        return True
+
+    def upload_more_images(self, more_images):
+        for image in more_images:
+            img_object = ProductImage(image=image, product_id=self.object.pk)
+            img_object.save()
+
+    def delete_checked_images(self, checked_images_ids):
+        ProductImage.objects.filter(pk__in=checked_images_ids).delete()
 
 
 class ProductCreateView(CreateView):
     form_class = ProductForm
     template_name = "product/product_form.html"
 
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+        self.object = None
+
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Neuen Artikel anlegen"
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Neuen Artikel anlegen"
+        self.context["purchasing_forms"] = self.initialize_purchasing_forms()
+        return self.context
+
+    def initialize_purchasing_forms(self):
+        purchasing_forms = [(None, PurchasingPriceForm()), (None, PurchasingPriceForm()), (None, PurchasingPriceForm()),
+                            (None, PurchasingPriceForm()), (None, PurchasingPriceForm())]
+        return purchasing_forms
+
+    def form_valid(self, form):
+        more_images = self.request.FILES.getlist("more_images")
+        validation_msg = self.validate_files_are_images(more_images)
+        purchasing_prices_forms = self.get_purchasing_prices_forms()
+
+        purchasing_prices_forms_are_valid = self.validate_purchasing_forms(purchasing_prices_forms)
+
+        if validation_msg is True and purchasing_prices_forms_are_valid is True:
+            self.object = form.save(commit=True)
+            self.create_sku_purchasing_prices()
+            self.upload_more_images(more_images)
+        else:
+            if validation_msg is not True:
+                form.add_error('more_images', validation_msg)
+            self.context["purchasing_forms"] = purchasing_prices_forms
+            self.context["form"] = form
+            self.context["title"] = "Artikel bearbeiten"
+            return render(self.request, self.template_name, self.context)
+        return HttpResponseRedirect(self.get_success_url())
+
+    def create_sku_purchasing_prices(self):
+        for sku, purchasing_price in zip(self.object.sku_set.all().order_by("sku"),
+                                         self.request.POST.getlist("purchasing_price")):
+            if purchasing_price is not None and purchasing_price != "":
+                sku.purchasing_price = float(purchasing_price)
+                sku.save()
+            else:
+                sku.purchasing_price = None
+                sku.save()
+
+    def get_purchasing_prices_forms(self):
+        post_forms = []
+
+        for purchasing_price in self.request.POST.getlist("purchasing_price"):
+            purchasing_price_form = PurchasingPriceForm(data={"purchasing_price": purchasing_price})
+            post_forms.append(purchasing_price_form)
+
+        purchasing_price_forms = []
+        print(purchasing_price_forms)
+        for sku, price in zip([None, None, None, None, None], post_forms):
+            purchasing_price_forms.append((sku, price))
+        return purchasing_price_forms
+
+    def validate_purchasing_forms(self, purchasing_forms):
+        is_valid = True
+        for sku, price_form in purchasing_forms:
+            if price_form.is_valid() is False:
+                is_valid = False
+                break
+        if is_valid is True:
+            return True
+        else:
+            return False
+
+    def validate_files_are_images(self, more_images):
+        msg = f"Folgende Dateien sind keine Bilder: \n"
+        non_image_files = []
+        for file in more_images:
+            if imghdr.what(file) is None:
+                non_image_files.append(file)
+                msg += f"{str(file)},\n"
+        if len(non_image_files) > 0:
+            msg = msg[:-1]
+            return msg
+        return True
+
+    def upload_more_images(self, more_images):
+        for image in more_images:
+            img_object = ProductImage(image=image, product_id=self.object.pk)
+            img_object.save()
 
 
 class ProductDeleteView(DeleteView):
@@ -238,14 +423,20 @@ class ProductUpdateIcecatView(ProductUpdateView):
 
 
 class ProductDetailView(DetailView):
+    def __init__(self):
+        super().__init__()
+        self.object = None
+        self.context = {}
+
     def get_object(self):
         return Product.objects.get(pk=self.kwargs.get("pk"))
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Artikel Detailansicht"
-        context["stock"] = self.get_product_stocks()
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Artikel Detailansicht"
+        self.context["stock"] = self.get_product_stocks()
+        self.context["product_skus"] = self.object.sku_set.all().order_by('pk')
+        return self.context
 
     def get_product_stocks(self):
         query = self.get_object()
@@ -253,19 +444,14 @@ class ProductDetailView(DetailView):
         stock_dict = {}
 
         if stock is not None:
-            total = stock.total_amount_ean()
-            total_neu = stock.total_amount_ean(state='Neu')
-            total_a = stock.total_amount_ean(state='A')
-            total_b = stock.total_amount_ean(state='B')
-            total_c = stock.total_amount_ean(state='C')
-            total_d = stock.total_amount_ean(state='D')
-
-            stock_dict["total"] = total
-            stock_dict["total_neu"] = total_neu
-            stock_dict["total_a"] = total_a
-            stock_dict["total_b"] = total_b
-            stock_dict["total_c"] = total_c
-            stock_dict["total_d"] = total_d
+            total = stock.get_total_stocks()
+            available_total = stock.available_total_amount()
+            stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+            stock_dict["total_neu"] = total.get("Neu")
+            stock_dict["total_a"] = total.get("A")
+            stock_dict["total_b"] = total.get("B")
+            stock_dict["total_c"] = total.get("C")
+            stock_dict["total_d"] = total.get("D")
         else:
             stock_dict["total"] = None
         return stock_dict
@@ -291,13 +477,18 @@ class ProductListAPIView(generics.ListAPIView):
         """ allow rest api to filter by submissions """
         queryset = Product.objects.all()
         ean = self.request.query_params.get('ean', None)
+        sku = self.request.query_params.get('sku', None)
         pk = self.request.query_params.get('id', None)
         if ean is not None:
             queryset = queryset.filter(ean=ean)
         if pk is not None:
             queryset = queryset.filter(id=pk)
+        if sku is not None:
+            queryset = queryset.filter(sku__sku=sku)
 
-        return queryset
+        if sku is not None and ean is not None:
+            queryset = Product.objects.filter(Q(sku__sku=ean) | Q(ean=ean) | Q(sku__sku=sku) | Q(ean=sku))
+        return queryset[:15]
 
 
 class ProductImportView(FormView):

@@ -6,6 +6,7 @@ from django.template import Context, Template
 import re
 
 from mission.models import RealAmount
+from product.models import Product
 
 
 class Stock(models.Model):
@@ -107,30 +108,113 @@ class Stock(models.Model):
     def total_amount_ean(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             if state is not None:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).\
-                    aggregate(Sum('bestand'))
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__iexact=state).\
+                    aggregate(Sum('bestand'))["bestand__sum"]
+
+                if total is None:
+                    total = 0
+
+                product = Product.objects.filter(ean=str(self.ean_vollstaendig)).first()
+                total = self.add_skus_to_total(state, total, product)
+
             else:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig))\
+                    .aggregate(Sum('bestand'))["bestand__sum"]
+
+                if total is None:
+                    total = 0
+
+                product = Product.objects.filter(ean=str(self.ean_vollstaendig)).first()
+                total = self.add_skus_to_total(state, total, product)
         elif self.sku is not None and self.sku != "":
-            if state is not None:
-                total = Stock.objects.filter(sku=str(self.sku), zustand__icontains=state).aggregate(Sum('bestand'))
-            else:
-                total = Stock.objects.filter(sku=str(self.sku)).aggregate(Sum('bestand'))
+            total = self.get_total_from_sku()
         elif self.title is not None and self.title != "":
             if state is not None:
-                total = Stock.objects.filter(title=str(self.title), zustand__icontains=state).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(title=str(self.title))\
+                    .aggregate(Sum('bestand'))["bestand__sum"]
             else:
-                total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))["bestand__sum"]
         else:
             return None
-        print("?!?!: " + str(total))
-        total = {"bestand__sum": total["bestand__sum"]}
-        return total["bestand__sum"]
+        return total
+
+    def get_total_stocks(self):
+        product = None
+
+        if self.sku is not None and self.sku != "":
+            product = Product.objects.filter(sku__sku=self.sku).first()
+            total = self.get_total_from_product(product)
+            return total
+
+        if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
+            product = Product.objects.filter(ean=self.ean_vollstaendig).first()
+            total = self.get_total_from_product(product)
+            return total
+
+        if product is None:
+            total_from_sku = self.get_total_from_sku()
+            if total_from_sku is not None:
+                return {"Gesamt": total_from_sku}
+
+            total_from_ean = self.get_total_from_ean()
+            if total_from_ean is not None:
+                return {"Gesamt": total_from_ean}
+
+    def get_total_from_sku(self):
+        total = Stock.objects.filter(sku=self.sku).aggregate(Sum("bestand"))["bestand__sum"]
+        return total
+
+    def get_total_from_ean(self):
+        total = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig).aggregate(Sum("bestand"))["bestand__sum"]
+        return total
+
+    def get_total_from_product(self, product):
+        result = {}
+        all_skus = {}
+
+        if product is not None:
+            for sku in product.sku_set.all():
+                all_skus[sku.sku] = sku
+        print(all_skus)
+
+        for sku_string, sku_instance in all_skus.items():
+            sku_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).get("bestand__sum")
+            if sku_total is not None:
+                result[sku_instance.state] = sku_total
+            else:
+                result[sku_instance.state] = "0"
+
+        if product is not None:
+            def add_ean_of_state_x_to_result(state, result):
+                total_of_state = Stock.objects.filter(ean_vollstaendig=product.ean, zustand__iexact=state)\
+                    .aggregate(Sum("bestand")).get("bestand__sum")
+                if total_of_state is None:
+                    total_of_state = 0
+                if state in result:
+                    result[state] = f'{int(result[state]) + int(total_of_state)}'
+                else:
+                    result[state] = total_of_state
+                return result
+            if product.ean is not None and product.ean != "":
+                result = add_ean_of_state_x_to_result("Neu", result)
+                result = add_ean_of_state_x_to_result("A", result)
+                result = add_ean_of_state_x_to_result("B", result)
+                result = add_ean_of_state_x_to_result("C", result)
+                result = add_ean_of_state_x_to_result("D", result)
+
+        total = 0
+        print(result)
+        for k, v in result.items():
+            total += int(v)
+
+        result["Gesamt"] = total
+        print(result)
+        return result
 
     def available_total_amount(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             if state is not None:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__icontains=state).\
+                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__iexact=state).\
                     aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
@@ -144,12 +228,12 @@ class Stock(models.Model):
 
         elif self.sku is not None and self.sku != "":
             if state is not None:
-                total = Stock.objects.filter(sku=str(self.sku), zustand__icontains=state).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(sku=str(self.sku), zustand__iexact=state).aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(sku=str(self.sku)).aggregate(Sum('bestand'))
         elif self.title is not None and self.title != "":
             if state is not None:
-                total = Stock.objects.filter(title=str(self.title), zustand__icontains=state).aggregate(Sum('bestand'))
+                total = Stock.objects.filter(title=str(self.title), zustand__iexact=state).aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
             real_amounts = RealAmount.objects.filter(product_mission__product__title=self.title)
@@ -163,9 +247,8 @@ class Stock(models.Model):
         print("?!?!: " + str(total))
         total = {"bestand__sum": total["bestand__sum"]}
 
-
-
         return total["bestand__sum"]
+
 
 class Stockdocument(models.Model):
     document = models.FileField(upload_to='documents/', null=True, blank=False)

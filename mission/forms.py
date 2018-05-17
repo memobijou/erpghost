@@ -50,6 +50,9 @@ ProductMissionFormsetCreate = inlineformset_factory(Mission, ProductMission, can
 
 class CommonProductMissionForm(forms.Form):
     ean = forms.CharField(label='EAN', max_length=50)
+
+    state = forms.ChoiceField(label="Zustand", choices=((None, "----"),("Neu", "Neu"), ("A", "A"), ("B", "B"),
+                                                        ("C", "C"), ("D", "D")))
     amount = forms.IntegerField(label='Menge', min_value=1)
     netto_price = forms.FloatField(label="Einzelpreis (Netto)", min_value=0.1)
 
@@ -57,7 +60,7 @@ class CommonProductMissionForm(forms.Form):
         super().__init__(**kwargs)
         for visible in self.visible_fields():
             if type(visible.field) is CharField or type(visible.field) is FloatField \
-                    or type(visible.field) is IntegerField:
+                    or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
 
     def clean_ean(self):

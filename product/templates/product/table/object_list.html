@@ -34,6 +34,8 @@
                 {% endif %}
             </td>
             <td> {{ object.ean|default:""}} </td>
+            <td> {{ object.main_sku|default:""}} </td>
+
             <td> {{ object.manufacturer|default:""}} </td>
             <td> {{ object.brandname|default:""}} </td>
             <td> {{ object.part_number|default:""}} </td>

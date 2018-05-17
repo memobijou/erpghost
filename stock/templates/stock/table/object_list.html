@@ -28,7 +28,7 @@
                 </div>
             {% endif %}
         </td>
-        <td> {{ object.ean_vollstaendig}} </td>
+        <td> {{ object.ean_vollstaendig|default:""}} </td>
         <td> {{ object.bestand}} </td>
         <td> {{ object.lagerplatz}} </td>
         <td> {{object.zustand}} </td>

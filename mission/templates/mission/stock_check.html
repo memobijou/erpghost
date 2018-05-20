@@ -67,6 +67,7 @@
                         <div class="thead">
                             <tr>
                                 <th>EAN / SKU</th>
+                                <th>Zustand</th>
                                 <th>Menge</th>
                                 <th>Lagerbestand</th>
                                 <th>Einzelpreis (Netto)</th>
@@ -76,7 +77,8 @@
                         <div class="tbody">
                             {% for product_mission, amount, product_stock, available_product_stock in products_from_stock %}
                                 <tr>
-                                    <td>{{ product_mission.product }}</td>
+                                    <td>{{ product_mission.get_ean_or_sku }}</td>
+                                    <td>{{ product_mission.state }}</td>
                                     <td>{{ amount }}</td>
                                     <td>{{ available_product_stock }}/{{ product_stock }}</td>
                                     <td>{{ product_mission.netto_price|format_number_thousand_decimal_points }}</td>

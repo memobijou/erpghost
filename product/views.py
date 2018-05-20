@@ -62,13 +62,18 @@ class ProductListView(ListView):
         queryset = self.get_queryset()
         total_stocks = []
         for q in queryset:
-            stock = Stock.objects.filter(ean_vollstaendig=q.ean).first()
+            stock = None
+            if q.ean is not None and q.ean != "":
+                stock = Stock.objects.filter(ean_vollstaendig=q.ean).first()  # wenn kein ean dann nach sku !
+            else:
+                for sku in q.sku_set.all():
+                    stock = Stock.objects.filter(sku=sku.sku).first()
+                    if stock is not None:
+                        break
             stock_dict = {}
-
             if stock is not None:
-                total = stock.get_total_stocks()
-                available_total = stock.available_total_amount()
-                stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+                total = stock.get_available_stocks_of_total_stocks()
+                stock_dict["total"] = total.get('Gesamt')
                 stock_dict["total_neu"] = total.get("Neu")
                 stock_dict["total_a"] = total.get("A")
                 stock_dict["total_b"] = total.get("B")
@@ -439,14 +444,21 @@ class ProductDetailView(DetailView):
         return self.context
 
     def get_product_stocks(self):
+        stock = None
         query = self.get_object()
-        stock = Stock.objects.filter(ean_vollstaendig=query.ean).first()
+        if query.ean is not None and query.ean != "":
+            stock = Stock.objects.filter(ean_vollstaendig=query.ean).first()
+        else:
+            for sku in query.sku_set.all():
+                stock = Stock.objects.filter(sku=sku.sku).first()
+                if stock is not None:
+                    break
+
         stock_dict = {}
 
         if stock is not None:
-            total = stock.get_total_stocks()
-            available_total = stock.available_total_amount()
-            stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+            total = stock.get_available_stocks_of_total_stocks()
+            stock_dict["total"] = total.get('Gesamt')
             stock_dict["total_neu"] = total.get("Neu")
             stock_dict["total_a"] = total.get("A")
             stock_dict["total_b"] = total.get("B")

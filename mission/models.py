@@ -105,6 +105,7 @@ class ProductMission(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
+    state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
     amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Menge")
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
@@ -119,6 +120,19 @@ class ProductMission(models.Model):
             return self.amount - self.missing_amount
         else:
             return self.amount
+
+    def get_ean_or_sku(self):
+        ean_or_sku = None
+        print(f"BUS: {ean_or_sku}")
+
+        if self.product.ean is not None and self.product.ean != "":
+            ean_or_sku = self.product.ean
+        else:
+            sku_instance = self.product.sku_set.filter(state=self.state).first()
+            if sku_instance is not None:
+                ean_or_sku = sku_instance.sku
+        print(f"BUS: {ean_or_sku}")
+        return ean_or_sku
 
     # def save(self, *args, **kwargs):
     #     self.full_clean()

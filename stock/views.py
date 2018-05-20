@@ -74,11 +74,13 @@ class StockListView(LoginRequiredMixin, ListView):
             if q.sku is not None and q.sku != "":
                 stock = Stock.objects.filter(sku=q.sku).first()
 
-            if stock is not None:
-                total = stock.get_total_stocks()
-                available_total = stock.available_total_amount()
+            if q.title is not None and q.title != "":
+                stock = Stock.objects.filter(title=q.title).first()
 
-                stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+            if stock is not None:
+                total = stock.get_available_stocks_of_total_stocks()
+
+                stock_dict["total"] = total.get("Gesamt")
                 stock_dict["total_neu"] = total.get("Neu")
                 stock_dict["total_a"] = total.get("A")
                 stock_dict["total_b"] = total.get("B")
@@ -117,7 +119,12 @@ class StockListView(LoginRequiredMixin, ListView):
         queryset = self.get_queryset()
         products = []
         for q in queryset:
-            product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+            product = None
+            if q.ean_vollstaendig is not None and q.ean_vollstaendig != "":
+                product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+            else:
+                if q.sku is not None and q.sku != "":
+                    product = Product.objects.filter(sku__sku=q.sku).first()
             if product is not None:
                 products.append(product)
             else:
@@ -235,9 +242,18 @@ class StockDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
-        context["product"] = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
+        context["product"] = self.get_product()
         context["stock"] = self.get_product_stocks()
         return context
+
+    def get_product(self):
+        product = None
+        if self.object.ean_vollstaendig is not None and self.object.ean_vollstaendig != "":
+            product = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
+        else:
+            if self.object.sku is not None and self.object.sku != "":
+                product = Product.objects.filter(sku__sku=self.object.sku).first()
+        return product
 
     def get_product_stocks(self):
         query = self.get_object()
@@ -250,11 +266,13 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         if query.sku is not None and query.sku != "":
             stock = Stock.objects.filter(sku=query.sku).first()
 
-        if stock is not None:
-            total = stock.get_total_stocks()
-            available_total = stock.available_total_amount()
+        if query.title is not None and query.title != "":
+            stock = Stock.objects.filter(title=query.title).first()
 
-            stock_dict["total"] = f"{available_total} / {total.get('Gesamt')}"
+        if stock is not None:
+            total = stock.get_available_stocks_of_total_stocks()
+
+            stock_dict["total"] = total.get('Gesamt')
             stock_dict["total_neu"] = total.get("Neu")
             stock_dict["total_a"] = total.get("A")
             stock_dict["total_b"] = total.get("B")

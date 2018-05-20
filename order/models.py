@@ -107,6 +107,7 @@ class Order(models.Model):
 class ProductOrder(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
     order = models.ForeignKey(Order, on_delete=models.CASCADE, unique=False, blank=False, null=False)
+    state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
     amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Menge")
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")

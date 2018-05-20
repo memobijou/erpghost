@@ -28,12 +28,30 @@
                 </div>
             {% endif %}
         </td>
-        <td> {{ object.ean_vollstaendig|default:""}} </td>
+        <td>
+            {% if object.ean_vollstaendig %}
+            {{ object.ean_vollstaendig|default:""}}
+            {% else %}
+                {% if product.ean %}
+                    {{ product.ean|default:"" }}
+                {% endif %}
+            {% endif %}
+        </td>
         <td> {{ object.bestand}} </td>
         <td> {{ object.lagerplatz}} </td>
         <td> {{object.zustand}} </td>
         <td> {{object.title|default:""}} </td>
-        <td> {{object.sku|default:""}} </td>
+        <td>
+            {% if object.sku %}
+            {{object.sku|default:""}}
+            {% else %}
+                {% for sku in product.sku_set.all %}
+                    {% if sku.state == object.zustand %}
+                        {{ sku.sku|default:"" }}
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </td>
 
         <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>

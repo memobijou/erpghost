@@ -12,10 +12,25 @@ class ProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        fields = "__all__"
+        exclude = ["main_sku"]
+
+    more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
+                                  required=False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            print(type(visible.field))
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class PurchasingPriceForm(forms.Form):
+    purchasing_price = forms.FloatField(label="Einkaufspreis", required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         for visible in self.visible_fields():
             print(type(visible.field))
             if type(visible.field) is CharField or type(visible.field) is FloatField \

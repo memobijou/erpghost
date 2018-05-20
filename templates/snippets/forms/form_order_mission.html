@@ -16,62 +16,49 @@
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>EAN</th>
+                            <th>EAN / SKU</th>
+                            <th>Zustand</th>
                             <th>Menge</th>
                             <th>Einzelpreis(Netto)</th>
+                            <th>Löschen</th>
                         </tr>
                     </thead>
                     <tbody id="entries_table">
-                            {% for many_to_many_form in ManyToManyForms %}
-
+                            {% for many_to_many_form, product in ManyToManyForms %}
                                 <tr class="entry_row">
                                     {% for field in many_to_many_form %}
-                                        <td>
-                                            <div class="form-group">
-                                                {% for field_error in field.errors %}
-                                                    <p style="color:red;" class="error">{{ field_error }}</p>
-                                                {% endfor %}
-                                                {{ field }}
-                                                {% if field.help_text %}
-                                                    <p class="help">{{ field.help_text|safe }}</p>
-                                                {% endif %}
-                                            </div>
-                                        </td>
-                                    {% endfor %}
-                                    {% if object %}
-                                        {% if object_has_products %}
-                                            {% if forloop.counter <= amount_update_forms %}
+                                        {% if field.name != "delete" %}
                                             <td>
-                                                <div class="checkbox">
-                                                    <label><input type="checkbox" value="True"
-                                                                  style="cursor:pointer;"
-                                                                  class="delete_checkbox">Löschen</label>
-                                                    <input type="hidden" value="off" name="delete">
+                                                <div class="form-group">
+                                                    {% for field_error in field.errors %}
+                                                        <p style="color:red;" class="error">{{ field_error }}</p>
+                                                    {% endfor %}
+                                                    {{ field }}
+                                                    {% if field.help_text %}
+                                                        <p class="help">{{ field.help_text|safe }}</p>
+                                                    {% endif %}
                                                 </div>
                                             </td>
-                                            {% else %}
-                                                <td>
-                                                    <span class="glyphicon glyphicon-trash delete-trash"
-                                                          style="color:red; cursor:pointer;font-size:15px;"></span>
-                                                </td>
-                                            {% endif %}
-                                        {% else %}
-                                            <td>
-                                                <span class="glyphicon glyphicon-trash delete-trash"
-                                                      style="color:red; cursor:pointer;font-size:15px;"></span>
-                                            </td>
                                         {% endif %}
-                                    {% else %}
-                                        <td>
-                                            <span class="glyphicon glyphicon-trash delete-trash"
-                                                  style="color:red; cursor:pointer;font-size:15px;"></span>
-                                        </td>
-                                    {% endif %}
+                                    {% endfor %}
+                                    <td>
+                                        {% if many_to_many_form.delete %}
+                                            <div class="checkbox" style="cursor: pointer;">
+                                              <label><input type="checkbox" value="" class="delete_checkbox">
+                                                  Löschen
+                                              </label>
+                                              {{ many_to_many_form.delete }}
+                                            </div>
+                                        {% else %}
+                                            <span class="glyphicon glyphicon-trash delete_trash" style="cursor: pointer;
+                                             color: red; font-size: 15px;"></span>
+                                        {% endif %}
+                                    </td>
                                 </tr>
                             {% endfor %}
                     </tbody>
                 </table>
-                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary" id="main_form_submit_btn">
+                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary btn-lg" id="main_form_submit_btn">
             </div>
             <div class="col-md-4" id="product_content">
             </div>
@@ -84,7 +71,7 @@
 
     var GET_ = function (value, input) {
       var xhr = new XMLHttpRequest();
-      var url = "/product/api?ean=" + value.toString();
+      var url = "/product/api?ean=" + value.toString() + "&sku=" + value.toString();
 
       xhr.onreadystatechange = function(){
           if(xhr.readyState == 4 && xhr.status >= 200 && xhr.status <= 299){
@@ -137,29 +124,6 @@
         };
     }
 
-    var disable_or_enable_form_submit_btn = function(ean_elements){
-        var is_success = true;
-        for(var i=0; i< ean_elements.length; i++){
-          var input = ean_elements[i];
-          var parent = input.parentElement;
-
-          if(parent.className.includes("has-error")){
-              is_success = false;
-              break;
-          }
-        }
-        if(is_success == false){
-            main_form_submit_btn.setAttribute("disabled", "");
-            main_form_submit_btn.setAttribute("data-toggle", "tooltip");
-            main_form_submit_btn.setAttribute("title", "Die eingegebene EAN ist im System nicht vorhanden");
-        }else{
-            main_form_submit_btn.removeAttribute("disabled");
-            main_form_submit_btn.removeAttribute("data-toggle");
-            main_form_submit_btn.removeAttribute("title");
-
-        }
-    };
-
     var set_error_or_success_for_input = function(input, response){
         var parent_element = input.parentElement;
         if(input.value == ""){
@@ -192,6 +156,7 @@
         for(var i = 0; i<delete_hidden_input_elements.length; i++){
             var hidden_input = delete_hidden_input_elements[i];
             var checkbox = hidden_input.parentElement.getElementsByClassName("delete_checkbox")[0];
+
             (function(hidden_input){
                 checkbox.onclick = function(){
                     if(this.checked == true){
@@ -215,15 +180,21 @@
         add_row_btn.onclick = function(){
             var table_row_clone = sample_row.cloneNode(true);
             var table_row_clone_inputs = table_row_clone.getElementsByTagName("input");
+            var select_fields = table_row_clone.getElementsByTagName("select");
+            for(var i = 0; i<select_fields.length; i++){
+                select_fields[i].getElementsByTagName("option")[0].selected = 'selected';
+            }
+
 
             for(var i = 0; i<table_row_clone_inputs.length; i++){
                 var row_input = table_row_clone_inputs[i];
                 row_input.value = "";
                 if(row_input.className == "delete_checkbox"){
-                    var row_input_parent = row_input.parentElement;
-                    while(row_input_parent.firstChild){
-                        row_input_parent.removeChild(row_input_parent.firstChild);
-                    }
+
+                    var row_input_parent = row_input.parentElement.parentElement.parentElement;
+
+                    row_input_parent.innerHTML = "";
+
                     var new_delete_btn = document.createElement("span");
                     new_delete_btn.className = "glyphicon glyphicon-trash";
                     new_delete_btn.style.cursor = "pointer";
@@ -238,6 +209,8 @@
                     row_input_parent.appendChild(new_delete_btn);
 
                 }
+
+
                 else if(row_input.name == "ean"){
                     row_input.parentElement.className = row_input.parentElement.className.replace("has-error", "");
                     row_input.parentElement.className = row_input.parentElement.className.replace("has-success", "");
@@ -286,7 +259,7 @@
         var table_rows = document.getElementsByClassName("entry_row");
 
         if(table_rows.length == 1){
-            {% if not object_has_products and object.pk %}
+            {% if object.productmission_set.all.count == 0 %}
                 for(var i = 0; i<table_rows.length; i++){
                     var table_row = table_rows[i];
                     table_row.parentElement.removeChild(table_row);
@@ -301,6 +274,15 @@
     add_delete_row_on_click_to_initial_trash_butttons();
 
     add_new_row_on_plus_click();
+
+    var trash_buttons = document.getElementsByClassName("delete_trash");
+
+    for(var i = 0; i<trash_buttons.length; i++){
+        var trash_button = trash_buttons[i];
+        var row = trash_button.parentElement.parentElement;
+        delete_row_on_click(row, trash_button);
+    }
+
 
     remove_first_initial_form_on_update_view();
 

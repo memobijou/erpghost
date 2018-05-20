@@ -3,7 +3,6 @@ from product.models import Product
 
 def validate_product_order_or_mission_from_post(many_to_many_form_class, amount_forms, request):
     invalid_form = False
-    print(request.POST)
 
     for field in many_to_many_form_class.base_fields:
         amount_forms = len(request.POST.getlist(field))

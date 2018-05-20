@@ -72,6 +72,7 @@
                         <thead>
                             <tr>
                                 <th>EAN / SKU</th>
+                                <th>Zustand</th>
                                 <th>Titel</th>
                                 <th>Menge</th>
                                 <th>Fehlende Menge</th>
@@ -85,7 +86,10 @@
                                 {% for productmission, missing_amount, stock, real_amount, available_product_stock in products_from_stock %}
                                     {% if object.id == productmission.mission.id %}
                                     <tr>
-                                        <td>{{productmission.product}}</td>
+                                        <td>
+                                            {{productmission.get_ean_or_sku}}
+                                        </td>
+                                        <td>{{productmission.state}}</td>
                                         <td>{{productmission.product.title}}</td>
                                         <td>{{productmission.amount}}</td>
                                         <td style="color:red;">
@@ -100,7 +104,7 @@
                                         <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                         <td>
                                             {% if productmission.netto_price %}
-                                            {{ productmission.netto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}
+                                                {{ productmission.netto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}
                                             {% else %}
                                             {% endif %}
                                         </td>
@@ -169,8 +173,9 @@
                                                 {% endif %}
 
                                             >
-                                                <td>{{ real_amount_row.product_mission.product }}</td>
+                                                <td>{{ real_amount_row.product_mission.get_ean_or_sku }}</td>
                                                 <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
+                                                <td>{{ real_amount_row.product_mission.state|default:"" }}</td>
                                                 <td>{{ real_amount_row.real_amount }}</td>
                                                 <td style="color:red;">{{ real_amount_row.missing_amount|default:'' }}</td>
                                                 <td style="color:green;">{{ real_amount_row.real_amount_minus_missing_amount }}</td>

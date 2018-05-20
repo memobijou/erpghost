@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import FormView
@@ -9,6 +10,7 @@ from reportlab.platypus import PageTemplate
 from reportlab.platypus import SimpleDocTemplate
 from reportlab.platypus import XPreformatted
 
+from product.models import Product
 from product.order_mission import validate_product_order_or_mission_from_post, \
     create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
     validate_products_are_unique_in_form
@@ -31,6 +33,7 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import Frame, NextPageTemplate, PageBreak
 from django.forms.models import model_to_dict
 from django.views import View
+from django.forms import ValidationError
 
 
 class MissionBillingFormView(View):
@@ -177,9 +180,9 @@ class MissionDetailView(DetailView):
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
         context["fields"].insert(1, "Titel")
-        context["fields"].insert(4, "Reale Menge")
+        context["fields"].insert(5, "Reale Menge")
         context["fields"][0] = "EAN / SKU"
-        context["fields"].insert(len(context["fields"]) - 1, "Gesamtpreis (Netto)")
+        context["fields"].insert(len(context["fields"]), "Gesamtpreis (Netto)")
         context["products_from_stock"] = self.get_products_from_stock()
         context["real_amounts"] = self.get_real_amounts()
         return context
@@ -216,11 +219,10 @@ class MissionDetailView(DetailView):
         billing_products = []
         print(billing_products)
         for product_mission in self.object.productmission_set.all():
-            product_stock = self.get_product_stock(product_mission.product)
-            available_product_stock = self.get_available_product_stock(product_mission.product)
-
-            if available_product_stock is None:
-                available_product_stock = 0
+            product_stock = self.get_product_stock(product_mission)
+            available_product_stock = self.get_available_product_stock(product_mission)
+            if available_product_stock is not None:
+                available_product_stock = int(available_product_stock)
 
             amount = product_mission.amount
 
@@ -245,17 +247,49 @@ class MissionDetailView(DetailView):
             print(billing_products)
         return billing_products
 
-    def get_product_stock(self, product):
-        if product.ean is not None:
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
-            if stock is not None:
-                return stock.total_amount_ean()
+    def get_product_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
 
-    def get_available_product_stock(self, product):
-        if product.ean is not None:
+        if product.ean is not None and product.ean != "":
             stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
             if stock is not None:
-                return stock.available_total_amount()
+                if state is None:
+                    return stock.get_total_stocks().get("Gesamt")
+                else:
+                    return stock.get_total_stocks().get(state)
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
+                    if stock is not None:
+                        if state is None:
+                                return stock.get_total_stocks().get("Gesamt")
+                        else:
+                                return stock.get_total_stocks().get(state)
+
+    def get_available_product_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+
+        if product.ean is not None and product.ean != "":
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+            if stock is not None:
+                if state is None:
+                    return stock.get_available_total_stocks().get("Gesamt")
+                else:
+                    return stock.get_available_total_stocks().get(state)
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
+                    if stock is not None:
+                        if state is None:
+                                return stock.get_available_total_stocks().get("Gesamt")
+                        else:
+                                return stock.get_available_total_stocks().get(state)
 
 
 class MissionListView(ListView):
@@ -292,69 +326,135 @@ class MissionListView(ListView):
 class MissionCreateView(CreateView):
     template_name = "mission/form.html"
     form_class = MissionForm
-    amount_product_mission_forms = 1
 
     def __init__(self):
         super().__init__()
         self.object = None
+        self.product_forms = []
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag anlegen"
-        context["ManyToManyForms"] = self.build_product_mission_forms(self.amount_product_mission_forms)
+        context["ManyToManyForms"] = self.build_product_mission_forms()
         context["detail_url"] = reverse_lazy("mission:list")
         return context
 
-    def build_product_mission_forms(self, amount):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
-            amount = len(self.request.POST.getlist("ean"))
+    def build_product_mission_forms(self):
+        if self.request.method == "POST":
+            amount_forms = self.get_amount_product_mission_forms()
+            for i in range(0, amount_forms):
+                data = self.get_data_from_post_on_index_x_to_form(i)
+                form = ProductMissionForm(data=data)
+                product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+                self.product_forms.append((form, product))
+        else:
+            self.product_forms.append((ProductMissionForm(), None))
+        return self.product_forms
 
-        product_mission_forms_list = []
-        for i in range(0, amount):
-            if self.request.POST:
-                data = {}
-                for k in self.request.POST:
-                    if k in ProductMissionForm.base_fields:
-                        data[k] = self.request.POST.getlist(k)[i]
-                print(data)
-                product_mission_forms_list.append(ProductMissionForm(data=data))
-            else:
-                product_mission_forms_list.append(ProductMissionForm())
-        return product_mission_forms_list
+    def get_data_from_post_on_index_x_to_form(self, index):
+        data = {}
+
+        for field_name in ProductMissionForm.base_fields:
+            if str(field_name) in self.request.POST:
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+        return data
+
+    def get_amount_product_mission_forms(self):
+        amount_forms = 0
+        for field_name in ProductMissionForm.base_fields:
+            if field_name in self.request.POST:
+                amount_forms = len(self.request.POST.getlist(str(field_name)))
+        return amount_forms
 
     def form_valid(self, form, *args, **kwargs):
+        context = self.get_context_data(*args, **kwargs)
         self.object = form.save(commit=False)
 
-        duplicates = validate_products_are_unique_in_form(self.request.POST)
-        if duplicates is not None:
-            context = self.get_context_data(**kwargs)
-            context["duplicates"] = duplicates
-            return render(self.request, self.template_name, context)
-
-        valid_product_mission_forms = \
-            validate_product_order_or_mission_from_post(ProductMissionForm, self.amount_product_mission_forms,
-                                                        self.request)
-
-        if valid_product_mission_forms is False:
-            context = self.get_context_data(*args, **kwargs)
-            return render(self.request, self.template_name, context)
+        if self.validate_product_forms_are_valid() is True:
+            self.create_mission_products()
+            return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.object.pk}))
         else:
-            self.object.save()
+            return render(self.request, self.template_name, context)
 
-            create_product_order_or_mission_forms_from_post(ProductMission, ProductMissionForm,
-                                                            self.amount_product_mission_forms, "mission", self.object,
-                                                            self.request, 0)
-            refresh_mission_status(self.object)
-        return HttpResponseRedirect(self.get_success_url())
+    def validate_product_forms_are_valid(self):
+        self.validate_product_forms_have_no_duplicates()
+        self.validate_product_forms_have_no_skus_with_states()
+        product_forms_are_valid = True
+        for product_form, product in self.product_forms:
+            if product_form.is_valid() is False:
+                product_forms_are_valid = False
+        return product_forms_are_valid
 
+    def validate_product_forms_have_no_skus_with_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+            print(state)
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                if state is not None and state != "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
 
-class MissionDeleteView(DeleteView):
-    model = Mission
-    success_url = reverse_lazy("mission:list")
-    template_name = "mission/mission_confirm_delete.html"
+    def validate_product_forms_have_no_duplicates(self):
+        duplicates = []
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
 
-    def get_object(self, queryset=None):
-        return Mission.objects.filter(id__in=self.request.GET.getlist('item'))
+            ean, sku = None, None
+            if product is not None:
+                if product.ean == ean_or_sku:
+                    ean = ean_or_sku
+                elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                    sku = ean_or_sku
+            else:
+                if (ean_or_sku, state) in duplicates:
+                    product_form.add_error('ean',
+                                           ValidationError(f'Der Eintrag {ean_or_sku} mit dem Zustand {state} ist'
+                                                           f' doppelt'))
+                duplicates.append((ean_or_sku, state))
+            if ean is not None:
+                if (ean, state) not in duplicates:
+                    duplicates.append((ean, state))
+                else:
+                    product_form.add_error('ean',
+                                           ValidationError(f'Diese EAN in Kombinitation mit dem Zustand {state} darf'
+                                                           f' nur einmal vorkommen'))
+            elif sku is not None:
+                if product.ean is not None:
+                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+
+                    if (product.ean, sku_instance.state) not in duplicates:
+                        duplicates.append((product.ean, sku_instance.state))
+                    else:
+                        if product.ean is not None and product.ean != "":
+                            product_form.add_error('ean', ValidationError(
+                                f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
+                                f' {sku_instance.state} in diesem Auftrag'))
+                        else:
+                            product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
+                                                                          f' Auftrag'))
+
+    def create_mission_products(self):
+        self.object.save()
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+
+            state = product_form.data.get("state")
+
+            product_mission_instance = ProductMission(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                      mission_id=self.object.pk)
+            if state is not None and state != "":
+                product_mission_instance.state = state
+            else:
+                product_mission_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+            print(f"ALLLLLF: {state} --- {product_form.data}")
+            product_mission_instance.save()
+            self.object.productmission_set.add(product_mission_instance)
+        self.object.save()
 
 
 class MissionUpdateView(LoginRequiredMixin, UpdateView):
@@ -365,6 +465,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.product_forms = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Mission.objects.get(id=self.kwargs.get("pk"))
@@ -379,112 +480,203 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
         context["ManyToManyForms"] = self.build_product_mission_forms()
         context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
-
-        if self.object_has_products() is True:
-            context["object_has_products"] = True
-        context["amount_update_forms"] = self.object.productmission_set.count()
         return context
 
-    def object_has_products(self):
-        object_ = self.get_object()
-        if object_.productmission_set.all().count() >= 1:
-            return True
-        else:
-            return False
-
     def build_product_mission_forms(self):
-        product_mission_forms_list = []
-        product_mission_forms_list = self.object_instances_to_forms_list(product_mission_forms_list)
-        product_mission_forms_list = self.non_object_forms_to_forms_list(product_mission_forms_list)
-        if len(product_mission_forms_list) == 0:
-            product_mission_forms_list.append(ProductMissionForm())
-
-        return product_mission_forms_list
-
-    def object_instances_to_forms_list(self, forms_list):
+        self.product_forms = []
+        count = 0
         product_missions = self.object.productmission_set.all()
-        i = 0
+
         for product_mission in product_missions:
             if self.request.POST:
-                data = {}
-                for k in self.request.POST:
-                    if k in ProductMissionUpdateForm.base_fields:
-                        data[k] = self.request.POST.getlist(k)[i]
-                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
+                data = self.get_data_from_post_on_index_x_to_form(count)
+                product_mission_form = ProductMissionUpdateForm(
+                    data=data, product_mission=product_mission)
             else:
-                data = model_to_dict(product_mission)
-                data["ean"] = product_mission.product.ean
-                forms_list.append(ProductMissionUpdateForm(data=data, product_mission=product_mission))
-            i += 1
-        return forms_list
+                ean_or_sku, state = self.get_ean_or_sku_and_state(product_mission)
+                if product_mission.product.ean != ean_or_sku:
+                    state = None
+                data = {"ean": ean_or_sku, "amount": product_mission.amount,
+                        "state": state, "netto_price": product_mission.netto_price}
+                product_mission_form = ProductMissionUpdateForm(data=data, product_mission=product_mission)
+            product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+            self.product_forms.append((product_mission_form, product))
+            count += 1
 
-    def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
-            for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
-                    data = {}
-                    for k in self.request.POST:
-                        if k in ProductMissionForm.base_fields:
-                            data[k] = self.request.POST.getlist(k)[i]
-                    forms_list.append(ProductMissionForm(data=data))
-        return forms_list
+        if self.request.method == "POST":
+            amount_forms = self.get_amount_product_mission_forms()
+            for i in range(count, amount_forms):
+                data = self.get_data_from_post_on_index_x_to_form(i)
+                form = ProductMissionForm(data=data)
+                product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+                self.product_forms.append((form, product))
+        else:
+            if product_missions.count() == 0:
+                self.product_forms.append((ProductMissionForm(), None))
+        # no update forms
+        # product_mission_form = ProductMissionForm(data=self.get_data_from_post_on_index_x_to_form(count))
+        return self.product_forms
+
+    def get_ean_or_sku_and_state(self, product_mission):
+        product = product_mission.product
+        ean_or_sku = None
+        state = product_mission.state
+
+        if product.ean is not None and product.ean != "":
+            ean_or_sku = product.ean
+        else:
+            sku_instance = product.sku_set.filter(state=product_mission.state).first()
+            if sku_instance is not None:
+                ean_or_sku = sku_instance.sku
+        return ean_or_sku, state
+
+    def get_amount_product_mission_forms(self):
+        amount_forms = 0
+        for field_name in ProductMissionForm.base_fields:
+            if field_name in self.request.POST:
+                amount_forms = len(self.request.POST.getlist(str(field_name)))
+        return amount_forms
+
+    def get_data_from_post_on_index_x_to_form(self, index):
+        data = {}
+
+        for field_name in ProductMissionForm.base_fields:
+            if str(field_name) in self.request.POST:
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+        if "delete" in self.request.POST:
+            if index < len(self.request.POST.getlist("delete")):
+                data["delete"] = self.request.POST.getlist("delete")[index]
+        return data
 
     def form_valid(self, form, **kwargs):
+        context = self.get_context_data(**kwargs)
         self.object = form.save(commit=False)
-
-        duplicates = validate_products_are_unique_in_form(self.request.POST)
-        if duplicates is not None:
-            context = self.get_context_data(**kwargs)
-            context["duplicates"] = duplicates
+        if self.validate_product_forms_are_valid() is True:
+            self.create_mission_products()
+            self.update_mission_products()
+            return HttpResponseRedirect(self.get_success_url())
+        else:
             return render(self.request, self.template_name, context)
 
-        valid_product_mission_forms = \
-            self.validate_product_order_or_mission_from_post(self.object.productmission_set.all().count(), self.request)
+    def validate_product_forms_are_valid(self):
+        self.validate_product_forms_have_no_duplicates()
+        self.validate_product_forms_have_no_skus_with_states()
+        product_forms_are_valid = True
+        for product_form, product in self.product_forms:
+            if product_form.is_valid() is False:
+                product_forms_are_valid = False
+        return product_forms_are_valid
 
-        if valid_product_mission_forms is False:
-            context = self.get_context_data(**kwargs)
-            if len(self.request.POST.getlist("ean")) >= 1:
-                context["object_has_products"] = True
-            return render(self.request, self.template_name, context)
-        else:
-            original_mission = Mission.objects.get(pk=self.object.pk)
+    def validate_product_forms_have_no_skus_with_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+            print(state)
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                if state is not None and state != "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
 
-            original_mission_products = []
-            for q in original_mission.productmission_set.all():
-                dict_ = {"product": str(q.product), "netto_price": q.netto_price, "amount": q.amount}
-                original_mission_products.append(dict_)
+    def validate_product_forms_have_no_duplicates(self):
+        duplicates = []
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            ean, sku = None, None
 
-            print(original_mission_products)
-            print(len(original_mission_products))
-            self.object.save()
-            update_product_order_or_mission_forms_from_post("productmission_set", ProductMissionUpdateForm, "mission",
-                                                            self.object, self.request, ProductMission)
-            refresh_mission_status(self.object, original_mission_products=original_mission_products)
-        return HttpResponseRedirect(self.get_success_url())
+            if product is not None:
+                if product.ean == ean_or_sku:
+                    ean = ean_or_sku
+                elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                    sku = ean_or_sku
 
-    def validate_product_order_or_mission_from_post(self, amount_forms, request):
-        invalid_form = False
-        print(request.POST)
+            state = product_form.data.get("state")
+            if ean is not None:
+                if (ean, state) not in duplicates:
+                    duplicates.append((ean, state))
+                else:
+                    product_form.add_error('ean',
+                                           ValidationError(f'Diese EAN in Kombinitation mit dem Zustand {state} darf'
+                                                           f' nur einmal vorkommen'))
 
-        for field in ProductMissionUpdateForm.base_fields:
-            amount_forms = len(request.POST.getlist(field))
+            elif sku is not None:
+                if product is not None:
+                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+                    if product.ean is not None and product.ean != "":
+                        if (product.ean, sku_instance.state) not in duplicates:
+                            duplicates.append((product.ean, sku_instance.state))
+                        else:
+                            product_form.add_error('ean', ValidationError(
+                                f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
+                                f' {sku_instance.state} in diesem Auftrag'))
+                else:
+                    product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
+                                                                  f' Auftrag'))
 
-        for i in range(0, amount_forms):
-            data = {}
-            for key in request.POST:
-                if key in ProductMissionUpdateForm.base_fields:
-                    value = request.POST.getlist(key)[i]
-                    data[key] = value
-            print(data)
-            print(self.kwargs.get("pk"))
-            print(data.get("ean"))
-            product_mission=ProductMission.objects.filter(mission_id=self.kwargs.get("pk"), product__ean=data.get("ean")).first()
-            print(f"bro: {product_mission}")
-            if ProductMissionUpdateForm(data=data, product_mission=product_mission).is_valid() is False:
-                invalid_form = True
-        if invalid_form is True:
-            return False
-        else:
-            return True
+    def update_mission_products(self):
+        self.object.save()
+        count = 0
+        for (product_form, product), product_mission_instance in zip(self.product_forms, self.object.productmission_set.all()):
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+            to_delete = product_form.data.get("delete")
+
+            state = product_form.data.get("state")
+
+            if product_mission_instance is not None:
+                print(product_form.data)
+                print(f"WAAATT ???: {ean_or_sku} - {amount} - {netto_price} - {state}")
+                product_mission_instance.product_id = product.pk
+                product_mission_instance.amount = amount
+                product_mission_instance.netto_price = netto_price
+                product_mission_instance.mission_id = self.object.pk
+            else:
+                product_mission_instance = ProductMission(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                          mission_id=self.object.pk)
+
+            if state is not None and state != "":
+                product_mission_instance.state = state
+            else:
+                product_mission_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+
+            if to_delete == "on":
+                product_mission_instance.delete()
+            else:
+                product_mission_instance.save()
+
+            count += 1
+        self.object.save()
+
+    def create_mission_products(self):
+        index = self.object.productmission_set.all().count()
+        amount_forms = self.get_amount_product_mission_forms()
+        for i in range(index, amount_forms):
+            product_form, product = self.product_forms[i]
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+
+            state = product_form.data.get("state")
+
+            product_mission_instance = ProductMission(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                      mission_id=self.object.pk)
+            if state is not None and state != "":
+                product_mission_instance.state = state
+            else:
+                product_mission_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+            product_mission_instance.save()
+            self.object.productmission_set.add(product_mission_instance)
+        self.object.save()
+
+
+class MissionDeleteView(DeleteView):
+    model = Mission
+    success_url = reverse_lazy("mission:list")
+    template_name = "mission/mission_confirm_delete.html"
+
+    def get_object(self, queryset=None):
+        return Mission.objects.filter(id__in=self.request.GET.getlist('item'))
 
 
 class ScanMissionUpdateView(UpdateView):
@@ -628,10 +820,12 @@ class MissionStockCheckForm(View):
         print(billing_products)
         for product_mission in self.object.productmission_set.all():
 
-            product_stock = self.get_product_stock(product_mission.product)
-            available_product_stock = self.get_available_product_stock(product_mission.product)
+            product_stock = self.get_product_stock(product_mission)
+            available_product_stock = self.get_available_product_stock(product_mission)
 
-            if available_product_stock is None:
+            if available_product_stock is not None:
+                available_product_stock = int(available_product_stock)
+            else:
                 available_product_stock = 0
 
             amount = product_mission.amount
@@ -643,30 +837,57 @@ class MissionStockCheckForm(View):
 
             amount -= all_amounts_sum
 
+            print(available_product_stock)
             if available_product_stock < amount:
                 amount = available_product_stock
-
             if available_product_stock >= amount > 0:
                 billing_products.append((product_mission, amount, product_stock, available_product_stock))
             print(billing_products)
         return billing_products
 
-    def get_product_stock(self, product):
-        if product.ean is not None:
+    def get_product_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+
+        if product.ean is not None and product.ean != "":
             stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
             if stock is not None:
-                return stock.total_amount_ean()
+                if state is None:
+                    return stock.get_total_stocks().get("Gesamt")
+                else:
+                    return stock.get_total_stocks().get(state)
 
-        # if product.sku is not None:
-        #     stock = Stock.objects.filter(sku=product.sku).first()
-        #     if stock is not None:
-        #         return stock.total_amount_ean()
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
+                    if stock is not None:
+                        if state is None:
+                                return stock.get_total_stocks().get("Gesamt")
+                        else:
+                                return stock.get_total_stocks().get(state)
 
-    def get_available_product_stock(self, product):
-        if product.ean is not None:
+    def get_available_product_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+
+        if product.ean is not None and product.ean != "":
             stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
             if stock is not None:
-                return stock.available_total_amount()
+                if state is None:
+                    return stock.get_available_total_stocks().get("Gesamt")
+                else:
+                    return stock.get_available_total_stocks().get(state)
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
+                    if stock is not None:
+                        if state is None:
+                                return stock.get_available_total_stocks().get("Gesamt")
+                        else:
+                                return stock.get_available_total_stocks().get(state)
 
     def post(self, request, *args, **kwargs):
 
@@ -676,12 +897,13 @@ class MissionStockCheckForm(View):
         new_delivery_note_number = self.get_new_delivery_note_number()
 
         for product_mission in self.object.productmission_set.all():
-            product_stock = self.get_product_stock(product_mission.product)
-            available_product_stock = self.get_available_product_stock(product_mission.product)
+            product_stock = self.get_product_stock(product_mission)
+            available_product_stock = self.get_available_product_stock(product_mission)
 
-            if available_product_stock is None:
+            if available_product_stock is not None:
+                available_product_stock = int(available_product_stock)
+            else:
                 available_product_stock = 0
-
             amount = product_mission.amount
 
             all_amounts_sum = 0

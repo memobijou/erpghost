@@ -11,30 +11,133 @@
             {% endif %}
             <div class="panel panel-default">
                 <div class="panel-body">
-                    {% if object %}
-                        <div class="pull-right">
-                            <a href="{% url 'product:detail' pk=object.pk %}">Zur Ansicht</a>
-                        </div>
-                    {% endif %}
-                    <div class="col-md-6">
-                        {% if object and icecat %}
-                            {{ icecat_image_filename }}
-                            <div style="max-width:300px; max-height:300px;">
-                                <img src="data:;base64,{{ icecat_image_base64 }}" class="img-responsive" style="max-height: 300px;"/>
+                        {% if object %}
+                            <div class="pull-right">
+                                <a href="{% url 'product:detail' pk=object.pk %}">Zur Ansicht</a>
                             </div>
                         {% endif %}
+                        <div class="col-md-12" style="padding-top: 25px;padding-left: 0px;">
+                            <div class="col-md-6">
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Artikelstammdaten
+                                    </div>
+                                    <div class="panel-body">
+                                       {% if object and icecat %}
+                                            {{ icecat_image_filename }}
+                                            <div style="max-width:300px; max-height:300px;">
+                                                <img src="data:;base64,{{ icecat_image_base64 }}" class="img-responsive" style="max-height: 300px;"/>
+                                            </div>
+                                        {% endif %}
 
-                        {% if object and icecat_status == "FAIL" %}
-                            <h3 style="color:red;">Artikel auf ICECAT nicht matchbar!</h3>
-                            <a href="{% url "product:edit" pk=object.pk %}">Zurück</a>
-                        {% else %}
-                            {% for field in form %}
-                                <div class="form-group">{% include "snippets/forms/field.html" %}</div>
-                            {% endfor %}
-                            <input type="submit" value="Speichern" id="submit_btn" class="btn btn-primary">
-                        {% endif %}
+                                        {% if object and icecat_status == "FAIL" %}
+                                            <h3 style="color:red;">Artikel auf ICECAT nicht matchbar!</h3>
+                                            <a href="{% url "product:edit" pk=object.pk %}">Zurück</a>
+                                        {% else %}
+                                            {% for field in form %}
+                                                {% if field.name == "more_images" %}
+                                                {% else %}
+                                                    <div class="form-group">{% include "snippets/forms/field.html" %}</div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Einkaufspreise
+                                    </div>
+                                    <div class="panel-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Neu</th>
+                                                        <th>A</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>{{ purchasing_forms.0.1.as_p }}</td>
+                                                        <td>{{ purchasing_forms.1.1.as_p }}</td>
+
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>B</th>
+                                                        <th>C</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>{{ purchasing_forms.2.1.as_p }}</td>
+                                                        <td>{{ purchasing_forms.3.1.as_p }}</td>
+
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>D</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>{{ purchasing_forms.4.1.as_p }}</td>
+
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Weitere Bilder
+                                    </div>
+                                    <div class="panel-body">
+                                        <div style="color:red">
+                                            {{ form.more_images.errors }}
+                                        </div>
+                                        {{ form.more_images }}
+                                        {% for image in object.productimage_set.all %}
+                                            <div class="col-md-4" style="padding-left: 0px;padding-top:25px;">
+                                                <div class="panel panel-default">
+                                                    <div class="panel-body" style="min-height: 150px;">
+                                                        <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
+                                                    </div>
+                                                    <div class="panel-footer">
+                                                        <div class="checkbox">
+                                                          <label><input type="checkbox" name="to_delete_more_images" value="{{ image.pk }}">Löschen</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <div class="col-md-12">
+                        <input type="submit" value="Speichern" id="submit_btn" class="btn btn-primary btn-lg"/>
                     </div>
                 </div>
+
             </div>
         </form>
+
 {% endblock %}

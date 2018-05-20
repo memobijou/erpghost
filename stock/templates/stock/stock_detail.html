@@ -100,7 +100,7 @@
             <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
         {% endif %}
         <br/>
-        <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ object.available_total_amount }} / {{ object.total_amount_ean }}</h4>
+        <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ stock.total }}</h4>
             <br/>
         {% if stock.total %}
         <div class="col-md-6" style="margin:-15px;">

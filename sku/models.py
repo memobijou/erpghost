@@ -1,15 +1,12 @@
 from django.db import models
-from product.models import Product
 
 
 class Sku(models.Model):
-    sku = models.IntegerField(null=True, blank=True, default=None)
-    zustand = models.CharField(blank=True, null=False, max_length=13)
-    nettopreis = models.FloatField(null=True, blank=True, default=None)
-    bruttopreis = models.FloatField(null=True, blank=True, default=None)
-    menge = models.IntegerField(null=True, blank=True, default=None)
+    sku = models.CharField(max_length=200, null=True, blank=True, verbose_name="SKU")
+    state = models.CharField(blank=True, null=True, max_length=200, verbose_name="Zustand")
+    purchasing_price = models.FloatField(null=True, blank=True, verbose_name="Einkaufspreis")
 
-    product = models.OneToOneField(Product, blank=True, null=True, related_name="sku")
+    product = models.ForeignKey("product.Product", null=True, blank=True)
 
     def __str__(self):
-        return (str(self.sku))
+        return str(self.sku)

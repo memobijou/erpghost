@@ -65,23 +65,27 @@ class StockListView(LoginRequiredMixin, ListView):
         queryset = self.get_queryset()
         total_stocks = []
         for q in queryset:
-            stock = Stock.objects.filter(ean_vollstaendig=q.ean_vollstaendig).first()
             stock_dict = {}
-            if stock is not None:
-                total = stock.total_amount_ean()
-                available_total = stock.available_total_amount()
-                total_neu = stock.total_amount_ean(state='Neu')
-                total_a = stock.total_amount_ean(state='A')
-                total_b = stock.total_amount_ean(state='B')
-                total_c = stock.total_amount_ean(state='C')
-                total_d = stock.total_amount_ean(state='D')
+            stock = None
 
-                stock_dict["total"] = f"{available_total} / {total}"
-                stock_dict["total_neu"] = total_neu
-                stock_dict["total_a"] = total_a
-                stock_dict["total_b"] = total_b
-                stock_dict["total_c"] = total_c
-                stock_dict["total_d"] = total_d
+            if q.ean_vollstaendig is not None and q.ean_vollstaendig != "":
+                stock = Stock.objects.filter(ean_vollstaendig=q.ean_vollstaendig).first()
+
+            if q.sku is not None and q.sku != "":
+                stock = Stock.objects.filter(sku=q.sku).first()
+
+            if q.title is not None and q.title != "":
+                stock = Stock.objects.filter(title=q.title).first()
+
+            if stock is not None:
+                total = stock.get_available_stocks_of_total_stocks()
+
+                stock_dict["total"] = total.get("Gesamt")
+                stock_dict["total_neu"] = total.get("Neu")
+                stock_dict["total_a"] = total.get("A")
+                stock_dict["total_b"] = total.get("B")
+                stock_dict["total_c"] = total.get("C")
+                stock_dict["total_d"] = total.get("D")
 
                 total_stocks.append(stock_dict)
             else:
@@ -115,7 +119,12 @@ class StockListView(LoginRequiredMixin, ListView):
         queryset = self.get_queryset()
         products = []
         for q in queryset:
-            product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+            product = None
+            if q.ean_vollstaendig is not None and q.ean_vollstaendig != "":
+                product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+            else:
+                if q.sku is not None and q.sku != "":
+                    product = Product.objects.filter(sku__sku=q.sku).first()
             if product is not None:
                 products.append(product)
             else:
@@ -233,28 +242,42 @@ class StockDetailView(LoginRequiredMixin, DetailView):
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
-        context["product"] = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
+        context["product"] = self.get_product()
         context["stock"] = self.get_product_stocks()
         return context
 
+    def get_product(self):
+        product = None
+        if self.object.ean_vollstaendig is not None and self.object.ean_vollstaendig != "":
+            product = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
+        else:
+            if self.object.sku is not None and self.object.sku != "":
+                product = Product.objects.filter(sku__sku=self.object.sku).first()
+        return product
+
     def get_product_stocks(self):
         query = self.get_object()
-        stock = Stock.objects.filter(ean_vollstaendig=query.ean_vollstaendig).first()
+        stock = None
         stock_dict = {}
-        if stock is not None:
-            total = stock.total_amount_ean()
-            total_neu = stock.total_amount_ean(state='Neu')
-            total_a = stock.total_amount_ean(state='A')
-            total_b = stock.total_amount_ean(state='B')
-            total_c = stock.total_amount_ean(state='C')
-            total_d = stock.total_amount_ean(state='D')
 
-            stock_dict["total"] = total
-            stock_dict["total_neu"] = total_neu
-            stock_dict["total_a"] = total_a
-            stock_dict["total_b"] = total_b
-            stock_dict["total_c"] = total_c
-            stock_dict["total_d"] = total_d
+        if query.ean_vollstaendig is not None and query.ean_vollstaendig != "":
+            stock = Stock.objects.filter(ean_vollstaendig=query.ean_vollstaendig).first()
+
+        if query.sku is not None and query.sku != "":
+            stock = Stock.objects.filter(sku=query.sku).first()
+
+        if query.title is not None and query.title != "":
+            stock = Stock.objects.filter(title=query.title).first()
+
+        if stock is not None:
+            total = stock.get_available_stocks_of_total_stocks()
+
+            stock_dict["total"] = total.get('Gesamt')
+            stock_dict["total_neu"] = total.get("Neu")
+            stock_dict["total_a"] = total.get("A")
+            stock_dict["total_b"] = total.get("B")
+            stock_dict["total_c"] = total.get("C")
+            stock_dict["total_d"] = total.get("D")
         return stock_dict
 
 

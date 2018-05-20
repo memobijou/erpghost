@@ -18,8 +18,9 @@ class StockUpdateForm(ModelForm):
         model = Stock
         fields = ["zustand", "ean_vollstaendig", "sku", "title", "bestand"]
         labels = {"bestand": "IST Bestand", "ean_vollstaendig": "EAN"}
-    zustand = forms.ChoiceField(choices=(("Neu", "Neu"),("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")),
-                                label=Stock._meta.get_field('zustand').verbose_name)
+    zustand = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"), ("C", "C"),
+                                         ("D", "D")), label=Stock._meta.get_field('zustand').verbose_name,
+                                required=False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -35,8 +36,9 @@ class StockCreateForm(ModelForm):
         model = Stock
         fields = ["zustand", "ean_vollstaendig", "sku", "title", "bestand", "lagerplatz"]
         labels = {"bestand": "IST Bestand", "ean_vollstaendig": "EAN"}
-    zustand = forms.ChoiceField(choices=(("Neu", "Neu"),("A", "A"), ("B", "B"), ("C", "C"), ("D", "D")),
-                                label=Stock._meta.get_field('zustand').verbose_name)
+    zustand = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"), ("C", "C"),
+                                         ("D", "D")), label=Stock._meta.get_field('zustand').verbose_name,
+                                required=False)
     lagerplatz = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     def __init__(self, **kwargs):

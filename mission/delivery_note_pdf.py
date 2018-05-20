@@ -182,7 +182,7 @@ class DeliveryNoteView(View):
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(productmission.product.ean, style=size_nine_helvetica),
+                    Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
                     Paragraph(productmission.product.title, style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
                 ],

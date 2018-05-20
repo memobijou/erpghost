@@ -140,6 +140,7 @@ class Stock(models.Model):
             stock_html += "</tbody></table></div>"
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(stock_html).render(c))
+        print("HEROKU 3")
 
     def total_amount_ean(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":

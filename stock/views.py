@@ -474,7 +474,9 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
     def form_valid(self, form):
         object = form.save(commit=False)
         object.lagerplatz = self.current_position
+        print(f"HEROKU 4: {object.id}")
         object.id = Stock.objects.latest("id").id+1
+        print(f"HEROKU 5: {object.id}")
         object.save()
         return super().form_valid(form)
 

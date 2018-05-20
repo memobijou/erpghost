@@ -478,6 +478,7 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         object.id = Stock.objects.latest("id").id+1
         print(f"HEROKU 5: {object.id}")
         object.save()
+        print(f"HEROKU 6: {object.id}")
         return super().form_valid(form)
 
     @property

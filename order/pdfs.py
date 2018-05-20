@@ -164,7 +164,7 @@ class OrderPdfView(View):
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(productorder.product.ean, style=size_nine_helvetica),
+                    Paragraph(productorder.get_ean_or_sku(), style=size_nine_helvetica),
                     Paragraph(productorder.product.title, style=size_nine_helvetica),
                     Paragraph(str(productorder.amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productorder.netto_price),

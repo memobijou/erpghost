@@ -89,7 +89,7 @@ class ProductListView(ListView):
 
     def build_fields(self):
         fields = get_verbose_names(Product, exclude=["id", "short_description", "description", "height", "width",
-                                                     "length"])
+                                                     "length", "main_sku"])
         fields.append("Bestand")
         fields = [""] + fields
         return fields

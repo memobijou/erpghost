@@ -261,33 +261,7 @@
 
     };
 
-    var dymo_level_btns = document.getElementsByClassName("dymo_level_print");
 
-    var GET_ = function(prefix, shelf, level){
-      var xhr = new XMLHttpRequest();
-      xhr.open("GET", "/stock/position/api?" + "prefix=" + prefix + "&shelf=" + shelf + "&level=" + level, true);
-      var positions_array = [];
-      xhr.onreadystatechange = function(){
-        if(xhr.readyState == 4 && xhr.status >= 200 && xhr.status <= 299){
-            var response = JSON.parse(xhr.responseText);
-            for(var index in response){
-                positions_array.push(response[index]["position"]);
-            }
-            print_multiple_dymo_labels(positions_array);
-        }
-      };
-      xhr.send();
-    };
-
-    for(i = 0; i<dymo_level_btns.length; i++){
-        dymo_level_btns[i].onclick = function(){
-            var dymo_prefix = this.getAttribute("dymo_prefix");
-            var dymo_shelf = this.getAttribute("dymo_shelf");
-            var dymo_level = this.getAttribute("dymo_level");
-
-            GET_(dymo_prefix, dymo_shelf, dymo_level);
-        };
-    }
 
 </script>
 <style>

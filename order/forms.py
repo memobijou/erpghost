@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 
 from adress.models import Adress
 from client.models import Client
@@ -68,21 +69,22 @@ ProductOrderFormsetCreate = inlineformset_factory(Order, ProductOrder, extra=3,
 
 class CommonProductOrderForm(forms.Form):
     ean = forms.CharField(label='EAN', max_length=200)
+    state = forms.ChoiceField(label="Zustand", choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"),
+                                                        ("C", "C"), ("D", "D")), required=False)
     amount = forms.IntegerField(label='Menge', min_value=1)
     netto_price = forms.FloatField(label="Einzelpreis (Netto)", min_value=0.1)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
         for visible in self.visible_fields():
             if type(visible.field) is CharField or type(visible.field) is FloatField \
-                    or type(visible.field) is IntegerField:
+                    or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
 
     def clean_ean(self):
         data = self.cleaned_data['ean'].strip()
-        if Product.objects.filter(ean__iexact=data).count() == 0:
-            raise forms.ValidationError("Sie müssen eine gültige EAN eingeben!")
+        if Product.objects.filter(Q(ean__iexact=data) | Q(sku__sku=data)).count() == 0:
+            raise forms.ValidationError("Sie müssen eine gültige EAN oder SKU eingeben!")
 
         # Always return a value to use as the new cleaned data, even if
         # this method didn't change it.
@@ -97,5 +99,4 @@ class ProductOrderForm(CommonProductOrderForm):
 
 
 class ProductOrderUpdateForm(CommonProductOrderForm):
-    #delete = forms.BooleanField(label="Löschen", required=False)
-    pass
+    delete = forms.CharField(max_length=100, widget=forms.HiddenInput(), required=False)

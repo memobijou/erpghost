@@ -116,6 +116,19 @@ class ProductOrder(models.Model):
     def __str__(self):
         return str(self.product) + " : " + str(self.order) + " : " + str(self.amount)
 
+    def get_ean_or_sku(self):
+        ean_or_sku = None
+        print(f"BUS: {ean_or_sku}")
+
+        if self.product.ean is not None and self.product.ean != "":
+            ean_or_sku = self.product.ean
+        else:
+            sku_instance = self.product.sku_set.filter(state=self.state).first()
+            if sku_instance is not None:
+                ean_or_sku = sku_instance.sku
+        print(f"BUS: {ean_or_sku}")
+        return ean_or_sku
+
     def save(self, *args, **kwargs):
         # product_orders = self.order.productorder_set.all()
         # all_scanned = True

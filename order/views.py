@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from order.models import Order, ProductOrder, PositionProductOrder
@@ -19,6 +20,7 @@ from product.order_mission import validate_product_order_or_mission_from_post, \
     create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
     validate_products_are_unique_in_form
 from django.forms.models import model_to_dict
+from django.forms import ValidationError
 
 
 # search position for product which are on Wareneingang
@@ -114,6 +116,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.product_forms = []
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Order.objects.get(id=self.kwargs.get("pk"))
@@ -127,85 +130,201 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
         context["ManyToManyForms"] = self.build_product_order_forms()
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
-        if self.object_has_products() is True:
-            context["object_has_products"] = True
-        context["amount_update_forms"] = self.object.productorder_set.count()
         return context
 
-    def object_has_products(self):
-        object_ = self.get_object()
-        if object_.productorder_set.all().count() >= 1:
-            return True
-        else:
-            return False
-
     def build_product_order_forms(self):
-        product_order_forms_list = []
-        product_order_forms_list = self.object_instances_to_forms_list(product_order_forms_list)
-        product_order_forms_list = self.non_object_forms_to_forms_list(product_order_forms_list)
-        if len(product_order_forms_list) == 0:
-            product_order_forms_list.append(ProductOrderForm())
-        return product_order_forms_list
-
-    def object_instances_to_forms_list(self, forms_list):
+        count = 0
         product_orders = self.object.productorder_set.all()
-        i = 0
+
         for product_order in product_orders:
             if self.request.POST:
-                data = {}
-                for k in self.request.POST:
-                    if k in ProductOrderForm.base_fields:
-                        data[k] = self.request.POST.getlist(k)[i]
-                forms_list.append(ProductOrderUpdateForm(data=data))
+                data = self.get_data_from_post_on_index_x_to_form(count)
+                product_order_form = ProductOrderUpdateForm(data=data)
             else:
-                data = model_to_dict(product_order)
-                data["ean"] = product_order.product.ean
-                forms_list.append(ProductOrderUpdateForm(data=data))
-            i += 1
-        return forms_list
+                ean_or_sku, state = self.get_ean_or_sku_and_state(product_order)
+                if product_order.product.ean != ean_or_sku:
+                    state = None
+                data = {"ean": ean_or_sku, "amount": product_order.amount,
+                        "state": state, "netto_price": product_order.netto_price}
+                product_order_form = ProductOrderUpdateForm(data=data)
+            product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+            self.product_forms.append((product_order_form, product))
+            count += 1
 
-    def non_object_forms_to_forms_list(self, forms_list):
-        if self.request.POST and len(self.request.POST.getlist("ean")) >= 1:
-            for i in range(len(forms_list), len(self.request.POST.getlist("ean"))):
-                    data = {}
-                    for k in self.request.POST:
-                        if k in ProductOrderForm.base_fields:
-                            data[k] = self.request.POST.getlist(k)[i]
-                    forms_list.append(ProductOrderForm(data=data))
-        return forms_list
+        if self.request.method == "POST":
+            amount_forms = self.get_amount_product_order_forms()
+            for i in range(count, amount_forms):
+                data = self.get_data_from_post_on_index_x_to_form(i)
+                form = ProductOrderForm(data=data)
+                product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+                self.product_forms.append((form, product))
+        else:
+            if product_orders.count() == 0:
+                self.product_forms.append((ProductOrderForm(), None))
+        return self.product_forms
 
-    def form_valid(self, form, *args, **kwargs):
+    def get_amount_product_order_forms(self):
+        amount_forms = 0
+        for field_name in ProductOrderForm.base_fields:
+            if field_name in self.request.POST:
+                amount_forms = len(self.request.POST.getlist(str(field_name)))
+        return amount_forms
+
+    def get_data_from_post_on_index_x_to_form(self, index):
+        data = {}
+
+        for field_name in ProductOrderForm.base_fields:
+            if str(field_name) in self.request.POST:
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+        if "delete" in self.request.POST:
+            if index < len(self.request.POST.getlist("delete")):
+                data["delete"] = self.request.POST.getlist("delete")[index]
+        return data
+
+    def get_ean_or_sku_and_state(self, product_order):
+        product = product_order.product
+        ean_or_sku = None
+        state = product_order.state
+
+        if product.ean is not None and product.ean != "":
+            ean_or_sku = product.ean
+        else:
+            sku_instance = product.sku_set.filter(state=product_order.state).first()
+            if sku_instance is not None:
+                ean_or_sku = sku_instance.sku
+        return ean_or_sku, state
+
+    def form_valid(self, form, **kwargs):
+        context = self.get_context_data(**kwargs)
         self.object = form.save(commit=False)
 
-        duplicates = validate_products_are_unique_in_form(self.request.POST)
-        if duplicates is not None:
-            context = self.get_context_data(*args, **kwargs)
-            context["duplicates"] = duplicates
-            return render(self.request, self.template_name, context)
-
-        valid_product_order_forms = \
-            validate_product_order_or_mission_from_post(ProductOrderUpdateForm,
-                                                        len(self.request.POST.getlist("ean")), self.request)
-
-        if valid_product_order_forms is False:
-            context = self.get_context_data(*args, **kwargs)
-            if len(self.request.POST.getlist("ean")) >= 1:
-                context["object_has_products"] = True
-            return render(self.request, self.template_name, context)
-        else:
-            original_order = Order.objects.get(pk=self.object.pk)
-
+        if self.validate_product_forms_are_valid() is True:
             original_order_products = []
 
-            for q in original_order.productorder_set.all():
+            for q in self.object.productorder_set.all():
                 dict_ = {"product": str(q.product), "netto_price": q.netto_price, "amount": q.amount}
                 original_order_products.append(dict_)
 
-            self.object.save()
-            update_product_order_or_mission_forms_from_post("productorder_set", ProductOrderUpdateForm, "order",
-                                                            self.object, self.request, ProductOrder)
+            self.create_order_products()
+            self.update_order_products()
             refresh_order_status(self.object, original_order_products=original_order_products)
-        return HttpResponseRedirect(self.get_success_url())
+            return HttpResponseRedirect(self.get_success_url())
+        else:
+            return render(self.request, self.template_name, context)
+
+    def validate_product_forms_are_valid(self):
+        self.validate_product_forms_have_no_duplicates()
+        self.validate_product_forms_have_no_skus_with_states()
+
+        product_forms_are_valid = True
+        for product_form, product in self.product_forms:
+            if product_form.is_valid() is False:
+                product_forms_are_valid = False
+        return product_forms_are_valid
+
+    def validate_product_forms_have_no_skus_with_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                if state is not None and state != "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
+
+    def validate_product_forms_have_no_duplicates(self):
+        duplicates = []
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            ean, sku = None, None
+
+            if product is not None:
+                if product.ean == ean_or_sku:
+                    ean = ean_or_sku
+                elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                    sku = ean_or_sku
+
+            state = product_form.data.get("state")
+            if ean is not None:
+                if (ean, state) not in duplicates:
+                    duplicates.append((ean, state))
+                else:
+                    product_form.add_error('ean',
+                                           ValidationError(f'Diese EAN in Kombinitation mit dem Zustand {state} darf'
+                                                           f' nur einmal vorkommen'))
+
+            elif sku is not None:
+                if product is not None:
+                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+                    if product.ean is not None and product.ean != "":
+                        if (product.ean, sku_instance.state) not in duplicates:
+                            duplicates.append((product.ean, sku_instance.state))
+                        else:
+                            product_form.add_error('ean', ValidationError(
+                                f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
+                                f' {sku_instance.state} in diesem Auftrag'))
+                else:
+                    product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
+                                                                  f' Auftrag'))
+
+    def update_order_products(self):
+        self.object.save()
+        count = 0
+        for (product_form, product), product_order_instance in zip(self.product_forms,
+                                                                   self.object.productorder_set.all()):
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+            to_delete = product_form.data.get("delete")
+
+            state = product_form.data.get("state")
+
+            if product_order_instance is not None:
+                print(product_form.data)
+                print(f"WAAATT ???: {ean_or_sku} - {amount} - {netto_price} - {state}")
+                product_order_instance.product_id = product.pk
+                product_order_instance.amount = amount
+                product_order_instance.netto_price = netto_price
+                product_order_instance.order_id = self.object.pk
+            else:
+                product_order_instance = ProductOrder(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                      order_id=self.object.pk)
+
+            if state is not None and state != "":
+                product_order_instance.state = state
+            else:
+                product_order_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+
+            if to_delete == "on":
+                product_order_instance.delete()
+            else:
+                product_order_instance.save()
+
+            count += 1
+        self.object.save()
+
+    def create_order_products(self):
+        index = self.object.productorder_set.all().count()
+        amount_forms = self.get_amount_product_order_forms()
+
+        for i in range(index, amount_forms):
+            product_form, product = self.product_forms[i]
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+
+            state = product_form.data.get("state")
+
+            product_order_instance = ProductOrder(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                  order_id=self.object.pk)
+            if state is not None and state != "":
+                product_order_instance.state = state
+            else:
+                product_order_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+            product_order_instance.save()
+            self.object.productorder_set.add(product_order_instance)
+        self.object.save()
 
 
 class OrderCreateView(CreateView):

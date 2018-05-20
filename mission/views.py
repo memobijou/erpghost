@@ -583,10 +583,12 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         for product_form, product in self.product_forms:
             ean_or_sku = product_form.data.get("ean")
             ean, sku = None, None
-            if product.ean == ean_or_sku:
-                ean = ean_or_sku
-            elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
-                sku = ean_or_sku
+
+            if product is not None:
+                if product.ean == ean_or_sku:
+                    ean = ean_or_sku
+                elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                    sku = ean_or_sku
 
             state = product_form.data.get("state")
             if ean is not None:
@@ -596,20 +598,20 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                     product_form.add_error('ean',
                                            ValidationError(f'Diese EAN in Kombinitation mit dem Zustand {state} darf'
                                                            f' nur einmal vorkommen'))
-            elif sku is not None:
-                if product.ean is not None:
-                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
 
-                    if (product.ean, sku_instance.state) not in duplicates:
-                        duplicates.append((product.ean, sku_instance.state))
-                    else:
-                        if product.ean is not None and product.ean != "":
+            elif sku is not None:
+                if product is not None:
+                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+                    if product.ean is not None and product.ean != "":
+                        if (product.ean, sku_instance.state) not in duplicates:
+                            duplicates.append((product.ean, sku_instance.state))
+                        else:
                             product_form.add_error('ean', ValidationError(
                                 f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
                                 f' {sku_instance.state} in diesem Auftrag'))
-                        else:
-                            product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
-                                                                          f' Auftrag'))
+                else:
+                    product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
+                                                                  f' Auftrag'))
 
     def update_mission_products(self):
         self.object.save()

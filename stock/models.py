@@ -41,7 +41,7 @@ class Stock(models.Model):
 
         if self.lagerplatz is None:
             return
-
+        print(f"HEROKU:::: {self.lagerplatz} --- {self.sku}")
         has_ean = self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
         has_sku = self.sku is not None and self.sku != ""
         has_title = self.title is not None and self.title != ""
@@ -72,6 +72,7 @@ class Stock(models.Model):
                 stock_html = "<h3 style='color:red;'>Sie müssen eine EAN angeben</h3>"
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
+
         if self.zustand.lower() in ["b", "c", "d", "e"]:
             if (self.sku is None or self.sku == "") and (self.title is None or self.title == ""):
                 stock_html =\
@@ -88,6 +89,7 @@ class Stock(models.Model):
                         raise ValidationError(Template(stock_html).render(c))
 
         stocks = None
+
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz).exclude(id=self.id)

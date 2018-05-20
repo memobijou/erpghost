@@ -471,6 +471,10 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
             'lagerplatz': self.current_position,
         }
 
+    def form_invalid(self, form):
+        print(f"HEROKu FAILURE: {form.data} --- {form}")
+        return super().form_invalid(form)
+
     def form_valid(self, form):
         object = form.save(commit=False)
         object.lagerplatz = self.current_position

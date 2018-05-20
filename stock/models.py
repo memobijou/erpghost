@@ -94,6 +94,7 @@ class Stock(models.Model):
             stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz).exclude(id=self.id)
         elif self.sku is not None and self.sku != "":
+            print("HEROKU 2::::::::::")
             if Product.objects.filter(sku__sku__exact=self.sku).count() == 0:
                 stock_html = \
                     f"<h3 style='color:red;'>Bitte geben Sie eine gültige SKU ein. " \
@@ -102,8 +103,7 @@ class Stock(models.Model):
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
 
-            stocks = Stock.objects.filter(sku=self.sku, zustand=self.zustand,
-                                          lagerplatz=self.lagerplatz).exclude(id=self.id)
+            stocks = Stock.objects.filter(sku=self.sku, lagerplatz=self.lagerplatz).exclude(id=self.id)
         elif self.title is not None and self.title != "":
             stocks = Stock.objects.filter(title=self.title, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz).exclude(id=self.id)

@@ -21,7 +21,8 @@
                 {% if object.main_image %}
                     <div class="col-md-4">
                             <p>
-                                 <img class="img-responsive img-modal" style="cursor:pointer;" src="{{ object.main_image.url }}">
+                                 <img class="img-responsive img-modal" src="{{ object.main_image.url }}"
+                                      style="cursor: pointer;">
                             </p>
                             <div class="modal fade">
                                  <!-- Modal -->
@@ -42,7 +43,6 @@
                     {% if object.ean %}
                     <p>
                         <b>EAN: </b> {{ object.ean }}
-                        <br/> <button class="btn btn-info dymo_print" type="button" dymo_value="{{ object.ean }}">{{ object.ean }} <span class="glyphicon glyphicon-print"></span></button>
                     </p>
                     {% endif %}
                     {% if object.short_description %}
@@ -107,7 +107,6 @@
                                             <th>SKU</th>
                                             <th>Zustand</th>
                                             <th>Einkaufspreis</th>
-                                            <th>Label drucken</th>
 
                                         </tr>
                                     </thead>
@@ -116,7 +115,6 @@
                                             <td>{{ sku.sku }}</td>
                                             <td>{{ sku.state }}</td>
                                             <td>{{ sku.purchasing_price|default:"" }}</td>
-                                            <td><button class="btn btn-info dymo_print" type="button" dymo_value="{{ sku.sku }}">{{ sku }} <span class="glyphicon glyphicon-print"></span></button></td>
                                         </tr>
                                     {% endfor %}
                                 </table>
@@ -136,8 +134,20 @@
                                             {% for image in object.productimage_set.all %}
                                                 <div class="col-md-2" style="padding-left: 0px;padding-top:25px;">
                                                     <div class="panel panel-default">
-                                                        <div class="panel-body" style="min-height: 150px;">
+                                                        <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">
                                                             <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
+                                                        </div>
+
+                                                    </div>
+                                               <div class="modal fade">
+                                                     <!-- Modal -->
+                                                    <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-body">
+                                                                    <img src="{{ image.image.url|default:''}}"
+                                                                     class="img-responsive center-block">
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -159,109 +169,6 @@
                 $(modal_div).modal();
             };
         }
-
-
-        /* DYMO DYMO DYMO */
-
-        var labelXml =
-            '<?xml version="1.0" encoding="utf-8"?>\
-            <DieCutLabel Version="8.0" Units="twips">\
-              <PaperOrientation>Portrait</PaperOrientation>\
-              <Id>Small30334</Id>\
-              <PaperName>30334 2-1/4 in x 1-1/4 in</PaperName>\
-              <DrawCommands>\
-                <RoundRectangle X="0" Y="0" Width="3240" Height="1800" Rx="270" Ry="270"/>\
-              </DrawCommands>\
-              <ObjectInfo>\
-                <TextObject>\
-                  <Name>Text</Name>\
-                  <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
-                  <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>\
-                  <LinkedObjectName></LinkedObjectName>\
-                  <Rotation>Rotation0</Rotation>\
-                  <IsMirrored>False</IsMirrored>\
-                  <IsVariable>True</IsVariable>\
-                  <HorizontalAlignment>Center</HorizontalAlignment>\
-                  <VerticalAlignment>Top</VerticalAlignment>\
-                  <TextFitMode>ShrinkToFit</TextFitMode>\
-                  <UseFullFontHeight>True</UseFullFontHeight>\
-                  <Verticalized>False</Verticalized>\
-                  <StyledText>\
-                    <Element>\
-                      <String>artikel 12345</String>\
-                      <Attributes>\
-                        <Font Family="Helvetica" Size="13" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
-                        <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
-                      </Attributes>\
-                    </Element>\
-                  </StyledText>\
-                </TextObject>\
-                <Bounds X="58" Y="86" Width="3123.78" Height="1627"/>\
-              </ObjectInfo>\
-              <ObjectInfo>\
-                <BarcodeObject>\
-                  <Name>BARCODE</Name>\
-                  <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
-                  <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>\
-                  <LinkedObjectName></LinkedObjectName>\
-                  <Rotation>Rotation0</Rotation>\
-                  <IsMirrored>False</IsMirrored>\
-                  <IsVariable>True</IsVariable>\
-                  <Text>F-001-001</Text>\
-                  <Type>Code128Auto</Type>\
-                  <Size>Small</Size>\
-                  <TextPosition>Bottom</TextPosition>\
-                  <TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
-                  <CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
-                  <TextEmbedding>None</TextEmbedding>\
-                  <ECLevel>0</ECLevel>\
-                  <HorizontalAlignment>Center</HorizontalAlignment>\
-                  <QuietZonesPadding Left="0" Right="0" Top="0" Bottom="0"/>\
-                </BarcodeObject>\
-                <Bounds X="57.6" Y="510" Width="3124.8" Height="1125"/>\
-              </ObjectInfo>\
-            </DieCutLabel>\
-            ';
-        var label = dymo.label.framework.openLabelXml(labelXml);
-
-        var printers = dymo.label.framework.getPrinters();
-        if (printers.length == 0)
-            throw "No DYMO printers are installed. Install DYMO printers.";
-
-        var printerName = "";
-        for (var i = 0; i < printers.length; ++i)
-        {
-            var printer = printers[i];
-            if (printer.printerType == "LabelWriterPrinter")
-            {
-                printerName = printer.name;
-                break;
-            }
-        }
-
-
-    var dymo_btns = document.getElementsByClassName("dymo_print");
-
-    for(i = 0; i<dymo_btns.length; i++){
-      dymo_btns[i].onclick = function(){
-          label.setObjectText("Text", this.getAttribute("dymo_value"));
-          label.setObjectText("BARCODE", this.getAttribute("dymo_value"));
-          label.print(printerName);
-      };
-    }
-
-    var print_multiple_dymo_labels = function(positions_array){
-      var labelSet = new dymo.label.framework.LabelSetBuilder();
-      for(var index in positions_array){
-          var record = labelSet.addRecord();
-          record.setText("Text", positions_array[index]);
-          record.setText("BARCODE", positions_array[index]);
-      }
-      label.print(printerName, '', labelSet);
-
-    };
-
-
 
 </script>
 <style>

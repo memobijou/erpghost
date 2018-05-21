@@ -257,7 +257,6 @@
     for(i = 0; i<dymo_btns.length; i++){
       dymo_btns[i].onclick = function(){
           var amount_labels_input = this.parentElement.parentElement.getElementsByClassName("amount_labels")[0];
-          alert(amount_labels_input.value);
           if(amount_labels_input.value == "" || amount_labels_input.value == "1"){
               label.setObjectText("Text", this.getAttribute("dymo_value"));
               label.setObjectText("BARCODE", this.getAttribute("dymo_value"));

@@ -16,11 +16,13 @@ class Stock(models.Model):
     )
 
     ean_vollstaendig = models.CharField(max_length=250, verbose_name="EAN", null=True, blank=True)
-    bestand = models.IntegerField(null=True, blank=True, verbose_name="Bestand")
+    sku = models.CharField(max_length=250, verbose_name="Sku", null=True, blank=True)
+    title = models.CharField(max_length=250, verbose_name="Artikelname", null=True, blank=True)
+    zustand = models.CharField(max_length=250, null=True, blank=True, verbose_name="Zustand")
     ean_upc = models.CharField(max_length=250, null=True, blank=True)
     lagerplatz = models.CharField(max_length=250, null=True, blank=True, verbose_name="Lagerplatz")
+    bestand = models.IntegerField(null=True, blank=True, verbose_name="Bestand")
     regal = models.CharField(max_length=250, null=True, blank=True, verbose_name="Regal")
-    zustand = models.CharField(max_length=250, null=True, blank=True, verbose_name="Zustand")
     scanner = models.IntegerField(null=True, blank=True, verbose_name="Scanner")
     name = models.CharField(max_length=250, null=True, blank=True, verbose_name="Person")
     karton = models.CharField(max_length=250, null=True, blank=True, verbose_name="Karton")
@@ -28,8 +30,6 @@ class Stock(models.Model):
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
-    title = models.CharField(max_length=250, verbose_name="Artikelname", null=True, blank=True)
-    sku = models.CharField(max_length=250, verbose_name="Sku", null=True, blank=True)
 
     def get_absolute_url(self):
         return reverse("stock:detail", kwargs={'pk': self.id})

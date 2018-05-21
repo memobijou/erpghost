@@ -35,11 +35,16 @@
                 {% endif %}
             </td>
             <td> {{ object.ean|default:""}} </td>
+            <td>
+                {% for sku in object.sku_set.all %}
+                    {{ sku|default:""}}
+                {% endfor %}
+
+            </td>
+            <td> {{ object.title|default:""}} </td>
             <td> {{ object.manufacturer|default:""}} </td>
             <td> {{ object.brandname|default:""}} </td>
-            <td> {{ object.part_number|default:""}} </td>
-            <td> {{ object.title|default:""}} </td>
-            <td>
+                        <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>
                 <br/>
             {% if stock.total %}
@@ -74,6 +79,8 @@
             {% endif %}
             </div>
             </td>
+
+            <td> {{ object.part_number|default:""}} </td>
     </tr>
   <tr id="collapse_{{ forloop.counter }}" class="collapse">
       <td colspan="12">

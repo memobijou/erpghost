@@ -472,7 +472,7 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         }
 
     def form_invalid(self, form):
-        print(f"HEROKu FAILURE: {form.data} --- {form}")
+        print("HEROKu FAILURE: ")
         return super().form_invalid(form)
 
     def form_valid(self, form):

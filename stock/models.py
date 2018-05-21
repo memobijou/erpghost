@@ -41,7 +41,7 @@ class Stock(models.Model):
 
         if self.lagerplatz is None:
             return
-        print(f"HEROKU:::: {self.lagerplatz} --- {self.sku} --- {self.zustand}")
+
         has_ean = self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
         has_sku = self.sku is not None and self.sku != ""
         has_title = self.title is not None and self.title != ""
@@ -66,44 +66,48 @@ class Stock(models.Model):
                              " bestimmen.</h3>"
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
-        if self.zustand is not None and self.zustand != "":
-            if self.zustand.lower() == "neu" or self.zustand.lower() == "a":
-                if self.ean_vollstaendig is None or self.ean_vollstaendig == "":
-                    stock_html = "<h3 style='color:red;'>Sie müssen eine EAN angeben</h3>"
+
+        if self.sku is not None and self.sku != "":
+            if self.zustand is not None and self.zustand != "":
+                stock_html = \
+                    "<h3 style='color:red;'>Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen" \
+                    "</h3>"
+                c = Context({'unique_message': 'Your message'})
+                raise ValidationError(Template(stock_html).render(c))
+
+        if self.title is not None and self.title != "":
+            if self.zustand is not None and self.zustand != "":
+                if self.zustand.lower() == "neu" or self.zustand.lower() == "a":
+                    stock_html = "<h3 style='color:red;'>Wenn Sie einen Artikelnamen angeben, darf der" \
+                                 " Zustand nicht Neu oder A sein.</h3>"
                     c = Context({'unique_message': 'Your message'})
                     raise ValidationError(Template(stock_html).render(c))
 
-            if self.zustand.lower() in ["b", "c", "d", "e"]:
-                if (self.sku is None or self.sku == "") and (self.title is None or self.title == ""):
-                    stock_html =\
-                        "<h3 style='color:red;'>Sie müssen entweder eine SKU oder einen Artikelnamen angeben</h3>"
-                    c = Context({'unique_message': 'Your message'})
-                    raise ValidationError(Template(stock_html).render(c))
-                else:
-                    if self.sku is not None and self.sku != "":
-                        if self.zustand is not None:
-                            stock_html = \
-                                "<h3 style='color:red;'>Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen" \
-                                "</h3>"
-                            c = Context({'unique_message': 'Your message'})
-                            raise ValidationError(Template(stock_html).render(c))
+        if (self.sku is None or self.sku == "") and (self.title is None or self.title == "")\
+                and (self.ean_vollstaendig is None or self.ean_vollstaendig == ""):
+            stock_html =\
+                "<h3 style='color:red;'>Sie müssen eine EAN, SKU oder Artikelnamen angeben</h3>"
+            c = Context({'unique_message': 'Your message'})
+            raise ValidationError(Template(stock_html).render(c))
+
 
         stocks = None
 
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz).exclude(id=self.id)
+
         elif self.sku is not None and self.sku != "":
-            print("HEROKU 2::::::::::")
             if Product.objects.filter(sku__sku__exact=self.sku).count() == 0:
                 stock_html = \
                     f"<h3 style='color:red;'>Bitte geben Sie eine gültige SKU ein. " \
-                    f"die SKU {self.sku} existiert nicht im System." \
+                    f"Die SKU {self.sku} existiert nicht im System." \
                     f"</h3>"
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
 
             stocks = Stock.objects.filter(sku=self.sku, lagerplatz=self.lagerplatz).exclude(id=self.id)
+
         elif self.title is not None and self.title != "":
             stocks = Stock.objects.filter(title=self.title, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz).exclude(id=self.id)
@@ -140,7 +144,6 @@ class Stock(models.Model):
             stock_html += "</tbody></table></div>"
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(stock_html).render(c))
-        print("HEROKU 3")
 
     def total_amount_ean(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
@@ -318,6 +321,8 @@ class Stock(models.Model):
                                                              product_mission__state=state)
                 else:
                     real_amounts = RealAmount.objects.filter(product_mission__product__sku__sku=self.sku)
+            elif self.title is not None and self.title != "":
+                available_stocks[state] = total
 
             total_reserved = 0
             if real_amounts is not None:

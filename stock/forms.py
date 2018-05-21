@@ -25,10 +25,17 @@ class StockUpdateForm(ModelForm):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.fields['bestand'].required = True
+        self.fields['bestand'].widget.attrs['min'] = 1
         for visible in self.visible_fields():
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_bestand(self):
+        bestand = self.cleaned_data['bestand']
+        if bestand < 1:
+            raise forms.ValidationError("Der Bestand darf nicht kleiner als 1 sein.")
+        return bestand
 
 
 class StockCreateForm(ModelForm):
@@ -44,11 +51,18 @@ class StockCreateForm(ModelForm):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.fields['bestand'].required = True
+        self.fields['bestand'].widget.attrs['min'] = 1
 
         for visible in self.visible_fields():
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_bestand(self):
+        bestand = self.cleaned_data['bestand']
+        if bestand < 1:
+            raise forms.ValidationError("Der Bestand darf nicht kleiner als 1 sein.")
+        return bestand
 
 
 class GeneratePositionsForm(forms.Form):

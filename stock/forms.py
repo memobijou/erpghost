@@ -60,7 +60,7 @@ class StockCreateForm(ModelForm):
 
     def clean_bestand(self):
         bestand = self.cleaned_data['bestand']
-        if bestand < 1:
+        if bestand is not None and bestand < 1:
             raise forms.ValidationError("Der Bestand darf nicht kleiner als 1 sein.")
         return bestand
 

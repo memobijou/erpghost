@@ -74,7 +74,13 @@
                     <div class="col-md-6">
                         {% for field in form.visible_fields %}
                             <div class="form-group">
-                                {{ field.errors }}
+                                {% if field.errors %}
+                                    <div style="color:red;padding-bottom:15px;">
+                                        {% for field_error in field.errors %}
+                                            {{ field_error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 {{ field.label_tag }} {{ field }}
                                 {% if field.help_text %}
                                 <p class="help">{{ field.help_text|safe }}</p>

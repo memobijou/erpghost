@@ -116,12 +116,24 @@
                                             {% for image in object.productimage_set.all %}
                                                 <div class="col-md-4" style="padding-left: 0px;padding-top:25px;">
                                                     <div class="panel panel-default">
-                                                        <div class="panel-body" style="min-height: 150px;">
+                                                        <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">
                                                             <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
                                                         </div>
                                                         <div class="panel-footer">
                                                             <div class="checkbox">
                                                               <label><input type="checkbox" name="to_delete_more_images" value="{{ image.pk }}">Löschen</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                   <div class="modal fade">
+                                                         <!-- Modal -->
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-body">
+                                                                    <img src="{{ image.image.url|default:''}}"
+                                                                     class="img-responsive center-block">
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -139,5 +151,16 @@
 
             </div>
         </form>
+
+        <script>
+            var modal_images = document.getElementsByClassName("img-modal");
+                for(var i = 0; i<modal_images.length; i++){
+                    var modal_image = modal_images[i];
+                    modal_image.onclick = function(){
+                        var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+                        $(modal_div).modal();
+                    };
+            }
+        </script>
 
 {% endblock %}

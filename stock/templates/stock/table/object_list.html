@@ -37,10 +37,6 @@
                 {% endif %}
             {% endif %}
         </td>
-        <td> {{ object.bestand}} </td>
-        <td> {{ object.lagerplatz}} </td>
-        <td> {{object.zustand}} </td>
-        <td> {{object.title|default:""}} </td>
         <td>
             {% if object.sku %}
             {{object.sku|default:""}}
@@ -52,7 +48,10 @@
                 {% endfor %}
             {% endif %}
         </td>
-
+        <td> {{object.title|default:""}} </td>
+        <td> {{object.zustand}} </td>
+        <td> {{ object.lagerplatz}} </td>
+        <td> {{ object.bestand}} </td>
         <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>
                 <br/>

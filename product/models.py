@@ -19,11 +19,11 @@ class Product(models.Model):
 
     ean = models.CharField(blank=True, null=False, max_length=200, verbose_name="EAN")
     main_sku = models.IntegerField(blank=True, null=True, verbose_name="SKU")
+    title = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Titel")
     manufacturer = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Hersteller")
     brandname = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Markenname")
     part_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Herstellernummer")
 
-    title = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Titel")
     short_description = models.TextField(null=True, blank=True, default="", verbose_name="Kurzbeschreibung")
     description = models.TextField(null=True, blank=True, default="", verbose_name="Beschreibung")
 

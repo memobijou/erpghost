@@ -83,14 +83,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                                {% for productmission, missing_amount, stock, real_amount, available_product_stock in products_from_stock %}
+                                {% for productmission, missing_amount, stock, real_amount in products_from_stock %}
                                     {% if object.id == productmission.mission.id %}
                                     <tr>
                                         <td>
                                             {{productmission.get_ean_or_sku}}
                                         </td>
                                         <td>{{productmission.state}}</td>
-                                        <td>{{productmission.product.title}}</td>
+                                        <td>{{productmission.product.title|default:""}}</td>
                                         <td>{{productmission.amount}}</td>
                                         <td style="color:red;">
                                             {{ missing_amount }}
@@ -99,7 +99,7 @@
                                             {{ real_amount|default:'0' }}
                                         </td>
                                         <td>
-                                            {{ available_product_stock|default:'0' }}/{{ stock|default:'0' }}
+                                            {{ stock|default:'0' }}
                                         </td>
                                         <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                         <td>
@@ -142,12 +142,12 @@
                                         <tbody>
                                             <tr>
                                                 <td>
-                                                    <a href="{% url 'mission:partial_billing_pdf' pk=object.pk billing_number=real_amount_rows.first.billing_number %}"
+                                                    <a href="{% url 'mission:partial_billing_pdf' pk=object.pk billing_number=real_amount_rows.first.billing.billing_number %}"
                                                        class="btn btn-info">
-                                                        {{real_amount_rows.first.billing_number }}</a>
+                                                        {{real_amount_rows.first.billing.billing_number }}</a>
                                                 </td>
                                                 <td>
-                                                    <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_number=real_amount_rows.first.delivery_note_number %}" class="btn btn-info">{{ real_amount_rows.first.delivery_note_number }}</a><br/><br/>
+                                                    <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_number=real_amount_rows.first.delivery_note.delivery_note_number %}" class="btn btn-info">{{ real_amount_rows.first.delivery_note.delivery_note_number }}</a><br/><br/>
                                                 </td>
                                             </tr>
                                     </tbody>
@@ -190,7 +190,7 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                                <a href="{% url 'mission:scan' pk=object.pk billing_number=real_amount_rows.first.billing_number %}" class="btn btn-success">Zum Warenausgang</a>
+                                <a href="{% url 'mission:scan' pk=object.pk billing_number=real_amount_rows.first.billing.billing_number %}" class="btn btn-success">Zum Warenausgang</a>
                                 <a href="" class="btn btn-info">Pickschein</a>
 
                             </div>

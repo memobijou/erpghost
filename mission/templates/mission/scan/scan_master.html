@@ -4,6 +4,7 @@
             <th></th>
             <th>Bild</th>
             <th>EAN / SKU</th>
+            <th>Zustand</th>
             <th>Menge</th>
             <th>Fehlende Menge</th>
             <th>Reale Menge</th>
@@ -32,6 +33,7 @@
                         {% endif %}
                     </td>
                     <td>{{ real_amount_row.product_mission.get_ean_or_sku }}</td>
+                    <td>{{ real_amount_row.product_mission.state }}</td>
                     <td>{{ real_amount_row.real_amount }}</td>
                     <td>{{ real_amount_row.missing_amount|default:"" }}</td>
                     <td>{{ real_amount_row.real_amount_minus_missing_amount }}</td>

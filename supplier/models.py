@@ -17,15 +17,9 @@ class Supplier(models.Model):
     def get_absolute_url(self):
         return reverse("supplier:detail", kwargs={"pk": self.id})
 
-    def save(self, *args, **kwargs):
-        if self.supplier_number == "" or self.supplier_number is None:
-            all_suppliers = Supplier.objects.all()
-            max_supplier_number = all_suppliers.aggregate(Max('supplier_number')).get("supplier_number__max")
-            # Da supplier_number ein Charfield ist wird es nicht die höchste Nummer packen, ist aber hier egal
-            if all_suppliers.count() >= 1 and max_supplier_number != "":
-                if max_supplier_number[0].isalpha():
-                    max_supplier_number = max_supplier_number[2:]
-                self.supplier_number = f"LF{int(max_supplier_number) + 1}"
-            else:
-                self.supplier_number = "LF383954521"
-        super().save(force_insert=False, force_update=False, *args, **kwargs)
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.supplier_number is None or self.supplier_number == "":
+            self.supplier_number = f"LF{self.pk+1}"
+        super().save()

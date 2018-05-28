@@ -33,11 +33,11 @@
     var matches = {"scan_sku": false, "scan_ean": false};
 
     var confirm_detail_view = document.getElementById("confirm_detail_view");
-    var match_ean = document.getElementById("match_ean");
+    var match_ean_sku = document.getElementById("match_ean_sku");
     var match_amount = document.getElementById("match_amount");
+    var match_state = document.getElementById("match_state");
     var match_img = document.getElementById("match_img");
     var match_title = document.getElementById("match_title");
-    var match_sku = document.getElementById("match_sku");
 
 
     var hidden_confirmed = document.getElementsByName("confirmed")[0];
@@ -93,23 +93,51 @@
 
     var extract_information_from_input_match = function(input){
         if(input.value.length == 13){
+            var ean_json = {};
+
+            {% for real_amount_rows in real_amounts %}
+                {% for real_amount_row in real_amount_rows %}
+                    var ean = "{{ real_amount_row.product_mission.product.ean }}";
+                    var state = "{{ real_amount_row.product_mission.state }}";
+
+                    if(ean in ean_json){
+                        ean_json[ean].push(state);
+                    }else{
+                        ean_json[ean] = [state]
+                    }
+                {% endfor %}
+            {% endfor %}
+
+            var confirm_state = null;
+            if(ean_json[input.value].length > 1){
+                confirm_state = prompt("Welche EAN meinen Sie ? Tragen Sie einen Zustand ein.")
+            }
+
             {% for real_amount_rows in real_amounts %}
                     {% for real_amount_row in real_amount_rows %}
                         {% if real_amount_row.product_mission.product.ean %}
                             if(input.value == "{{ real_amount_row.product_mission.product.ean }}"){
-                                matches[input.id] = true;
+                                if(confirm_state != null && confirm_state.toLowerCase() != "{{ real_amount_row.product_mission.state }}".toLowerCase()){
 
-                                match_ean.innerHTML = "{{ real_amount_row.product_mission.product.ean }}";
-                                match_amount.innerHTML = "{{ real_amount_row.real_amount }}";
-                                match_amount_value = "{{ real_amount_row.real_amount }}";
-                                {% if real_amount_row.product_mission.product.main_image %}
-                                    match_img.src = "{{ real_amount_row.product_mission.product.main_image.url }}";
-                                {% endif %}
-                                confirm_detail_view.style.display = "";
-                                match_title.innerHTML = "<b>{{ real_amount_row.product_mission.product.title }}</b>";
-                                match_sku.innerHTML = "{{ real_amount_row.product_mission.product.sku }}";
+                                }else {
+                                    matches[input.id] = true;
 
-                                hidden_product_id.value = "{{ real_amount_row.product_mission.id }}";
+                                    {% if real_amount_row.product_mission.state %}
+                                        match_state.parentElement.style = "";
+                                        match_state.innerHTML = "{{ real_amount_row.product_mission.state }}";
+                                    {% endif %}
+
+                                    match_ean_sku.innerHTML = "{{ real_amount_row.product_mission.get_ean_or_sku }}";
+                                    match_amount.innerHTML = "{{ real_amount_row.real_amount }}";
+                                    match_amount_value = "{{ real_amount_row.real_amount }}";
+                                    {% if real_amount_row.product_mission.product.main_image %}
+                                        match_img.src = "{{ real_amount_row.product_mission.product.main_image.url }}";
+                                    {% endif %}
+                                    confirm_detail_view.style.display = "";
+                                    match_title.innerHTML = "<b>{{ real_amount_row.product_mission.product.title|default:'' }}</b>";
+
+                                    hidden_product_id.value = "{{ real_amount_row.product_mission.id }}";
+                                }
                             }
                         {% endif %}
                 {% endfor %}
@@ -131,11 +159,10 @@
 
             if(has_match == false){
                 confirm_detail_view.style.display = "none";
-                match_ean.innerHTML = "";
+                match_ean_sku.innerHTML = "";
                 match_amount.innerHTML = "";
                 match_img.src = "";
                 match_title.innerHTML = "";
-                match_sku.innerHTML = "";
             }
         }
 

@@ -30,15 +30,16 @@ class PartialDeliveryNoteView(DeliveryNoteView):
         delivery_note_number = f"{self.kwargs.get('delivery_note_number')}"
 
         for productmission in self.mission.productmission_set.\
-                filter(realamount__delivery_note_number=delivery_note_number):
-            real_amount = productmission.realamount_set.filter(delivery_note_number=delivery_note_number).\
+                filter(realamount__delivery_note__delivery_note_number=delivery_note_number):
+            real_amount = productmission.realamount_set.\
+                filter(delivery_note__delivery_note_number=delivery_note_number).\
                 first().real_amount
 
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.product.title, style=size_nine_helvetica),
+                    Paragraph(productmission.product.title or "", style=size_nine_helvetica),
                     Paragraph(str(real_amount), style=right_align_paragraph_style),
                 ],
             )

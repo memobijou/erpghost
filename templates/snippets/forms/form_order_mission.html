@@ -181,16 +181,21 @@
             var table_row_clone = sample_row.cloneNode(true);
             var table_row_clone_inputs = table_row_clone.getElementsByTagName("input");
             var select_fields = table_row_clone.getElementsByTagName("select");
+            var trash_btn = table_row_clone.getElementsByClassName("delete_trash")[0];
+
+            if(trash_btn != null){
+                delete_row_on_click(table_row_clone, trash_btn)
+            }
+
             for(var i = 0; i<select_fields.length; i++){
                 select_fields[i].getElementsByTagName("option")[0].selected = 'selected';
             }
 
-
             for(var i = 0; i<table_row_clone_inputs.length; i++){
                 var row_input = table_row_clone_inputs[i];
                 row_input.value = "";
-                if(row_input.className == "delete_checkbox"){
 
+                if(row_input.className == "delete_checkbox"){
                     var row_input_parent = row_input.parentElement.parentElement.parentElement;
 
                     row_input_parent.innerHTML = "";
@@ -209,8 +214,6 @@
                     row_input_parent.appendChild(new_delete_btn);
 
                 }
-
-
                 else if(row_input.name == "ean"){
                     row_input.parentElement.className = row_input.parentElement.className.replace("has-error", "");
                     row_input.parentElement.className = row_input.parentElement.className.replace("has-success", "");

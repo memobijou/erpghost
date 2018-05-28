@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.db.models import Sum
 from django.template import Context, Template
 import re
@@ -30,12 +31,21 @@ class Stock(models.Model):
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
+    product = models.ForeignKey(Product, blank=True, null=True, on_delete=models.SET_NULL)
 
     def get_absolute_url(self):
         return reverse("stock:detail", kwargs={'pk': self.id})
 
     def __str__(self):
         return str(self.ean_vollstaendig)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        print("BLATT TEIG TEIG TEIG")
+        product = self.get_product()
+        if product is not None:
+            self.product = product
+        super().save()
 
     def clean(self):
 
@@ -44,25 +54,16 @@ class Stock(models.Model):
 
         has_ean = self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
         has_sku = self.sku is not None and self.sku != ""
-        has_title = self.title is not None and self.title != ""
 
-        if has_ean is True and has_sku is True or has_sku is True and has_title is True or has_ean is True\
-                and has_title is True:
+        if has_ean is True and has_sku is True:
             only_ean_or_sku_or_title_html =\
-                "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN, Sku oder Artikelname</h3>"
+                "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN oder SKU</h3>"
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(only_ean_or_sku_or_title_html).render(c))
 
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             if self.zustand is None or self.zustand == "":
                 stock_html = "<h3 style='color:red;'>Wenn Sie eine EAN eingeben, müssen Sie einen Zustand" \
-                             " bestimmen.</h3>"
-                c = Context({'unique_message': 'Your message'})
-                raise ValidationError(Template(stock_html).render(c))
-
-        if self.title is not None and self.title != "":
-            if self.zustand is None or self.zustand == "":
-                stock_html = "<h3 style='color:red;'>Wenn Sie einen Artikelnamen eingeben, müssen Sie einen Zustand" \
                              " bestimmen.</h3>"
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
@@ -75,27 +76,27 @@ class Stock(models.Model):
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
 
-        if self.title is not None and self.title != "":
-            if self.zustand is not None and self.zustand != "":
-                if self.zustand.lower() == "neu" or self.zustand.lower() == "a":
-                    stock_html = "<h3 style='color:red;'>Wenn Sie einen Artikelnamen angeben, darf der" \
-                                 " Zustand nicht Neu oder A sein.</h3>"
-                    c = Context({'unique_message': 'Your message'})
-                    raise ValidationError(Template(stock_html).render(c))
-
-        if (self.sku is None or self.sku == "") and (self.title is None or self.title == "")\
-                and (self.ean_vollstaendig is None or self.ean_vollstaendig == ""):
+        if (self.sku is None or self.sku == "") and (self.ean_vollstaendig is None or self.ean_vollstaendig == ""):
             stock_html =\
-                "<h3 style='color:red;'>Sie müssen eine EAN, SKU oder Artikelnamen angeben</h3>"
+                "<h3 style='color:red;'>Sie müssen entweder eine EAN oder eine SKU eingeben</h3>"
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(stock_html).render(c))
-
 
         stocks = None
 
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-            stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
-                                          lagerplatz=self.lagerplatz).exclude(id=self.id)
+            skus_with_same_ean = []
+            products_with_ean = Product.objects.filter(ean=self.ean_vollstaendig)
+            for product_with_ean in products_with_ean:
+                sku_of_product_with_ean = product_with_ean.sku_set.filter(state=self.zustand).first().sku
+                stock_sku = Stock.objects.filter(sku=sku_of_product_with_ean)
+                if stock_sku.count() > 0:
+                    skus_with_same_ean.append(sku_of_product_with_ean)
+            print(f"HABDU IBDO: {skus_with_same_ean}")
+            stocks = Stock.objects.filter(Q(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
+                                          lagerplatz=self.lagerplatz) | Q(sku__in=skus_with_same_ean,
+                                                                          lagerplatz=self.lagerplatz))\
+                .exclude(id=self.id)
 
         elif self.sku is not None and self.sku != "":
             if Product.objects.filter(sku__sku__exact=self.sku).count() == 0:
@@ -108,11 +109,7 @@ class Stock(models.Model):
 
             stocks = Stock.objects.filter(sku=self.sku, lagerplatz=self.lagerplatz).exclude(id=self.id)
 
-        elif self.title is not None and self.title != "":
-            stocks = Stock.objects.filter(title=self.title, zustand=self.zustand,
-                                          lagerplatz=self.lagerplatz).exclude(id=self.id)
-
-        if stocks is not None and stocks.count() > 0:
+        if stocks is not None and stocks.count() > 0 and "block" not in self.lagerplatz.lower():
             stock_html = "<h1 style='color:red;'>Lagerbestand schon vorhanden</h1>" \
                          "<div class='table-responsive'><table class='table table-bordered'>" \
                          "<thead>" \
@@ -121,6 +118,7 @@ class Stock(models.Model):
                          "</tr>" \
                          "</thead>"\
                          "<tbody>"
+
             for stock in stocks:
                 if stock.ean_vollstaendig is not None:
                     stock_ean = stock.ean_vollstaendig
@@ -135,8 +133,8 @@ class Stock(models.Model):
                 stock_html = stock_html + f"<tr>" \
                                           "<td><a href=" + "'{% " f"url 'stock:edit' pk={stock.id}" + " %}'" \
                                           + ">Bearbeiten</a></td>" \
-                                          f"<td>{stock_ean}</td>" \
-                                          f"<td>{stock.sku}</td>" \
+                                          f"<td>{stock_ean or ''}</td>" \
+                                          f"<td>{stock.sku or ''}</td>" \
                                           f"<td>{stock.lagerplatz}</td>" \
                                           f"<td>{stock.zustand}</td>" \
                                           f"<td>{stock_bestand}</td>" \
@@ -145,41 +143,12 @@ class Stock(models.Model):
             c = Context({'unique_message': 'Your message'})
             raise ValidationError(Template(stock_html).render(c))
 
-    def total_amount_ean(self, state=None):
-        if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-            if state is not None:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig), zustand__iexact=state).\
-                    aggregate(Sum('bestand'))["bestand__sum"]
+    def get_total_stocks(self, product=None):
+        if self.product is not None:
+            product = self.product
 
-                if total is None:
-                    total = 0
-
-                product = Product.objects.filter(ean=str(self.ean_vollstaendig)).first()
-                total = self.add_skus_to_total(state, total, product)
-
-            else:
-                total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig))\
-                    .aggregate(Sum('bestand'))["bestand__sum"]
-
-                if total is None:
-                    total = 0
-
-                product = Product.objects.filter(ean=str(self.ean_vollstaendig)).first()
-                total = self.add_skus_to_total(state, total, product)
-        elif self.sku is not None and self.sku != "":
-            total = self.get_total_from_sku()
-        elif self.title is not None and self.title != "":
-            if state is not None:
-                total = Stock.objects.filter(title=str(self.title))\
-                    .aggregate(Sum('bestand'))["bestand__sum"]
-            else:
-                total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))["bestand__sum"]
-        else:
-            return None
-        return total
-
-    def get_total_stocks(self):
-        product = self.get_product()
+        if product is None:
+            product = self.get_product()
 
         if product is None:
             if self.sku is not None and self.sku != "":
@@ -203,8 +172,92 @@ class Stock(models.Model):
                             "A": self.get_total_from_title(state="A"), "B": self.get_total_from_title(state="B"),
                             "C": self.get_total_from_title(state="C"), "D": self.get_total_from_title(state="D"),
                             }
-        total = self.get_total_from_product(product)
+
+        total = self.get_total_from_all_products(product)
+
         return total
+
+    def get_total_from_all_products(self, product):
+        all_products = self.get_all_products(product)
+        total = self.get_total(product=product)
+        total = self.get_available_total_from_all_products(all_products, total)
+        return total
+
+    def get_total(self, product=None):
+        if product is None:
+            product = self.get_product()
+
+        total = {"Neu": 0, "A": 0, "B": 0, "C": 0, "D": 0}
+        all_products = self.get_all_products(product)
+        print(all_products)
+        if all_products is not None:
+            for p in all_products:
+                for sku in p.sku_set.all():
+                    sku_string = sku.sku
+                    sku_state = sku.state
+                    state_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).\
+                        get("bestand__sum")
+                    if state_total is not None:
+                        total[sku_state] += int(state_total)
+
+        ean_stocks = None
+        if product is not None:
+            if product.ean is not None and product.ean != "":
+                ean_stocks = Stock.objects.filter(ean_vollstaendig=product.ean)
+
+        if ean_stocks is not None:
+            for ean_stock in ean_stocks:
+                total[ean_stock.zustand] += int(ean_stock.bestand)
+
+        total["Gesamt"] = total["Neu"] + total["A"] + total["B"] + total["C"] + total["D"]
+        print(f"aballllll:  {total}")
+        return total
+
+    def get_available_total_from_all_products(self, products, total):
+        available_total = total.copy()
+        print(f"balkan: {available_total}")
+        print(f"balkan: {products}")
+        if products is not None:
+            for product in products:
+                print(f"balkan: {product}")
+                for sku in product.sku_set.all():
+                    sku_string = sku.sku
+                    sku_state = sku.state
+                    print(f"lampe: {sku_string} - - - {sku_state}")
+                    real_amount_total = RealAmount.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                  product_mission__state=sku_state)\
+                        .aggregate(Sum("real_amount")).get("real_amount__sum")
+
+                    if real_amount_total is not None and real_amount_total != "":
+                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
+                        # total["Gesamt"] -= f"{int(total['Gesamt'])}"
+
+                print(f"aball 2: {available_total}")
+        total["Neu"] = f"{available_total.get('Neu')}/{total.get('Neu')}"
+        total["A"] = f"{available_total.get('A')}/{total.get('A')}"
+        total["B"] = f"{available_total.get('B')}/{total.get('B')}"
+        total["C"] = f"{available_total.get('C')}/{total.get('C')}"
+        total["D"] = f"{available_total.get('D')}/{total.get('D')}"
+        available_total_gesamt = 0
+        available_total_gesamt += int(available_total.get("Neu"))
+        available_total_gesamt += int(available_total.get("A"))
+        available_total_gesamt += int(available_total.get("B"))
+        available_total_gesamt += int(available_total.get("C"))
+        available_total_gesamt += int(available_total.get("D"))
+
+        total["Gesamt"] = f"{available_total_gesamt}/{total['Gesamt']}"
+
+        return total
+
+    def get_all_products(self, product):
+        products = None
+        if product is not None:
+            if product.ean is not None and product.ean != "":
+                products = Product.objects.filter(ean=product.ean)
+
+        if product is not None and products is None:
+            return [product]
+        return products
 
     def get_product(self):
         product = None
@@ -241,7 +294,6 @@ class Stock(models.Model):
             return "0"
         else:
             return total
-        return total
 
     def get_total_from_title(self, state=None):
         if state is None:
@@ -255,18 +307,17 @@ class Stock(models.Model):
             return "0"
         else:
             return total
-        return total
 
     def get_total_from_product(self, product):
         result = {}
         all_skus = {}
-
         if product is not None:
             for sku in product.sku_set.all():
                 all_skus[sku.sku] = sku
 
         for sku_string, sku_instance in all_skus.items():
             sku_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).get("bestand__sum")
+
             if sku_total is not None:
                 result[sku_instance.state] = sku_total
             else:
@@ -297,55 +348,52 @@ class Stock(models.Model):
         result["Gesamt"] = total
         return result
 
-    def get_available_total_stocks(self):
-        stocks = self.get_total_stocks()
-        print(f"KRANK: {stocks}")
-        available_stocks = {}
-        states = ["Neu", "A", "B", "C", "D"]
+    def get_available_total_stocks(self, product=None):
+        if self.product is not None:
+            product = self.product
 
-        for state, total in stocks.items():
-            print(f"SOLL: {state}  ---  {states}")
+        if product is None or product == "":
+            product = self.get_product()
 
-            real_amounts = None
-            if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-                if state in states:
-                    real_amounts = RealAmount.objects.filter(product_mission__product__ean=self.ean_vollstaendig,
-                                                             product_mission__state__exact=state)
-                else:
-                    real_amounts = RealAmount.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
+        total = self.get_total(product=product)
 
-            elif self.sku is not None and self.sku != "":
-                print(f"hare: {self.sku}")
-                if state in states:
-                    real_amounts = RealAmount.objects.filter(product_mission__product__sku__sku=self.sku,
-                                                             product_mission__state=state)
-                else:
-                    real_amounts = RealAmount.objects.filter(product_mission__product__sku__sku=self.sku)
-            elif self.title is not None and self.title != "":
-                available_stocks[state] = total
+        products = self.get_all_products(product)
+        print(f"badi: {products}")
+        available_total = total.copy()
 
-            total_reserved = 0
-            if real_amounts is not None:
-                for real_amount in real_amounts:
-                    total_reserved += real_amount.real_amount
-                if total is not None:
-                    if state in states:
-                        print(f"battaaa: {total} ... {total_reserved}")
-                        available_stocks[state] = str(int(total)-total_reserved)
-                    else:
-                        available_stocks["Gesamt"] = str(int(stocks.get("Gesamt"))-total_reserved)
-                else:
-                    available_stocks[state] = total
-        print(f"AVAILABLE:::: {available_stocks}")
-        return available_stocks
+        if products is not None:
+            for product in products:
+                for sku in product.sku_set.all():
+                    sku_string = sku.sku
+                    sku_state = sku.state
+                    real_amount_total = RealAmount.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                  product_mission__state=sku_state)\
+                        .aggregate(Sum("real_amount")).get("real_amount__sum")
 
-    def get_available_stocks_of_total_stocks(self):
+                    if real_amount_total is not None:
+                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
+                        # total["Gesamt"] -= f"{int(total['Gesamt'])}"
+
+                print(f"aball 2: {available_total}")
+
+        available_total_gesamt = 0
+        available_total_gesamt += int(available_total.get("Neu"))
+        available_total_gesamt += int(available_total.get("A"))
+        available_total_gesamt += int(available_total.get("B"))
+        available_total_gesamt += int(available_total.get("C"))
+        available_total_gesamt += int(available_total.get("D"))
+
+        available_total["Gesamt"] = f"{available_total_gesamt}"
+
+        return available_total
+
+    def get_available_stocks_of_total_stocks(self, product=None):
         result = {}
-        total_stocks = self.get_total_stocks()
-        available_stocks = self.get_available_total_stocks()
-        for state, total in total_stocks.items():
-            result[state] = f"{available_stocks.get(state)}/{total}"
-        return result
+        total_stocks = self.get_total_stocks(product=product)
+        # available_stocks = self.get_available_total_from_all_products(product=product)
+        # for state, total in total_stocks.items():
+        #     result[state] = f"{available_stocks.get(state)}/{total}"
+        return total_stocks
 
     def available_total_amount(self, state=None):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":

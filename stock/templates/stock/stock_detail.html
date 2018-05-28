@@ -39,6 +39,8 @@
                 {% endif %}
                 {% if object.zustand %}
                      - <b>Zustand: </b>{{ object.zustand }}<br/>
+                {% elif sku_state %}
+                     - <b>Zustand: </b>{{ sku_state }}<br/>
                 {% endif %}
         </div>
         <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
@@ -61,17 +63,18 @@
         {% if product %}
             {% if product.main_image %}
                 <div class="col-md-3">
-                    <p><image src="{{ product.main_image.url }}" class="img-responsive img-modal"
-                              style="cursor:pointer;"></image></p>
-                </div>
-
-                <div class="modal fade">
-                 <!-- Modal -->
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-body">
-                                <img src="{{ product.main_image.url|default:''}}"
-                                 class="img-responsive center-block">
+                    <p>
+                        <img src="{{ product.main_image.url }}" class="img-responsive img-modal"
+                             style="cursor:pointer;"/>
+                    </p>
+                    <div class="modal fade">
+                         <!-- Modal -->
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-body">
+                                    <img src="{{ product.main_image.url|default:''}}"
+                                     class="img-responsive center-block">
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -103,7 +106,7 @@
         <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ stock.total }}</h4>
             <br/>
         {% if stock.total %}
-        <div class="col-md-6" style="margin:-15px;">
+        <div class="col-md-8" style="margin:-15px;">
           <table class="table table-bordered">
             <thead>
                 <th>Neu</th>
@@ -134,23 +137,60 @@
           </table>
         </div>
         {% endif %}
-        </div>
+                <div class="col-md-11" style="padding-right: 0px;padding-left:0px;">
+                    {% if object.product and object.product.productimage_set.all %}
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Weitere Bilder
+                                    </div>
+                                    <div class="panel-body">
+                                        <div class="col-md-12">
+                                            {% for image in object.product.productimage_set.all %}
+                                                <div class="col-md-2" style="padding-left: 0px;padding-top:25px;">
+                                                    <div class="panel panel-default">
+                                                        <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">
+                                                            <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
+                                                        </div>
+
+                                                    </div>
+                                                   <div class="modal fade">
+                                                         <!-- Modal -->
+                                                        <div class="modal-dialog">
+                                                            <div class="modal-content">
+                                                                <div class="modal-body">
+                                                                    <img src="{{ image.image.url|default:''}}"
+                                                                     class="img-responsive center-block">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                        {% endif %}
+                </div>
+            </div>
+
         <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
-        <br/>
-        <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
-    </div>
+            <br/>
+            <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
+        </div>
     </div>
 
 
 
 <script>
     var modal_images = document.getElementsByClassName("img-modal");
-    for(var i = 0; i<modal_images.length; i++){
-        modal_images[i].onclick = function(){
-            var modal_div = document.getElementsByClassName("modal")[0];
-            $(modal_div).modal();
-        };
-    }
+        for(var i = 0; i<modal_images.length; i++){
+            var modal_image = modal_images[i];
+            modal_image.onclick = function(){
+                var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+                $(modal_div).modal();
+            };
+        }
+
 </script>
 
 {% endblock %}

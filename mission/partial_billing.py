@@ -31,13 +31,15 @@ class PartialPdfView(BillingPdfView):
 
         billing_number = f"{self.kwargs.get('billing_number')}"
 
-        for productmission in self.mission.productmission_set.filter(realamount__billing_number=billing_number):
-            real_amount = productmission.realamount_set.filter(billing_number=billing_number).first().real_amount
+        for productmission in self.mission.productmission_set.\
+                filter(realamount__billing__billing_number=billing_number):
+            real_amount = productmission.realamount_set.filter(billing__billing_number=billing_number).first()\
+                .real_amount
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.product.title, style=size_nine_helvetica),
+                    Paragraph(productmission.product.title or "", style=size_nine_helvetica),
                     Paragraph(str(real_amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
                               style=right_align_paragraph_style),
@@ -60,7 +62,7 @@ class PartialPdfView(BillingPdfView):
         total_netto = 0
 
         for productmission in self.mission.productmission_set.all():
-            real_amount = productmission.realamount_set.filter(billing_number=billing_number).first()
+            real_amount = productmission.realamount_set.filter(billing__billing_number=billing_number).first()
             if real_amount is not None:
                 real_amount = real_amount.real_amount
             else:

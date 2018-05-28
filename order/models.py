@@ -90,17 +90,10 @@ class Order(models.Model):
         self.__original_verified = self.verified
 
     def save(self, force_insert=False, force_update=False, *args, **kwargs):
-        # if self.__original_verified != self.verified:
-        #     if self.verified is True:
-        #         # name changed - do something here
-        #         self.status = "AKZEPTIERT"
-        #     elif self.verified is False:
-        #         self.status = "ABGELEHNT"
-
         if self.ordernumber == "":
             today = date.today().strftime('%d%m%y')
             count = Order.objects.filter(ordernumber__icontains=today).count()+1
-            self.ordernumber = f"B{today}-{count}"
+            self.ordernumber = f"B{today}" + '%03d' % count
         super().save(force_insert=False, force_update=False, *args, **kwargs)
 
 

@@ -7,7 +7,11 @@
 {% for object, stock in object_list_zip %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
-            <a href="{{ object.id }}/edit">Bearbeiten</a>
+            {% if object.single_product != None %}
+                <a href="{% url 'product:edit_single' pk=object.pk %}">Bearbeiten</a>
+            {% else %}
+                <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
+            {% endif %}
             <input type="checkbox" name="item" value="{{object.pk}}">
         </td>
         <td class="show_hide" style="cursor:pointer;">

@@ -1,3 +1,4 @@
+from django.db.models import F
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
@@ -18,7 +19,7 @@ from stock.models import Stock
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
-from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote
+from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -757,6 +758,7 @@ class ScanMissionUpdateView(UpdateView):
         self.context["real_amounts"] = self.get_real_amounts()
         self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
+        self.context["select_range"] = range(20)
         return self.context
 
     def get_real_amounts(self):
@@ -806,6 +808,7 @@ class ScanMissionUpdateView(UpdateView):
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
+        self.request.session["sku_length"] = self.request.POST.get("sku_length")
 
 
 def refresh_mission_status(object_, original_mission_products=None):
@@ -867,7 +870,7 @@ class MissionStockCheckForm(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        self.context["title"] = "Lieferschein und Rechnung"
+        self.context["title"] = "Lieferung erstellen"
         self.context["object"] = self.object
         self.context["products_from_stock"] = self.get_products_from_stock()
 
@@ -1013,6 +1016,49 @@ class MissionStockCheckForm(View):
                 if real_amount.delivery_note.delivery_note_number not in delivery_note_numbers:
                     delivery_note_numbers.append(real_amount.delivery_note.delivery_note_number)
         return delivery_note_numbers
+
+
+class CreatePartialDeliveryNote(View):
+    template_name = "mission/partial_delivery_note_form.html"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.billing = None
+        self.partial_delivery = None
+        self.context = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.billing = Billing.objects.get(pk=self.kwargs.get("billing_pk"))
+        self.partial_delivery = self.get_partial_delivery()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, **kwargs):
+        self.context = {"title": "Lieferschein erstellen", "billing": self.billing,
+                        "partial_delivery": self.partial_delivery}
+        return render(request, self.template_name, self.context)
+
+    def post(self, request, **kwargs):
+        self.create_partial_delivery()
+        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
+
+    def get_partial_delivery(self):
+        real_amounts = RealAmount.objects.annotate(delta=F('real_amount') - F('missing_amount')).\
+            filter(delta__gt=0, billing=self.billing)\
+            .exclude(Q(confirmed=None))
+        return real_amounts
+
+    def create_partial_delivery(self):
+        bulk_instances = []
+
+        delivery_note = DeliveryNote(billing=self.billing)
+        delivery_note.save()
+
+        for partial_product in self.partial_delivery:
+            instance = DeliveryNoteProductMission(delivery_note=delivery_note,
+                                                  amount=partial_product.real_amount_minus_missing_amount,
+                                                  product_mission=partial_product.product_mission)
+            bulk_instances.append(instance)
+        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
 
 class ConfirmView(View):

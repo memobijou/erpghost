@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
-    MissionDeleteView, MissionBillingFormView, MissionStockCheckForm
+    MissionDeleteView, MissionBillingFormView, MissionStockCheckForm, CreatePartialDeliveryNote
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.billing_pdf import BillingPdfView
 from mission.partial_billing import PartialPdfView
@@ -13,6 +13,8 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/$', MissionDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/edit/$', MissionUpdateView.as_view(), name="update"),
     url(r'^(?P<pk>\d+)/scan/(?P<billing_number>[-\w]+)/$', ScanMissionUpdateView.as_view(), name="scan"),
+    url(r'^(?P<pk>\d+)/partial_delivery_note_form/(?P<billing_pk>\d+)/$', CreatePartialDeliveryNote.as_view(),
+        name="partial_delivery_note_form"),
     url(r'^delete/$', MissionDeleteView.as_view(), name="delete"),
     url(r'^(?P<pk>\d+)/delivery_note/$', DeliveryNoteView.as_view(), name="delivery_note"),
     url(r'^(?P<pk>\d+)/delivery_note/(?P<delivery_note_number>[-\w]+)/$', PartialDeliveryNoteView.as_view(),

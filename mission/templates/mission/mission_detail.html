@@ -136,7 +136,6 @@
                                     <thead>
                                         <tr>
                                             <th>Rechnung</th>
-                                            <th>Lieferschein</th>
                                         </tr>
                                     </thead>
                                         <tbody>
@@ -146,10 +145,28 @@
                                                        class="btn btn-info">
                                                         {{real_amount_rows.first.billing.billing_number }}</a>
                                                 </td>
-                                                <td>
-                                                    <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_number=real_amount_rows.first.delivery_note.delivery_note_number %}" class="btn btn-info">{{ real_amount_rows.first.delivery_note.delivery_note_number }}</a><br/><br/>
-                                                </td>
                                             </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Lieferscheine</th>
+                                        </tr>
+                                    </thead>
+                                        <tbody>
+                                            {% for delivery_note in real_amount_rows.first.billing.deliverynote_set.all %}
+                                                <tr>
+                                                    <td>
+                                                        <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_number=delivery_note.delivery_note_number %}"
+                                                        class="btn btn-info">
+                                                            {{ delivery_note.delivery_note_number }}
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
@@ -192,7 +209,8 @@
                                 </table>
                                 <a href="{% url 'mission:scan' pk=object.pk billing_number=real_amount_rows.first.billing.billing_number %}" class="btn btn-success">Zum Warenausgang</a>
                                 <a href="" class="btn btn-info">Pickschein</a>
-
+                                <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk billing_pk=real_amount_rows.first.billing.pk %}"
+                                   class="btn btn-info pull-right">Lieferschein generieren</a>
                             </div>
                         </div>
                     </div>

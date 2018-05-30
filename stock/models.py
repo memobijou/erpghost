@@ -8,6 +8,7 @@ import re
 
 from mission.models import RealAmount
 from product.models import Product
+from sku.models import Sku
 
 
 class Stock(models.Model):
@@ -107,8 +108,18 @@ class Stock(models.Model):
                 c = Context({'unique_message': 'Your message'})
                 raise ValidationError(Template(stock_html).render(c))
 
-            stocks = Stock.objects.filter(sku=self.sku, lagerplatz=self.lagerplatz).exclude(id=self.id)
+            product_with_sku = Product.objects.filter(sku__sku=self.sku).distinct().first()
 
+            ean_from_sku = None
+            state_from_sku = None
+
+            if product_with_sku is not None and product_with_sku != "":
+                ean_from_sku = product_with_sku.ean
+                state_from_sku = product_with_sku.sku_set.filter(sku=self.sku).first().state
+
+            stocks = Stock.objects.filter(Q(ean_vollstaendig=ean_from_sku, zustand=state_from_sku,
+                                            lagerplatz=self.lagerplatz) | Q(sku=self.sku, lagerplatz=self.lagerplatz))\
+                .exclude(id=self.id)
         if stocks is not None and stocks.count() > 0 and "block" not in self.lagerplatz.lower():
             stock_html = "<h1 style='color:red;'>Lagerbestand schon vorhanden</h1>" \
                          "<div class='table-responsive'><table class='table table-bordered'>" \

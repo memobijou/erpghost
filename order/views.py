@@ -67,21 +67,24 @@ def search_positions(request, ordernummer):
 
 
 class ScanOrderUpdateView(UpdateView):
-    template_name = "scan/scan.html"
+    template_name = "order/scan/scan.html"
     form_class = modelform_factory(ProductOrder, fields=("confirmed",))
 
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
     def get_object(self, *args, **kwargs):
-        object = Order.objects.get(pk=self.kwargs.get("pk"))
-        return object
+        self.object = Order.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
+        context["object"] = self.object
         context["title"] = "Wareneingang"
-        product_orders = context.get("object").productorder_set.all()
-        context["product_orders_or_missions"] = product_orders
         context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
+        context["select_range"] = range(20)
         return context
 
     def form_valid(self, form, *args, **kwargs):
@@ -106,6 +109,7 @@ class ScanOrderUpdateView(UpdateView):
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
+        self.request.session["sku_length"] = self.request.POST.get("sku_length")
 
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):

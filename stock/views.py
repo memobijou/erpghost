@@ -40,8 +40,8 @@ class StockListView(LoginRequiredMixin, ListView):
         queryset = self.filter_queryset_from_request()
         return self.set_pagination(queryset)
 
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
         context["fields"] = self.build_fields()
 

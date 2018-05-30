@@ -135,6 +135,13 @@ class RealAmount(models.Model):
             return self.real_amount
         return self.real_amount-self.missing_amount
 
+    def get_delivery_note_amount(self):
+        amount = self.real_amount-self.missing_amount
+        for delivery_note in self.billing.deliverynote_set.all():
+            for product in delivery_note.deliverynoteproductmission_set.all():
+                if product.product_mission.pk == self.product_mission.pk:
+                    amount -= product.amount
+
 
 class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
@@ -149,6 +156,7 @@ class Billing(models.Model):
 
 class DeliveryNote(models.Model):
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -156,3 +164,11 @@ class DeliveryNote(models.Model):
         if self.delivery_note_number is None or self.delivery_note_number == "":
             self.delivery_note_number = f"LS{self.pk+1}"
         super().save()
+
+
+class DeliveryNoteProductMission(models.Model):
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
+
+    delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)

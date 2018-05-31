@@ -66,32 +66,7 @@ class Mission(models.Model):
         if self.mission_number == "":
             today = date.today().strftime('%d%m%y')
             count = Mission.objects.filter(mission_number__icontains=today).count()+1
-            self.mission_number = f"A{today}-{count}"
-
-        if self.billing_number == "":
-            all_missions = Mission.objects.all()
-            max_billing_number = all_missions.aggregate(Max('billing_number')).get("billing_number__max")
-            # Da billing_number ein Charfield ist wird es nicht die höchste Nummer packen, ist aber hier egal
-            if all_missions.count() >= 1 and max_billing_number != "":
-                if max_billing_number[0].isalpha():
-                    max_billing_number = max_billing_number[1:]
-                self.billing_number = f"R{int(max_billing_number) + 1}"
-            else:
-                self.billing_number = "R135454321"
-
-        if self.delivery_note_number == "":
-            all_missions = Mission.objects.all()
-            max_delivery_note_number = all_missions.aggregate(Max('delivery_note_number'))\
-                .get("delivery_note_number__max")
-
-            if all_missions.count() >= 1 and max_delivery_note_number != "":
-                if max_delivery_note_number[0].isalpha():
-                    max_delivery_note_number = max_delivery_note_number[2:]
-                self.delivery_note_number = f"LS" \
-                                            f"{int(max_delivery_note_number) + 1}"
-            else:
-                self.delivery_note_number = "LS535454321"
-
+            self.mission_number = f"A{today}" + '%03d' % count
         super().save(force_insert=False, force_update=False, *args, **kwargs)
 
     def __str__(self):
@@ -102,6 +77,9 @@ class Mission(models.Model):
 
 
 class ProductMission(models.Model):
+    class Meta:
+        ordering = ['pk']
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
@@ -139,12 +117,59 @@ class ProductMission(models.Model):
     #     super().save(*args, **kwargs)
 
 
+class RealAmountModelManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        super().bulk_create(objs)
+        for obj in objs:
+            obj.save()
+
+
+class Delivery(models.Model):
+    mission = models.ForeignKey(Mission, null=True, blank=True)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+
+
+class GoodsIssue(models.Model):
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+
+
+class GoodsIssueDeliveryMissionProduct(models.Model):
+    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+    delivery_mission_product = models.ForeignKey("mission.DeliveryMissionProduct", null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge", default=0)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
+    confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
+
+    @property
+    def amount_minus_missing_amount(self):
+        if self.missing_amount is None:
+            return self.real_amount
+        return self.real_amount-self.missing_amount
+
+    @property
+    def real_amount(self):
+        amount = self.amount
+        if self.goods_issue is not None and self.goods_issue != "":
+
+            for delivery_note in self.goods_issue.deliverynote_set.all():
+                for delivery_note_product in delivery_note.deliverynoteproductmission_set\
+                        .filter(product_mission__exact=self.delivery_mission_product.product_mission):
+                    amount -= delivery_note_product.amount
+        return amount
+
+
+class DeliveryMissionProduct(models.Model):
+    delivery = models.ForeignKey(Delivery, null=True, blank=True)
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True)
+
+
 class RealAmount(models.Model):
     product_mission = models.ForeignKey(ProductMission)
     real_amount = models.IntegerField(blank=True, null=True)
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
-    billing_number = models.CharField(blank=True, null=True, max_length=200)
-    delivery_note_number = models.CharField(blank=True, null=True, max_length=200)
+    billing = models.ForeignKey("mission.Billing", blank=True, null=True)
+    delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
     confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
 
     @property
@@ -152,3 +177,45 @@ class RealAmount(models.Model):
         if self.missing_amount is None:
             return self.real_amount
         return self.real_amount-self.missing_amount
+
+    def get_delivery_note_amount(self):
+        amount = self.real_amount-self.missing_amount
+        for delivery_note in self.billing.deliverynote_set.all():
+            for product in delivery_note.deliverynoteproductmission_set.all():
+                if product.product_mission.pk == self.product_mission.pk:
+                    amount -= product.amount
+
+
+class Billing(models.Model):
+    billing_number = models.CharField(max_length=200, null=True, blank=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.billing_number is None or self.billing_number == "":
+            self.billing_number = f"RG{self.pk+1}"
+        super().save()
+
+
+class DeliveryNote(models.Model):
+    class Meta:
+        ordering = ['pk']
+
+    delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.delivery_note_number is None or self.delivery_note_number == "":
+            self.delivery_note_number = f"LS{self.pk+1}"
+        super().save()
+
+
+class DeliveryNoteProductMission(models.Model):
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
+
+    delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)

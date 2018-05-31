@@ -2,6 +2,7 @@ from django import forms
 from django.forms.fields import CharField, FloatField, IntegerField
 
 from product.models import Product
+from django.urls import reverse_lazy
 
 
 class ImportForm(forms.Form):
@@ -12,7 +13,7 @@ class ProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        exclude = ["main_sku"]
+        exclude = ["main_sku", "single_product"]
 
     more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
                                   required=False)
@@ -24,6 +25,72 @@ class ProductForm(forms.ModelForm):
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField:
                 visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_ean(self):
+        ean = self.cleaned_data['ean'].strip()
+        duplicates = Product.objects.filter(ean=ean).exclude(pk=self.instance.pk)
+        if duplicates.count() > 0:
+            duplicates_html = f""
+            for duplicate_product in duplicates:
+                img_html = f""
+                if duplicate_product.main_image is not None and duplicate_product.main_image != "":
+                    img_html += f"<img src='{duplicate_product.main_image.url}' class='img-responsive'" \
+                                f" style='max-height:70px;'/>"
+                duplicates_html += f"<tr>" \
+                                   f"<td>" \
+                                   f"<a href='" \
+                                   f"{reverse_lazy('product:detail', kwargs={'pk': duplicate_product.pk})}'>" \
+                                   f"Ansicht</a><br/>" \
+                                   f"<a href='" \
+                                   f"{reverse_lazy('product:edit', kwargs={'pk': duplicate_product.pk})}'>" \
+                                   f"Bearbeiten</a>" \
+                                   f"</td>" \
+                                   f"<td>" \
+                                   f"{img_html}" \
+                                   f"</td>"\
+                                   f"<td>{duplicate_product.ean}</td>" \
+                                   f"</tr>"
+            html_msg =\
+                f"Dieser Artikel mit der EAN existiert bereits"
+            html_msg += "<div class='table-responsive'><table class='table table-bordered' style='color:black;'>" \
+                        "<thead><tr>" \
+                        "<th></th>" \
+                        "<th>Bild</th>" \
+                        "<th>EAN</th>" \
+                        "</tr></thead>" \
+                        "<tbody>" \
+                        f"{duplicates_html}" \
+                        "</tbody>" \
+                        "</table></div>"
+            from django.template import Context
+            from django.template import Template
+            c = Context({})
+            raise forms.ValidationError(Template(html_msg).render(c))
+        return ean
+
+
+class SingleProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = ["title", "main_image"]
+
+    state = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"),
+                                       ("C", "C"), ("D", "D")), required=True, label="Zustand")
+
+    more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
+                                  required=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            print(type(visible.field))
+            if type(visible.field) is CharField or type(visible.field) is FloatField \
+                    or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class SingleProductUpdateForm(SingleProductForm):
+    state = None
 
 
 class PurchasingPriceForm(forms.Form):

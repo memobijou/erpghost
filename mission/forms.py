@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import Q
 
 from product.models import Product
-from .models import Mission, ProductMission
+from .models import Mission, ProductMission, GoodsIssueDeliveryMissionProduct, DeliveryNoteProductMission
 from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
 from client.models import Client
@@ -96,8 +96,10 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
         if self.product_mission is None:
             return
 
-        for real_amount_row in self.product_mission.realamount_set.all():
-            sum_all_amounts += real_amount_row.real_amount
+        for goods_issue_delivery_mission_product in DeliveryNoteProductMission.objects.\
+                filter(product_mission=self.product_mission):
+
+            sum_all_amounts += goods_issue_delivery_mission_product.amount
 
         if self.cleaned_data.get('amount') < sum_all_amounts:
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")

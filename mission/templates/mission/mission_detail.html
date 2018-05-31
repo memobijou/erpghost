@@ -6,7 +6,7 @@
         <div class="panel-body">
         <div class="col-md-12">
             <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
-            <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferschein und Rechnung generieren</a>
+            <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferung erstellen</a>
         </div>
 
         <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
@@ -74,7 +74,7 @@
                                 <th>EAN / SKU</th>
                                 <th>Zustand</th>
                                 <th>Titel</th>
-                                <th>Menge</th>
+                                <th>Auftragsmenge</th>
                                 <th>Fehlende Menge</th>
                                 <th>Reale Menge</th>
                                 <th>Lagerbestand</th>
@@ -83,14 +83,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                                {% for productmission, missing_amount, stock, real_amount, available_product_stock in products_from_stock %}
+                                {% for productmission, missing_amount, stock, real_amount in products_from_stock %}
                                     {% if object.id == productmission.mission.id %}
                                     <tr>
                                         <td>
                                             {{productmission.get_ean_or_sku}}
                                         </td>
                                         <td>{{productmission.state}}</td>
-                                        <td>{{productmission.product.title}}</td>
+                                        <td>{{productmission.product.title|default:""}}</td>
                                         <td>{{productmission.amount}}</td>
                                         <td style="color:red;">
                                             {{ missing_amount }}
@@ -99,7 +99,7 @@
                                             {{ real_amount|default:'0' }}
                                         </td>
                                         <td>
-                                            {{ available_product_stock|default:'0' }}/{{ stock|default:'0' }}
+                                            {{ stock|default:'0' }}
                                         </td>
                                         <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                         <td>
@@ -117,18 +117,16 @@
             {% endif %}
         </div>
             <div class="col-md-12" style="padding-right: 0">
-
-
                 <a href="{% url 'mission:mission_confirmation_pdf' pk=object.id %}" class="btn btn-info pull-right" style="margin-right:15px;">
                 Auftragsbestätigung</a>
             <br/><br/><br/>
             </div>
 
             <div class="col-md-12" style="padding-left:0;">
-                {% for real_amount_rows in real_amounts %}
+                {% for delivery in object.delivery_set.all %}
                     <div class="panel panel-default">
                         <div class="panel-heading">
-                            Abschnitt {{ forloop.counter }}
+                            Lieferung {{ forloop.counter }}
                         </div>
                         <div class="panel-body">
                             <div class="table-responsive">
@@ -136,20 +134,35 @@
                                     <thead>
                                         <tr>
                                             <th>Rechnung</th>
-                                            <th>Lieferschein</th>
                                         </tr>
                                     </thead>
                                         <tbody>
                                             <tr>
                                                 <td>
-                                                    <a href="{% url 'mission:partial_billing_pdf' pk=object.pk billing_number=real_amount_rows.first.billing_number %}"
-                                                       class="btn btn-info">
-                                                        {{real_amount_rows.first.billing_number }}</a>
-                                                </td>
-                                                <td>
-                                                    <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_number=real_amount_rows.first.delivery_note_number %}" class="btn btn-info">{{ real_amount_rows.first.delivery_note_number }}</a><br/><br/>
+                                                    <a href="{% url 'mission:partial_billing_pdf' pk=object.pk billing_number=delivery.billing.billing_number %}"
+                                                       class="btn btn-info">{{ delivery.billing.billing_number }}</a>
                                                 </td>
                                             </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Lieferscheine</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for delivery_note in delivery.goodsissue_set.first.deliverynote_set.all %}
+                                            <tr>
+                                                <td>
+                                                    <a class="btn btn-info" href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=delivery_note.pk %}">
+                                                        {{ delivery_note.delivery_note_number }}
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
                                     </tbody>
                                 </table>
                             </div>
@@ -157,32 +170,25 @@
                                 <table class="table table-bordered">
                                     <thead>
                                         <tr>
-                                            {% for field in fields %}
-                                                <th>{{field}}</th>
-                                            {% endfor %}
-
+                                            <th>EAN / SKU</th>
+                                            <th>Zustand</th>
+                                            <th>Artikelname</th>
+                                            <th>Liefermenge</th>
+                                            <th>Einzelpreis (Netto)</th>
+                                            <th>Gesamt (Netto)</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for real_amount_row in real_amount_rows %}
-                                            <tr
-                                                {% if real_amount_row.confirmed == True %}
-                                                    class="success"
-                                                {% elif real_amount_row.confirmed == False %}
-                                                    class="danger"
-                                                {% endif %}
-
-                                            >
+                                        {% for real_amount_row in delivery.deliverymissionproduct_set.all %}
+                                            <tr>
                                                 <td>{{ real_amount_row.product_mission.get_ean_or_sku }}</td>
-                                                <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
                                                 <td>{{ real_amount_row.product_mission.state|default:"" }}</td>
-                                                <td>{{ real_amount_row.real_amount }}</td>
-                                                <td style="color:red;">{{ real_amount_row.missing_amount|default:'' }}</td>
-                                                <td style="color:green;">{{ real_amount_row.real_amount_minus_missing_amount }}</td>
+                                                <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
+                                                <td>{{ real_amount_row.amount }}</td>
                                                 <td>{{real_amount_row.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                                 <td>
                                                     {% if real_amount_row.product_mission.netto_price %}
-                                                    {{ real_amount_row.product_mission.netto_price|multiply:real_amount_row.real_amount|format_number_thousand_decimal_points }}
+                                                    {{ real_amount_row.product_mission.netto_price|multiply:real_amount_row.amount|format_number_thousand_decimal_points }}
                                                     {% else %}
                                                     {% endif %}
                                                 </td>
@@ -190,10 +196,11 @@
                                         {% endfor %}
                                     </tbody>
                                 </table>
-                                <a href="{% url 'mission:scan' pk=object.pk billing_number=real_amount_rows.first.billing_number %}" class="btn btn-success">Zum Warenausgang</a>
-                                <a href="" class="btn btn-info">Pickschein</a>
-
                             </div>
+
+                            <a class="btn btn-success" href="{% url 'mission:scan' pk=object.pk delivery_pk=delivery.pk %}">Zum Warenausgang</a>
+                            <a class="btn btn-info pull-right" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">Lieferschein erstellen</a>
+
                         </div>
                     </div>
                 {% endfor %}

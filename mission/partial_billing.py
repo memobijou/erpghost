@@ -1,5 +1,6 @@
 from mission.billing_pdf import BillingPdfView
 from mission.billing_pdf import *
+from mission.models import DeliveryMissionProduct
 
 
 class PartialPdfView(BillingPdfView):
@@ -31,18 +32,19 @@ class PartialPdfView(BillingPdfView):
 
         billing_number = f"{self.kwargs.get('billing_number')}"
 
-        for productmission in self.mission.productmission_set.filter(realamount__billing_number=billing_number):
-            real_amount = productmission.realamount_set.filter(billing_number=billing_number).first().real_amount
+        for product_delivery in DeliveryMissionProduct.objects.filter(delivery__billing__billing_number=billing_number):
+            productmission = product_delivery.product_mission
+
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.product.title, style=size_nine_helvetica),
-                    Paragraph(str(real_amount), style=right_align_paragraph_style),
+                    Paragraph(productmission.product.title or "", style=size_nine_helvetica),
+                    Paragraph(str(product_delivery.amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
                               style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(
-                        (productmission.netto_price * real_amount)),
+                        (productmission.netto_price * product_delivery.amount)),
                               style=right_align_paragraph_style),
                 ],
             )
@@ -59,14 +61,15 @@ class PartialPdfView(BillingPdfView):
 
         total_netto = 0
 
-        for productmission in self.mission.productmission_set.all():
-            real_amount = productmission.realamount_set.filter(billing_number=billing_number).first()
-            if real_amount is not None:
-                real_amount = real_amount.real_amount
+        for product_delivery in DeliveryMissionProduct.objects.filter(delivery__billing__billing_number=billing_number):
+            productmission = product_delivery.product_mission
+            amount = product_delivery.amount
+            if amount is not None:
+                pass
             else:
                 continue
 
-            total_netto += real_amount * productmission.netto_price
+            total_netto += amount * productmission.netto_price
 
         horizontal_line_betrag = Drawing(20, 1)
         horizontal_line_betrag.add(Line(425, 0, 200, 0))

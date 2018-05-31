@@ -16,7 +16,7 @@ class ImportForm(forms.Form):
 class StockUpdateForm(ModelForm):
     class Meta:
         model = Stock
-        fields = ["zustand", "ean_vollstaendig", "sku", "title", "bestand"]
+        fields = ["zustand", "ean_vollstaendig", "sku", "bestand"]
         labels = {"bestand": "IST Bestand", "ean_vollstaendig": "EAN"}
     zustand = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"), ("C", "C"),
                                          ("D", "D")), label=Stock._meta.get_field('zustand').verbose_name,
@@ -41,7 +41,7 @@ class StockUpdateForm(ModelForm):
 class StockCreateForm(ModelForm):
     class Meta:
         model = Stock
-        fields = ["zustand", "ean_vollstaendig", "sku", "title", "bestand", "lagerplatz"]
+        fields = ["zustand", "ean_vollstaendig", "sku", "bestand", "lagerplatz"]
         labels = {"bestand": "IST Bestand", "ean_vollstaendig": "EAN"}
     zustand = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"), ("C", "C"),
                                          ("D", "D")), label=Stock._meta.get_field('zustand').verbose_name,

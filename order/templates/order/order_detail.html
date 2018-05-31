@@ -37,9 +37,9 @@
                                 class="danger"
                             {% endif %}
                         >
-                            <td>{{productorder.get_ean_or_sku}}</td>
-                            <td>{{productorder.product.title}}</td>
-                            <td>{{productorder.state}}</td>
+                            <td>{{productorder.get_ean_or_sku|default:""}}</td>
+                            <td>{{productorder.product.title|default:""}}</td>
+                            <td>{{productorder.state|default:""}}</td>
                             <td>{{productorder.amount}}</td>
                             <td style="color:red;">
                                 {% if productorder.missing_amount %}

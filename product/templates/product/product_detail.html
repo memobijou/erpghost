@@ -9,7 +9,11 @@
             <div class="panel-body">
                 {% if object %}
                     <div class="pull-right">
+                    {% if object.single_product != None %}
+                        <a href="{% url 'product:edit_single' pk=object.pk %}">Bearbeiten</a>
+                    {% else %}
                         <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
+                    {% endif %}
                     </div>
                 {% endif %}
                 <div class="col-md-12">
@@ -92,9 +96,6 @@
                             <b>Beschreibung: </b> {{ object.description }}
                         </p>
                     {% endif %}
-
-                </div>
-                <div class="col-md-7">
                     <div class="panel panel-default">
                         <div class="panel-heading">
                             SKUs
@@ -121,6 +122,8 @@
                             </div>
                         </div>
                     </div>
+
+
                 </div>
                 <div class="col-md-12" style="padding:0px;">
                     <div class="col-md-11">

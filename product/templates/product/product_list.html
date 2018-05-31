@@ -5,8 +5,13 @@
     <script src="{% static 'js/vendor/dymo2_0_2.js' %}" type="text/javascript" charset="UTF-8"> </script>
 
     <div>
-
-        {% include "snippets/navigation.html" %}
+            <div class="col-md-12">
+                <div class="form-inline pull-right" style="padding-right: 0px;">
+                    <a href="{% url 'product:create' %}" class="btn btn-info">{{ title }} anlegen</a>
+                    <a href="{% url 'product:create_single' %}" class="btn btn-info">Einzelartikel anlegen</a>
+                </div>
+            </div>
+            <br/><br/><br/>
         {% include "snippets/filter.html" %}
         {% include "snippets/pagination.html" %}
 

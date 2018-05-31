@@ -11,7 +11,7 @@ from import_excel.funcs import get_table_header, compare_header_with_model_field
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
 from sku.models import Sku
 from stock.models import Stock
-from .models import Product, ProductImage
+from .models import Product, ProductImage, SingleProduct
 from order.models import ProductOrder
 from utils.utils import get_queries_as_json, set_field_names_onview, \
     handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request, \
@@ -19,7 +19,8 @@ from utils.utils import get_queries_as_json, set_field_names_onview, \
 from .serializers import ProductSerializer, IncomeSerializer
 from rest_framework.generics import ListAPIView
 from rest_framework import generics
-from product.forms import ImportForm, ProductForm, ProductIcecatForm, PurchasingPriceForm
+from product.forms import ImportForm, ProductForm, ProductIcecatForm, PurchasingPriceForm, SingleProductForm, \
+    SingleProductUpdateForm
 from django.urls import reverse_lazy
 from import_excel.tasks import table_data_to_model_task
 from django_celery_results.models import TaskResult
@@ -47,7 +48,7 @@ class ProductListView(ListView):
         context["object_list"] = self.get_queryset()
         context["object_list_zip"] = zip(context["object_list"], self.get_product_stocks())
         print(context["object_list"])
-        context["filter_fields"] = get_filter_fields(Product, exclude=["id", "main_image"])
+        context["filter_fields"] = get_filter_fields(Product, exclude=["id", "main_image", "single_product_id"])
         return context
 
     def set_pagination(self, queryset):
@@ -61,6 +62,7 @@ class ProductListView(ListView):
     def get_product_stocks(self):
         queryset = self.get_queryset()
         total_stocks = []
+
         for q in queryset:
             stock = None
             if q.ean is not None and q.ean != "":
@@ -72,7 +74,7 @@ class ProductListView(ListView):
                         break
             stock_dict = {}
             if stock is not None:
-                total = stock.get_available_stocks_of_total_stocks()
+                total = stock.get_available_stocks_of_total_stocks(product=q)
                 stock_dict["total"] = total.get('Gesamt')
                 stock_dict["total_neu"] = total.get("Neu")
                 stock_dict["total_a"] = total.get("A")
@@ -89,7 +91,7 @@ class ProductListView(ListView):
 
     def build_fields(self):
         fields = get_verbose_names(Product, exclude=["id", "short_description", "description", "height", "width",
-                                                     "length", "main_sku"])
+                                                     "length", "main_sku", "single_product_id"])
         fields = [""] + fields
         fields.insert(3, "SKUs")
         fields.insert(7, "Bestand")
@@ -204,7 +206,7 @@ class ProductUpdateView(UpdateView):
                 non_image_files.append(file)
                 msg += f"{str(file)},\n"
         if len(non_image_files) > 0:
-            msg = msg[:-1]
+            msg = msg[:-2]
             return msg
         return True
 
@@ -299,7 +301,7 @@ class ProductCreateView(CreateView):
                 non_image_files.append(file)
                 msg += f"{str(file)},\n"
         if len(non_image_files) > 0:
-            msg = msg[:-1]
+            msg = msg[:-2]
             return msg
         return True
 
@@ -307,6 +309,125 @@ class ProductCreateView(CreateView):
         for image in more_images:
             img_object = ProductImage(image=image, product_id=self.object.pk)
             img_object.save()
+
+
+class ProductSingleCreateView(CreateView):
+    form_class = SingleProductForm
+    template_name = "product/product_single_form.html"
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Einzelartikel anlegen"
+        return context
+
+    def form_valid(self, form, **kwargs):
+        self.object = form.save(commit=False)
+        self.set_product_to_single_product(form.data)
+
+        more_images = self.request.FILES.getlist("more_images")
+        validation_msg = self.validate_files_are_images(more_images)
+
+        if validation_msg is True:
+            self.upload_more_images(more_images)
+        else:
+            context = self.get_context_data(**kwargs)
+
+            if validation_msg is not True:
+                form.add_error('more_images', validation_msg)
+
+            context["form"] = form
+            context["title"] = "Artikel bearbeiten"
+            return render(self.request, "product/product_single_form.html", context)
+        return HttpResponseRedirect(reverse_lazy("product:detail", kwargs={"pk": self.object.pk}))
+
+    def set_product_to_single_product(self, data):
+        single_product = SingleProduct()
+        single_product.save()
+        self.object.single_product = single_product
+        self.object.save()
+        state = data.get("state")
+        if state == "Neu":
+            state = ""
+        sku_instance = Sku(product_id=self.object.pk, sku=f"{state}{self.object.main_sku}", state=state)
+        sku_instance.save()
+        self.object.sku_set.add(sku_instance)
+        self.object.save()
+
+    def validate_files_are_images(self, more_images):
+        msg = f"Folgende Dateien sind keine Bilder: \n"
+        non_image_files = []
+        for file in more_images:
+            if imghdr.what(file) is None:
+                non_image_files.append(file)
+                msg += f"{str(file)},\n"
+        if len(non_image_files) > 0:
+            msg = msg[:-2]
+            return msg
+        return True
+
+    def upload_more_images(self, more_images):
+        for image in more_images:
+            img_object = ProductImage(image=image, product_id=self.object.pk)
+            img_object.save()
+
+
+class ProductSingleUpdateView(UpdateView):
+    form_class = SingleProductUpdateForm
+    template_name = "product/product_single_form.html"
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def get_object(self, queryset=None):
+        self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["object"] = self.object
+        context["title"] = f"Einzelartikel {self.object.sku_set.first().sku} bearbeiten"
+        return context
+
+    def form_valid(self, form, **kwargs):
+        more_images = self.request.FILES.getlist("more_images")
+        validation_msg = self.validate_files_are_images(more_images)
+
+        if validation_msg is True:
+            self.delete_checked_images(self.request.POST.getlist("to_delete_more_images"))
+            self.object = form.save(commit=True)
+            self.upload_more_images(more_images)
+        else:
+            if validation_msg is not True:
+                form.add_error('more_images', validation_msg)
+            context = self.get_context_data(**kwargs)
+            context["form"] = form
+            return render(self.request, self.template_name, context)
+        return HttpResponseRedirect(reverse_lazy("product:detail", kwargs={"pk": self.object.pk}))
+
+    def validate_files_are_images(self, more_images):
+        msg = f"Folgende Dateien sind keine Bilder: \n"
+        non_image_files = []
+        for file in more_images:
+            if imghdr.what(file) is None:
+                non_image_files.append(file)
+                msg += f"{str(file)},\n"
+        if len(non_image_files) > 0:
+            msg = msg[:-2]
+            return msg
+        return True
+
+    def upload_more_images(self, more_images):
+        for image in more_images:
+            img_object = ProductImage(image=image, product_id=self.object.pk)
+            img_object.save()
+
+    def delete_checked_images(self, checked_images_ids):
+        ProductImage.objects.filter(pk__in=checked_images_ids).delete()
 
 
 class ProductDeleteView(DeleteView):

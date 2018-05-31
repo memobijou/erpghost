@@ -19,13 +19,15 @@ class Product(models.Model):
 
     ean = models.CharField(blank=True, null=False, max_length=200, verbose_name="EAN")
     main_sku = models.IntegerField(blank=True, null=True, verbose_name="SKU")
-    title = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Titel")
+    title = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Artikelname")
     manufacturer = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Hersteller")
     brandname = models.CharField(max_length=500, null=True, blank=True, default="", verbose_name="Markenname")
     part_number = models.CharField(blank=True, null=True, max_length=200, verbose_name="Herstellernummer")
 
     short_description = models.TextField(null=True, blank=True, default="", verbose_name="Kurzbeschreibung")
     description = models.TextField(null=True, blank=True, default="", verbose_name="Beschreibung")
+
+    single_product = models.ForeignKey("product.SingleProduct", null=True, blank=True)
 
     height = models.FloatField(null=True, blank=True, default=None, verbose_name="Höhe")
     width = models.FloatField(null=True, blank=True, default=None, verbose_name="Breite")
@@ -44,16 +46,17 @@ class Product(models.Model):
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
-        max_sku = Product.objects.all().aggregate(Max("main_sku")).get("main_sku__max")
+        super().save()
         generate_skus = False
 
         if self.main_sku is None or self.main_sku == "":
             generate_skus = True
-            if max_sku is None:
-                self.main_sku = 1567653
-            else:
-                self.main_sku = int(max_sku) + 1
+            self.main_sku = int(self.pk) + 1
+
         super().save()
+
+        if self.single_product is not None and self.single_product != "":
+            return  # SKU will then be created from single_product form
 
         if generate_skus is True:
             bulk_instances = [Sku(product_id=self.pk, sku=f"{self.main_sku}", state="Neu"),
@@ -62,6 +65,16 @@ class Product(models.Model):
                               Sku(product_id=self.pk, sku=f"C{self.main_sku}", state="C"),
                               Sku(product_id=self.pk, sku=f"D{self.main_sku}", state="D")]
             Sku.objects.bulk_create(bulk_instances)
+
+    def get_state_from_sku(self, sku):
+        if sku is not None and sku != "":
+            for product_sku in self.sku_set.all():
+                if product_sku.sku == sku:
+                    return product_sku.state
+
+
+class SingleProduct(models.Model):
+    ean = models.CharField(max_length=200, verbose_name="EAN", null=True, blank=True)
 
 
 class ProductImage(models.Model):

@@ -3,7 +3,7 @@
     <div class="col pull-right" style="padding-bottom: 10px;">
         <button type="submit" class="btn btn-default">Löschen</button>
     </div>
-    {% for object in object_list %}
+    {% for object, billing_list, delivery_note_list in object_list_zip %}
         <tr>
             <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
                 <a href="{{ object.id }}/edit">Bearbeiten</a>
@@ -13,10 +13,18 @@
                 <td> {{ object.mission_number}} </td>
                 <td> {{ object.delivery_date|date:"d.m.Y"}} </td>
                 <td> {{ object.status}} </td>
+                <td>
+                    {% for billing in billing_list %}
+                        {{ billing }}
+                    {% endfor %}
+                </td>
+                <td>
+                    {% for delivery_note in delivery_note_list %}
+                        {{ delivery_note }}
+                    {% endfor %}
+                </td>
                 <td> {{object.customer|default:""}} </td>
                 <td> {{object.customer_order_number|default:""}} </td>
-                <td> {{object.billing_number|default:""}} </td>
-                <td> {{object.delivery_note_number|default:""}} </td>
                 <td> {{object.delivery_address|default:""}} </td>
                 <td> {{ object.shipping|default:''}} </td>
                 <td> {{ object.shipping_number_of_pieces|default:''}} </td>

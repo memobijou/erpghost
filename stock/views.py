@@ -33,14 +33,15 @@ class StockListView(LoginRequiredMixin, ListView):
     template_name = "stock/stock_list.html"
     login_url = "/login/"
     exclude_fields = ["id", "bestand", 'regal', "ean_upc", "scanner", "karton", 'box', 'aufnahme_datum',
-                      "ignore_unique"]
+                      "ignore_unique", "product_id"]
 
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Stock).order_by("-id")
+        # queryset = filter_queryset_from_request(self.request, Stock).order_by("-id")
+        queryset = self.filter_queryset_from_request()
         return self.set_pagination(queryset)
 
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
 
         context["fields"] = self.build_fields()
 
@@ -50,7 +51,9 @@ class StockListView(LoginRequiredMixin, ListView):
 
         product_stocks = self.get_product_stocks()
 
-        context["object_list_zip"] = zip(context["object_list"], products, product_stocks)
+        products_states = self.get_products_states(products, context["object_list"])
+
+        context["object_list_zip"] = zip(context["object_list"], products, product_stocks, products_states)
 
         context["filter_fields"] = self.get_filter_fields(exclude=self.exclude_fields)
 
@@ -61,24 +64,62 @@ class StockListView(LoginRequiredMixin, ListView):
 
         return context
 
+    def filter_queryset_from_request(self):
+        filter_dict = {}
+        q_filter = Q()
+        for field, verbose_name in self.get_filter_fields(exclude=["title", "product_id"]):
+            if field in self.request.GET:
+                GET_value = self.request.GET.get(field)
+                if GET_value is not None and GET_value != "":
+                    filter_dict[f"{field}__icontains"] = str(self.request.GET.get(field)).strip()
+
+        print(f"OKAYYYY {filter_dict}")
+
+        for item in filter_dict:
+            q_filter &= Q(**{item: filter_dict[item]})
+
+        title_value = None
+
+        if self.request.GET.get("title") is not None and self.request.GET.get("title") != "":
+            title_value = str(self.request.GET.get("title")).strip()
+
+        if title_value is not None and title_value != "":
+            q_filter &= Q(product__title__icontains=title_value) | Q(title__icontains=title_value)
+        print(q_filter)
+        queryset = Stock.objects.filter(q_filter).order_by("-id")
+        return queryset
+
+    def get_products_states(self, products, stocks):
+        products_states = []
+        for product, stock in zip(products, stocks):
+            if product is not None and product != "":
+                print(stock)
+                products_states.append(product.get_state_from_sku(stock.sku))
+            else:
+                products_states.append(None)
+        return products_states
+
     def get_product_stocks(self):
         queryset = self.get_queryset()
         total_stocks = []
         for q in queryset:
             stock_dict = {}
             stock = None
+            product = None
 
             if q.ean_vollstaendig is not None and q.ean_vollstaendig != "":
                 stock = Stock.objects.filter(ean_vollstaendig=q.ean_vollstaendig).first()
+                product = Product.objects.filter(ean=q.ean_vollstaendig).first()
 
             if q.sku is not None and q.sku != "":
                 stock = Stock.objects.filter(sku=q.sku).first()
+                product = Product.objects.filter(sku__sku=q.sku).first()
 
             if q.title is not None and q.title != "":
                 stock = Stock.objects.filter(title=q.title).first()
 
             if stock is not None:
-                total = stock.get_available_stocks_of_total_stocks()
+                total = stock.get_available_stocks_of_total_stocks(product=product)
 
                 stock_dict["total"] = total.get("Gesamt")
                 stock_dict["total_neu"] = total.get("Neu")
@@ -110,7 +151,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def build_fields(self):
         fields = self.get_verbose_names(exclude=["id", "ean_upc", "scanner", "name", "karton", "box",
-                                                 "aufnahme_datum", "ignore_unique", "regal"])
+                                                 "aufnahme_datum", "ignore_unique", "regal", "product_id"])
         fields.append("Gesamt Bestand")
         fields = ["", "Bild"] + fields
         return fields
@@ -120,11 +161,15 @@ class StockListView(LoginRequiredMixin, ListView):
         products = []
         for q in queryset:
             product = None
+
             if q.ean_vollstaendig is not None and q.ean_vollstaendig != "":
+
                 product = Product.objects.filter(ean=q.ean_vollstaendig).first()
+
             else:
                 if q.sku is not None and q.sku != "":
                     product = Product.objects.filter(sku__sku=q.sku).first()
+
             if product is not None:
                 products.append(product)
             else:
@@ -235,16 +280,29 @@ class StockDocumentDetailView(LoginRequiredMixin, DetailView):
 class StockDetailView(LoginRequiredMixin, DetailView):
     template_name = "stock/stock_detail.html"
 
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = get_object_or_404(Stock, pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self):
-        obj = get_object_or_404(Stock, pk=self.kwargs.get("pk"))
-        return obj
+        return self.object
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
         context["product"] = self.get_product()
         context["stock"] = self.get_product_stocks()
+        context["sku_state"] = self.get_sku_state()
         return context
+
+    def get_sku_state(self):
+        product = self.object.get_product()
+        if product is not None:
+            return product.get_state_from_sku(self.object.sku)
 
     def get_product(self):
         product = None

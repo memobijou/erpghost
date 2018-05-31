@@ -1,4 +1,4 @@
-{% for object, product, stock in object_list_zip %}
+{% for object, product, stock, product_state in object_list_zip %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
@@ -48,9 +48,22 @@
                 {% endfor %}
             {% endif %}
         </td>
-        <td> {{object.title|default:""}} </td>
-        <td> {{object.zustand}} </td>
+        <td>
+            {% if object.title %}
+                {{object.title|default:""}}
+            {% else %}
+                {{ product.title|default:"" }}
+            {% endif %}
+        </td>
+        <td>
+            {% if object.zustand %}
+                {{object.zustand}}
+            {% else %}
+                {{ product_state|default:"" }}
+            {% endif %}
+        </td>
         <td> {{ object.lagerplatz}} </td>
+
         <td> {{ object.bestand}} </td>
         <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>

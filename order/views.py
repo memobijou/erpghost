@@ -67,21 +67,24 @@ def search_positions(request, ordernummer):
 
 
 class ScanOrderUpdateView(UpdateView):
-    template_name = "scan/scan.html"
+    template_name = "order/scan/scan.html"
     form_class = modelform_factory(ProductOrder, fields=("confirmed",))
 
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
     def get_object(self, *args, **kwargs):
-        object = Order.objects.get(pk=self.kwargs.get("pk"))
-        return object
+        self.object = Order.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["object"] = self.get_object(*args, **kwargs)
+        context["object"] = self.object
         context["title"] = "Wareneingang"
-        product_orders = context.get("object").productorder_set.all()
-        context["product_orders_or_missions"] = product_orders
         context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
+        context["select_range"] = range(20)
         return context
 
     def form_valid(self, form, *args, **kwargs):
@@ -106,6 +109,7 @@ class ScanOrderUpdateView(UpdateView):
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
+        self.request.session["sku_length"] = self.request.POST.get("sku_length")
 
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):
@@ -215,12 +219,24 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def validate_product_forms_are_valid(self):
         self.validate_product_forms_have_no_duplicates()
         self.validate_product_forms_have_no_skus_with_states()
+        self.validate_product_forms_have_no_ean_without_states()
 
         product_forms_are_valid = True
         for product_form, product in self.product_forms:
             if product_form.is_valid() is False:
                 product_forms_are_valid = False
         return product_forms_are_valid
+
+    def validate_product_forms_have_no_ean_without_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+            print(state)
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() == 0:
+                if state is None or state == "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine EAN eingeben, müssen Sie einen Zustand auswählen"))
 
     def validate_product_forms_have_no_skus_with_states(self):
         for product_form, product in self.product_forms:
@@ -335,53 +351,148 @@ class OrderCreateView(CreateView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.product_forms = []
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Bestellung anlegen"
-        context["ManyToManyForms"] = self.build_product_order_forms(self.amount_product_order_forms)
+        context["ManyToManyForms"] = self.build_product_order_forms()
         context["detail_url"] = reverse_lazy("order:list")
         return context
 
-    def build_product_order_forms(self, amount):
-        if self.request.POST and len(self.request.POST.getlist("ean")) > 1:
-            amount = len(self.request.POST.getlist("ean"))
+    def build_product_order_forms(self):
+        count = 0
 
-        product_order_forms_list = []
-        for i in range(0, amount):
-            if self.request.POST:
-                data = {}
-                for k in self.request.POST:
-                    if k in ProductOrderForm.base_fields:
-                        data[k] = self.request.POST.getlist(k)[i]
-                print(data)
-                product_order_forms_list.append(ProductOrderForm(data=data))
-            else:
-                product_order_forms_list.append(ProductOrderForm())
-        return product_order_forms_list
+        if self.request.method == "POST":
+            amount_forms = self.get_amount_product_order_forms()
+            for i in range(count, amount_forms):
+                data = self.get_data_from_post_on_index_x_to_form(i)
+                form = ProductOrderForm(data=data)
+                product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
+                self.product_forms.append((form, product))
+        else:
+            self.product_forms.append((ProductOrderForm(), None))
+        return self.product_forms
 
-    def form_valid(self, form, *args, **kwargs):
+    def get_data_from_post_on_index_x_to_form(self, index):
+        data = {}
+
+        for field_name in ProductOrderForm.base_fields:
+            if str(field_name) in self.request.POST:
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+        if "delete" in self.request.POST:
+            if index < len(self.request.POST.getlist("delete")):
+                data["delete"] = self.request.POST.getlist("delete")[index]
+        return data
+
+    def get_amount_product_order_forms(self):
+        amount_forms = 0
+        for field_name in ProductOrderForm.base_fields:
+            if field_name in self.request.POST:
+                amount_forms = len(self.request.POST.getlist(str(field_name)))
+        return amount_forms
+
+    def form_valid(self, form, **kwargs):
+        context = self.get_context_data(**kwargs)
         self.object = form.save(commit=False)
 
-        duplicates = validate_products_are_unique_in_form(self.request.POST)
-        if duplicates is not None:
-            context = self.get_context_data(*args, **kwargs)
-            context["duplicates"] = duplicates
-            return render(self.request, self.template_name, context)
-
-        valid_product_order_forms = \
-            validate_product_order_or_mission_from_post(ProductOrderForm, self.amount_product_order_forms, self.request)
-
-        if valid_product_order_forms is False:
-            context = self.get_context_data(*args, **kwargs)
-            return render(self.request, self.template_name, context)
-        else:
-            self.object.save()
-            create_product_order_or_mission_forms_from_post(ProductOrder, ProductOrderForm,
-                                                            self.amount_product_order_forms, "order", self.object,
-                                                            self.request, 0)
+        if self.validate_product_forms_are_valid() is True:
+            self.create_order_products()
             refresh_order_status(self.object)
-        return HttpResponseRedirect(self.get_success_url())
+            return HttpResponseRedirect(self.get_success_url())
+        else:
+            return render(self.request, self.template_name, context)
+
+    def validate_product_forms_are_valid(self):
+        self.validate_product_forms_have_no_duplicates()
+        self.validate_product_forms_have_no_skus_with_states()
+        self.validate_product_forms_have_no_ean_without_states()
+
+        product_forms_are_valid = True
+        for product_form, product in self.product_forms:
+            if product_form.is_valid() is False:
+                product_forms_are_valid = False
+        return product_forms_are_valid
+
+    def validate_product_forms_have_no_ean_without_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+            print(state)
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() == 0:
+                if state is None or state == "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine EAN eingeben, müssen Sie einen Zustand auswählen"))
+
+    def validate_product_forms_have_no_skus_with_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                if state is not None and state != "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
+
+    def validate_product_forms_have_no_duplicates(self):
+        duplicates = []
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            ean, sku = None, None
+
+            if product is not None:
+                if product.ean == ean_or_sku:
+                    ean = ean_or_sku
+                elif product.sku_set.filter(sku=ean_or_sku).count() > 0:
+                    sku = ean_or_sku
+
+            state = product_form.data.get("state")
+            if ean is not None:
+                if (ean, state) not in duplicates:
+                    duplicates.append((ean, state))
+                else:
+                    product_form.add_error('ean',
+                                           ValidationError(f'Diese EAN in Kombinitation mit dem Zustand {state} darf'
+                                                           f' nur einmal vorkommen'))
+
+            elif sku is not None:
+                if product is not None:
+                    sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+                    if product.ean is not None and product.ean != "":
+                        if (product.ean, sku_instance.state) not in duplicates:
+                            duplicates.append((product.ean, sku_instance.state))
+                        else:
+                            product_form.add_error('ean', ValidationError(
+                                f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
+                                f' {sku_instance.state} in diesem Auftrag'))
+                else:
+                    product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
+                                                                  f' Auftrag'))
+
+    def create_order_products(self):
+        self.object.save()
+        index = 0
+        amount_forms = self.get_amount_product_order_forms()
+
+        for i in range(index, amount_forms):
+            product_form, product = self.product_forms[i]
+            ean_or_sku = product_form.data.get("ean")
+            amount = product_form.data.get("amount")
+            netto_price = product_form.data.get("netto_price")
+
+            state = product_form.data.get("state")
+
+            product_order_instance = ProductOrder(product_id=product.pk, amount=amount, netto_price=netto_price,
+                                                  order_id=self.object.pk)
+            if state is not None and state != "":
+                product_order_instance.state = state
+            else:
+                product_order_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
+            product_order_instance.save()
+            self.object.productorder_set.add(product_order_instance)
+        self.object.save()
 
 
 def refresh_order_status(object_, original_order_products=None):

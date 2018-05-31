@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
-from mission.models import RealAmount
+from mission.models import RealAmount, DeliveryMissionProduct
 from product.models import Product
 from sku.models import Sku
 
@@ -235,9 +235,9 @@ class Stock(models.Model):
                     sku_string = sku.sku
                     sku_state = sku.state
                     print(f"lampe: {sku_string} - - - {sku_state}")
-                    real_amount_total = RealAmount.objects.filter(product_mission__product__sku__sku=sku_string,
-                                                                  product_mission__state=sku_state)\
-                        .aggregate(Sum("real_amount")).get("real_amount__sum")
+                    real_amount_total = DeliveryMissionProduct.objects\
+                        .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
+                        .aggregate(Sum("amount")).get("amount__sum")
 
                     if real_amount_total is not None and real_amount_total != "":
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
@@ -377,9 +377,9 @@ class Stock(models.Model):
                 for sku in product.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
-                    real_amount_total = RealAmount.objects.filter(product_mission__product__sku__sku=sku_string,
-                                                                  product_mission__state=sku_state)\
-                        .aggregate(Sum("real_amount")).get("real_amount__sum")
+                    real_amount_total = DeliveryMissionProduct.objects.\
+                        filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
+                        .aggregate(Sum("amount")).get("amount__sum")
 
                     if real_amount_total is not None:
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
@@ -414,7 +414,7 @@ class Stock(models.Model):
             else:
                 total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
 
-            real_amounts = RealAmount.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
+            real_amounts = DeliveryMissionProduct.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
             total_reserved = 0
             for real_amount in real_amounts:
                 total_reserved += real_amount.real_amount
@@ -431,7 +431,7 @@ class Stock(models.Model):
                 total = Stock.objects.filter(title=str(self.title), zustand__iexact=state).aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
-            real_amounts = RealAmount.objects.filter(product_mission__product__title=self.title)
+            real_amounts = DeliveryMissionProduct.objects.filter(product_mission__product__title=self.title)
             total_reserved = 0
             for real_amount in real_amounts:
                 total_reserved += real_amount.real_amount

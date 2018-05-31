@@ -77,6 +77,9 @@ class Mission(models.Model):
 
 
 class ProductMission(models.Model):
+    class Meta:
+        ordering = ['pk']
+
     product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
@@ -121,6 +124,46 @@ class RealAmountModelManager(models.Manager):
             obj.save()
 
 
+class Delivery(models.Model):
+    mission = models.ForeignKey(Mission, null=True, blank=True)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+
+
+class GoodsIssue(models.Model):
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+
+
+class GoodsIssueDeliveryMissionProduct(models.Model):
+    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+    delivery_mission_product = models.ForeignKey("mission.DeliveryMissionProduct", null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge", default=0)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
+    confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
+
+    @property
+    def amount_minus_missing_amount(self):
+        if self.missing_amount is None:
+            return self.real_amount
+        return self.real_amount-self.missing_amount
+
+    @property
+    def real_amount(self):
+        amount = self.amount
+        if self.goods_issue is not None and self.goods_issue != "":
+
+            for delivery_note in self.goods_issue.deliverynote_set.all():
+                for delivery_note_product in delivery_note.deliverynoteproductmission_set\
+                        .filter(product_mission__exact=self.delivery_mission_product.product_mission):
+                    amount -= delivery_note_product.amount
+        return amount
+
+
+class DeliveryMissionProduct(models.Model):
+    delivery = models.ForeignKey(Delivery, null=True, blank=True)
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True)
+
+
 class RealAmount(models.Model):
     product_mission = models.ForeignKey(ProductMission)
     real_amount = models.IntegerField(blank=True, null=True)
@@ -155,8 +198,12 @@ class Billing(models.Model):
 
 
 class DeliveryNote(models.Model):
+    class Meta:
+        ordering = ['pk']
+
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
     billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

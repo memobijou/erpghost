@@ -12,12 +12,11 @@
             <th>Einzelpreis (Netto)</th>
         </thead>
         <tbody>
-            {% for real_amount_rows in real_amounts %}
-                {% for real_amount_row in real_amount_rows %}
+            {% for delivery_product in delivery_products %}
                 <tr
-                    {% if real_amount_row.confirmed == True %}
+                    {% if delivery_product.confirmed == True %}
                         class="success"
-                    {% elif real_amount_row.confirmed == False %}
+                    {% elif delivery_product.confirmed == False %}
                         class="danger"
                     {% endif %}
                 >
@@ -26,35 +25,34 @@
                         <span class="glyphicon glyphicon-chevron-down"></span>
                     </td>
                     <td>
-                        {% if real_amount_row.product_mission.product.main_image %}
+                        {% if delivery_product.delivery_mission_product.product_mission.product.main_image %}
                             <div style="max-height: 80px;max-width:80px;">
-                                <img src="{{ real_amount_row.product_mission.product.main_image.url }}"
+                                <img src="{{ delivery_product.delivery_mission_product.product_mission.product.main_image.url }}"
                                                 style="max-height:80px;" class="img-responsive">
                             </div>
                         {% endif %}
                     </td>
-                    <td>{{ real_amount_row.product_mission.get_ean_or_sku }}</td>
-                    <td>{{ real_amount_row.product_mission.state }}</td>
-                    <td>{{ real_amount_row.real_amount }}</td>
-                    <td>{{ real_amount_row.missing_amount|default:"" }}</td>
-                    <td>{{ real_amount_row.real_amount_minus_missing_amount }}</td>
-                    <td>{{ real_amount_row.product_mission.netto_price|format_number_thousand_decimal_points }}</td>
+                    <td>{{ delivery_product.delivery_mission_product.product_mission.get_ean_or_sku }}</td>
+                    <td>{{ delivery_product.delivery_mission_product.product_mission.state }}</td>
+                    <td>{{ delivery_product.real_amount }}</td>
+                    <td>{{ delivery_product.missing_amount|default:"" }}</td>
+                    <td>{{ delivery_product.amount_minus_missing_amount }}</td>
+                    <td>{{ delivery_product.delivery_mission_product.product_mission.netto_price|format_number_thousand_decimal_points }}</td>
                 </tr>
                 <tr id="collapse_{{ forloop.counter }}"
-                    {% if product_mission.confirmed == True %}
+                    {% if delivery_product.delivery_mission_product.product_mission.confirmed == True %}
                         class="collapse success"
-                    {% elif product_mission.confirmed == False %}
+                    {% elif delivery_product.delivery_mission_product.product_mission.confirmed == False %}
                         class="collapse danger"
                     {% else %}
                         class="collapse"
                     {% endif %}
                 >
                     <td colspan="8">
-                        <p><b>Artikelname: </b>{{ real_amount_row.product_mission.product.title }}</p>
-                        <p><b>Kurzbeschreibung: </b>{{ real_amount_row.product_mission.product.short_description }}</p>
+                        <p><b>Artikelname: </b>{{ delivery_product.delivery_mission_product.product_mission.product.title }}</p>
+                        <p><b>Kurzbeschreibung: </b>{{ delivery_product.delivery_mission_product.product_mission.product.short_description }}</p>
                     </td>
                 </tr>
-                {% endfor %}
             {% endfor %}
         </tbody>
     </table>

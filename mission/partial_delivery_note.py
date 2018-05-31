@@ -1,14 +1,16 @@
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.delivery_note_pdf import *
+from mission.models import DeliveryNote
 
 
 class PartialDeliveryNoteView(DeliveryNoteView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.partial_delivery_note_number = None
+        self.partial_delivery_note = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.partial_delivery_note_number = self.kwargs.get("delivery_note_number")
+        self.partial_delivery_note = DeliveryNote.objects.get(pk=self.kwargs.get("delivery_note_pk"))
+        self.partial_delivery_note_number = self.partial_delivery_note.delivery_note_number
         return super().dispatch(request, *args, **kwargs)
 
     def build_table(self):
@@ -27,20 +29,21 @@ class PartialDeliveryNoteView(DeliveryNoteView):
         data.append(header)
         pos = 1
 
-        delivery_note_number = f"{self.kwargs.get('delivery_note_number')}"
+        delivery_note_number = f"{self.partial_delivery_note.delivery_note_number}"
 
-        for productmission in self.mission.productmission_set.\
-                filter(realamount__delivery_note__delivery_note_number=delivery_note_number):
-            real_amount = productmission.realamount_set.\
-                filter(delivery_note__delivery_note_number=delivery_note_number).\
-                first().real_amount
+        print(self.partial_delivery_note.deliverynoteproductmission_set.all())
+
+        for deliverynoteproductmission in self.partial_delivery_note.deliverynoteproductmission_set.all():
 
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.product.title or "", style=size_nine_helvetica),
-                    Paragraph(str(real_amount), style=right_align_paragraph_style),
+                    Paragraph(deliverynoteproductmission.product_mission.get_ean_or_sku(),
+                              style=size_nine_helvetica),
+                    Paragraph(deliverynoteproductmission.product_mission.product.title or "",
+                              style=size_nine_helvetica),
+                    Paragraph(str(deliverynoteproductmission.amount),
+                              style=right_align_paragraph_style),
                 ],
             )
 

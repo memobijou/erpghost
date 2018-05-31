@@ -7,7 +7,7 @@
             <div class="pull-right" style="padding-bottom:20px;">
                 <p><a href="{{ detail_url }}">Zur Ansicht</a></p>
             </div>
-
+            {% if delivery_products %}
             <div class="col-md-12" style="padding-bottom: 20px;">
                 <div class="col-md-6">
                     {% include "mission/scan/scan_master.html" %}
@@ -17,6 +17,9 @@
                     {% include "mission/scan/scan_detail.html" %}
                 </div>
             </div>
+            {% else %}
+                <h3>Für diese Lieferung wurden bereits alle Lieferscheine erstellt</h3>
+            {% endif %}
         </div>
     </div>
 

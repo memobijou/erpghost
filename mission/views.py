@@ -19,7 +19,8 @@ from stock.models import Stock
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
-from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission
+from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
+    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -125,7 +126,10 @@ class MissionBillingFormView(View):
 
 
 class MissionDetailView(DetailView):
-    object = None
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
@@ -134,40 +138,22 @@ class MissionDetailView(DetailView):
     def get_object(self):
         return self.object
 
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag " + context["object"].mission_number
         set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],\
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
-        context["fields"] = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
-        context["fields"].insert(1, "Titel")
-        context["fields"].insert(5, "Reale Menge")
-        context["fields"][0] = "EAN / SKU"
-        context["fields"].insert(len(context["fields"]), "Gesamtpreis (Netto)")
+        context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_products_from_stock()
-        context["real_amounts"] = self.get_real_amounts()
         return context
 
-    def get_real_amounts(self):
-        real_amounts = []
-
-        for mission_product in self.object.productmission_set.all():
-            billing_numbers_and_delivery_note_numbers = \
-                mission_product.realamount_set.values("billing__billing_number",
-                                                      "delivery_note__delivery_note_number").distinct()
-
-            for dict_ in billing_numbers_and_delivery_note_numbers:
-                billing_number = dict_.get('billing__billing_number')
-                delivery_note_number = dict_.get('delivery_note__delivery_note_number')
-
-                real_amount_rows = RealAmount.objects.filter(billing__billing_number=billing_number,
-                                                             delivery_note__delivery_note_number=delivery_note_number)
-
-                self.add_real_amount_to_list(real_amount_rows, real_amounts)
-
-        real_amounts.sort(key=lambda real_amounts: real_amounts[0].billing.billing_number)
-
-        return real_amounts
+    def build_fields(self):
+        fields = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
+        fields.insert(1, "Titel")
+        fields.insert(5, "Reale Menge")
+        fields[0] = "EAN / SKU"
+        fields.insert(len(fields), "Gesamtpreis (Netto)")
+        return fields
 
     def add_real_amount_to_list(self, real_amount_rows, real_amounts_list):
         for real_amount_rows_from_list in real_amounts_list:
@@ -189,8 +175,8 @@ class MissionDetailView(DetailView):
 
             all_amounts_sum = 0
 
-            for real_amount_row in product_mission.realamount_set.all():
-                all_amounts_sum += real_amount_row.real_amount
+            for real_amount_row in DeliveryMissionProduct.objects.filter(product_mission=product_mission):
+                all_amounts_sum += real_amount_row.amount
 
             missing_amount -= all_amounts_sum
 
@@ -745,6 +731,13 @@ class ScanMissionUpdateView(UpdateView):
     def __init__(self):
         super().__init__()
         self.context = {}
+        self.delivery = None
+        self.delivery_products = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.delivery_products = self.get_delivery_products()
+        return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, *args, **kwargs):
         object = Mission.objects.get(pk=self.kwargs.get("pk"))
@@ -754,27 +747,20 @@ class ScanMissionUpdateView(UpdateView):
         self.context = super().get_context_data(**kwargs)
         self.context["object"] = self.get_object(*args, **kwargs)
         self.context["title"] = "Warenausgang"
-        product_missions = self.context.get("object").productmission_set.all()
-        self.context["real_amounts"] = self.get_real_amounts()
+        self.context["delivery_products"] = self.delivery_products
         self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         self.context["select_range"] = range(20)
         return self.context
 
-    def get_real_amounts(self):
-        real_amounts = []
-
-        billing_number = self.kwargs.get("billing_number")
-
-        for mission_product in self.object.productmission_set.all():
-
-            real_amount_rows = RealAmount.objects.filter(billing__billing_number=billing_number)
-
-            self.add_real_amount_to_list(real_amount_rows, real_amounts)
-
-        # real_amounts.sort(key=lambda real_amounts: real_amounts[0])
-        print(real_amounts)
-        return real_amounts
+    def get_delivery_products(self):
+        goodsissue_products = self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all()
+        exclude_amount_zero_ids = []
+        for goodsissue_product in goodsissue_products:
+            if goodsissue_product.real_amount is None or goodsissue_product.real_amount == 0:
+                exclude_amount_zero_ids.append(goodsissue_product.pk)
+        return self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all().\
+            exclude(pk__in=exclude_amount_zero_ids)
 
     def add_real_amount_to_list(self, real_amount_rows, real_amounts_list):
         for real_amount_rows_from_list in real_amounts_list:
@@ -796,15 +782,15 @@ class ScanMissionUpdateView(UpdateView):
         product_id = self.request.POST.get("product_id")
         missing_amount = self.request.POST.get("missing_amount")
 
-        for real_amount_rows in self.get_real_amounts():
-            for real_amount_row in real_amount_rows:
-                if str(real_amount_row.product_mission.pk) == str(product_id):
-                    if confirmed_bool == "0":
-                        real_amount_row.missing_amount = missing_amount
-                    elif confirmed_bool == "1":
-                        real_amount_row.missing_amount = None
-                    real_amount_row.confirmed = confirmed_bool
-                    real_amount_row.save()
+        for delivery_product in self.delivery_products:
+            if str(delivery_product.pk) == str(product_id):
+                if confirmed_bool == "0":
+                    delivery_product.missing_amount = missing_amount
+                    delivery_product.confirmed = False
+                elif confirmed_bool == "1":
+                    delivery_product.missing_amount = 0
+                    delivery_product.confirmed = True
+                delivery_product.save()
 
     def store_last_checked_checkbox_in_session(self):
         self.request.session["last_checked_checkbox"] = self.request.POST.get("last_checked")
@@ -864,158 +850,95 @@ class MissionStockCheckForm(View):
         super().__init__()
         self.context = {}
         self.object = None
+        self.delivery_products = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Mission.objects.get(pk=self.kwargs.get("pk"))
+        self.delivery_products = self.get_delivery_products()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         self.context["title"] = "Lieferung erstellen"
         self.context["object"] = self.object
-        self.context["products_from_stock"] = self.get_products_from_stock()
-
+        self.context["delivery_products"] = self.delivery_products
         return render(request, self.template_name, self.context)
 
-    def get_products_from_stock(self):
-        billing_products = []
-        print(billing_products)
+    def get_delivery_products(self):
+        delivery_products = []
         for product_mission in self.object.productmission_set.all():
-
-            product_stock = self.get_product_stock(product_mission)
-            available_product_stock = self.get_available_product_stock(product_mission)
-
-            print(f"akiii -- {available_product_stock}")
-
-            if available_product_stock is not None:
-                available_product_stock = int(available_product_stock)
-            else:
-                available_product_stock = 0
-
             amount = product_mission.amount
+            product = product_mission.product
+            state = product_mission.state
+            stock = self.get_stock_from_product(product, state)
+            delivery_amount = self.get_delivery_amount(product_mission)
+            if delivery_amount > 0:
+                delivery_products.append((product_mission, delivery_amount, stock))
+            print(f"RELOAD: {delivery_amount}/{amount} --- {state} --- {stock}")
+        return delivery_products
 
-            all_amounts_sum = 0
-
-            for real_amount_row in product_mission.realamount_set.all():
-                all_amounts_sum += real_amount_row.real_amount
-
-            amount -= all_amounts_sum
-
-            print(available_product_stock)
-            if available_product_stock < amount:
-                amount = available_product_stock
-            if available_product_stock >= amount > 0:
-                billing_products.append((product_mission, amount, product_stock))
-            print(billing_products)
-        return billing_products
-
-    def get_product_stock(self, product_mission):
+    def get_delivery_amount(self, product_mission):
+        amount = self.get_current_amount(product_mission)
         product = product_mission.product
         state = product_mission.state
 
-        if product.ean is not None and product.ean != "":
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+        product_stock = product.stock_set.first()
 
-            if stock is not None:
-                if state is None:
-                    return stock.get_tota_stocks().get("Gesamt")
-                else:
-                    return stock.get_total_stocks().get(state)
+        available_stock = product_stock.get_available_total_stocks().get(state)
 
-        for sku_instance in product.sku_set.all():
-            if sku_instance is not None:
-                if sku_instance.sku is not None and sku_instance.sku != "":
-                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
-                    if stock is not None:
-                        if state is None:
-                                return stock.get_total_stocks().get("Gesamt")
-                        else:
-                                return stock.get_total_stocks().get(state)
+        if int(available_stock) >= amount:
+            return amount
+        else:
+            if int(available_stock) > 0:
+                return available_stock
+            else:
+                return 0
 
-    def get_available_product_stock(self, product_mission):
-        product = product_mission.product
-        state = product_mission.state
+    def get_current_amount(self, product_mission):
+        current_amount = product_mission.amount
+        for delivery_amount in DeliveryMissionProduct.objects.filter(product_mission=product_mission):
+            current_amount -= delivery_amount.amount
+        return current_amount
 
-        if product.ean is not None and product.ean != "":
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
-            if stock is not None:
-                if state is None:
-                    return stock.get_available_total_stocks().get("Gesamt")
-                else:
-                    return stock.get_available_total_stocks().get(state)
+    def get_stock_from_product(self, product, state):
+        product_stock = product.stock_set.first()
 
-        for sku_instance in product.sku_set.all():
-            if sku_instance is not None:
-                if sku_instance.sku is not None and sku_instance.sku != "":
-                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
-                    if stock is not None:
-                        if state is None:
-                                return stock.get_available_total_stocks().get("Gesamt")
-                        else:
-                                return stock.get_available_total_stocks().get(state)
+        stock_dict = None
+
+        if product_stock is not None and product_stock != "":
+            stock_dict = product.stock_set.first().get_total_stocks()
+
+        stock = 0
+
+        if stock_dict is not None and stock_dict != "":
+            stock = stock_dict.get(state)
+        return stock
 
     def post(self, request, *args, **kwargs):
-
-        bulk_instances = []
-
-        new_billing = self.get_new_billing()
-        new_delivery_note = self.get_new_delivery_note()
-
-        for product_mission in self.object.productmission_set.all():
-            product_stock = self.get_product_stock(product_mission)
-            available_product_stock = self.get_available_product_stock(product_mission)
-
-            if available_product_stock is not None:
-                available_product_stock = int(available_product_stock)
-            else:
-                available_product_stock = 0
-            amount = product_mission.amount
-
-            all_amounts_sum = 0
-
-            for real_amount_row in product_mission.realamount_set.all():
-                all_amounts_sum += real_amount_row.real_amount
-
-            amount -= all_amounts_sum
-
-            if available_product_stock < amount:
-                amount = available_product_stock
-
-            if available_product_stock >= amount > 0:
-                bulk_instances.append(RealAmount(product_mission=product_mission, billing=new_billing,
-                                                 delivery_note=new_delivery_note,
-                                                 real_amount=amount))
-        print(bulk_instances)
-        RealAmount.objects.bulk_create(bulk_instances)
+        if len(self.delivery_products) > 0:
+            self.create_delivery()
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
-    def get_new_billing(self):
+    def create_delivery(self):
         billing = Billing()
         billing.save()
-        return billing
+        delivery = Delivery(mission=self.object, billing=billing)
+        delivery.save()
+        goods_issue = GoodsIssue(delivery=delivery)
+        goods_issue.save()
 
-    def get_new_delivery_note(self):
-        delivery_note = DeliveryNote()
-        delivery_note.save()
-        return delivery_note
+        bulk_instances = []
+        for product_mission, amount, product_stock in self.delivery_products:
+            bulk_instances.append(DeliveryMissionProduct(delivery=delivery, product_mission=product_mission,
+                                                         amount=amount))
+        DeliveryMissionProduct.objects.bulk_create(bulk_instances)
 
-    def get_billing_numbers(self):
-        billing_numbers = []
-        product_missions = self.object.productmission_set.all()
-        for product_mission in product_missions:
-
-            for real_amount in product_mission.realamount_set.all():
-                if real_amount.billing.billing_number not in billing_numbers:
-                    billing_numbers.append(real_amount.billing.billing_number)
-        return billing_numbers
-
-    def get_delivery_note_numbers(self):
-        delivery_note_numbers = []
-        product_missions = self.object.productmission_set.all()
-        for product_mission in product_missions:
-            for real_amount in product_mission.realamount_set.all():
-                if real_amount.delivery_note.delivery_note_number not in delivery_note_numbers:
-                    delivery_note_numbers.append(real_amount.delivery_note.delivery_note_number)
-        return delivery_note_numbers
+        goods_issue_products_bulk_instances = []
+        for delivery_mission_product in bulk_instances:
+            goods_issue_products_bulk_instances.append(
+                GoodsIssueDeliveryMissionProduct(goods_issue=goods_issue,
+                                                 delivery_mission_product=delivery_mission_product,
+                                                 amount=delivery_mission_product.amount))
+        GoodsIssueDeliveryMissionProduct.objects.bulk_create(goods_issue_products_bulk_instances)
 
 
 class CreatePartialDeliveryNote(View):
@@ -1023,42 +946,53 @@ class CreatePartialDeliveryNote(View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.billing = None
-        self.partial_delivery = None
+        self.goods_issue = None
+        self.goods_issue_products = None
         self.context = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.billing = Billing.objects.get(pk=self.kwargs.get("billing_pk"))
-        self.partial_delivery = self.get_partial_delivery()
+        self.goods_issue = GoodsIssue.objects.get(pk=self.kwargs.get("goods_issue_pk"))
+        self.goods_issue_products = self.get_goods_issue_products()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):
-        self.context = {"title": "Lieferschein erstellen", "billing": self.billing,
-                        "partial_delivery": self.partial_delivery}
+        self.context = {"title": "Lieferschein erstellen", "goods_issue": self.goods_issue,
+                        "goods_issue_products": self.goods_issue_products}
         return render(request, self.template_name, self.context)
 
     def post(self, request, **kwargs):
         self.create_partial_delivery()
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
-    def get_partial_delivery(self):
-        real_amounts = RealAmount.objects.annotate(delta=F('real_amount') - F('missing_amount')).\
-            filter(delta__gt=0, billing=self.billing)\
-            .exclude(Q(confirmed=None))
-        return real_amounts
+    def get_goods_issue_products(self):
+        goods_issue_delivery_mission_products = GoodsIssueDeliveryMissionProduct.objects.exclude(confirmed=None)
+        smaller_or_equal_than_zero_ids = []
+        for goods_issue_delivery_mission_product in goods_issue_delivery_mission_products:
+            if goods_issue_delivery_mission_product.real_amount -\
+                    (goods_issue_delivery_mission_product.missing_amount or 0) <= 0:
+                smaller_or_equal_than_zero_ids.append(goods_issue_delivery_mission_product.pk)
+
+        return goods_issue_delivery_mission_products.exclude(pk__in=smaller_or_equal_than_zero_ids)
 
     def create_partial_delivery(self):
         bulk_instances = []
 
-        delivery_note = DeliveryNote(billing=self.billing)
+        delivery_note = DeliveryNote(goods_issue=self.goods_issue)
         delivery_note.save()
 
-        for partial_product in self.partial_delivery:
+        for goods_issue_product in self.goods_issue_products:
             instance = DeliveryNoteProductMission(delivery_note=delivery_note,
-                                                  amount=partial_product.real_amount_minus_missing_amount,
-                                                  product_mission=partial_product.product_mission)
+                                                  amount=goods_issue_product.amount_minus_missing_amount,
+                                                  product_mission=goods_issue_product.delivery_mission_product
+                                                  .product_mission)
             bulk_instances.append(instance)
+
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+
+        for goods_issue_product in self.goods_issue_products:
+            goods_issue_product.missing_amount = 0
+            goods_issue_product.confirmed = None
+            goods_issue_product.save()
 
 
 class ConfirmView(View):

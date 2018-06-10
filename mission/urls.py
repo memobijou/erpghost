@@ -1,6 +1,7 @@
 from django.conf.urls import url
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
-    MissionDeleteView, MissionBillingFormView, MissionStockCheckForm, CreatePartialDeliveryNote
+    MissionDeleteView, MissionStockCheckForm, CreatePartialDeliveryNote, CreatePickListView, \
+    PickListView
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.billing_pdf import BillingPdfView
 from mission.partial_billing import PartialPdfView
@@ -20,8 +21,12 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/delivery_note/(?P<delivery_note_pk>\d+)/$', PartialDeliveryNoteView.as_view(),
         name="partial_delivery_note"),
     url(r'^(?P<pk>\d+)/billing_pdf/$', BillingPdfView.as_view(), name="billing_pdf"),
-    url(r'^(?P<pk>\d+)/billing_pdf/(?P<billing_number>[-\w]+)/$', PartialPdfView.as_view(), name="partial_billing_pdf"),
-    url(r'^(?P<pk>\d+)/mission_confirmation_pdf/$', MissionConfirmationPdfView.as_view(), name="mission_confirmation_pdf"),
-    url(r'^(?P<pk>\d+)/billing_form/$', MissionBillingFormView.as_view(), name="billing_form"),
+    url(r'^(?P<pk>\d+)/billing_pdf/(?P<partial_billing_pk>\d+)/$', PartialPdfView.as_view(), name="partial_billing_pdf"),
+    url(r'^(?P<pk>\d+)/mission_confirmation_pdf/$', MissionConfirmationPdfView.as_view(),
+        name="mission_confirmation_pdf"),
     url(r'^(?P<pk>\d+)/stock_check/$', MissionStockCheckForm.as_view(), name="stock_check_form"),
+    url(r'^(?P<pk>\d+)/create_picklist/(?P<delivery_pk>\d+)/$', CreatePickListView.as_view(),
+        name="create_picklist"),
+    url(r'^(?P<pk>\d+)/picklist/(?P<delivery_pk>\d+)/$', PickListView.as_view(),
+        name="picklist"),
 ]

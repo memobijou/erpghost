@@ -120,7 +120,7 @@
                             "title": "{{ delivery_product.delivery_mission_product.product_mission.product.title|default:'' }}",
                             "current_state": state,
                             "id": "{{ delivery_product.id}}",
-                            "amount": "{{ delivery_product.real_amount }}"
+                            "amount": "{{ delivery_product.scan_amount }}"
                         };
 
                         {% if delivery_product.delivery_mission_product.product_mission.product.main_image %}
@@ -152,14 +152,14 @@
                             if("states" in sku_json[tmp_sku_number]){
                                 sku_json[tmp_sku_number].states.push(state);
                             }
-                            ean_json["amount"] = "{{ delivery_product.real_amount}}";
+                            ean_json["amount"] = "{{ delivery_product.scan_amount}}";
                             ean_json["current_state"] = state;
                         } else {
                             sku_json[tmp_sku_number] = {"states": [state],
                                                         "title": "{{ delivery_product.delivery_mission_product.product_mission.product.title|default:'' }}",
                                                         "current_state": state,
                                                         "id": "{{ delivery_product.id}}",
-                                                        "amount": "{{ delivery_product.real_amount }}"};
+                                                        "amount": "{{ delivery_product.scan_amount }}"};
                            {% if  delivery_product.delivery_mission_product.product_mission.product.main_image %}
                                         sku_json[tmp_sku_number].main_image = "{{  delivery_product.delivery_mission_product.product_mission.product.main_image.url }}";
                             {% endif %}

@@ -2,7 +2,8 @@ from django import forms
 from django.db.models import Q
 
 from product.models import Product
-from .models import Mission, ProductMission, GoodsIssueDeliveryMissionProduct, DeliveryNoteProductMission
+from .models import Mission, ProductMission, GoodsIssueDeliveryMissionProduct, DeliveryNoteProductMission, Billing, \
+    DeliveryMissionProduct
 from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
 from client.models import Client
@@ -21,7 +22,7 @@ class MissionForm(forms.ModelForm):
     class Meta:
         model = Mission
         fields = ['delivery_date', 'terms_of_delivery', 'terms_of_payment', "customer",
-                  'customer_order_number', 'shipping', 'shipping_number_of_pieces', 'shipping_costs']
+                  'customer_order_number', ]
         widgets = {'delivery_date': forms.DateInput(attrs={"class": "datepicker"})}
 
     def __init__(self, **kwargs):
@@ -96,10 +97,32 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
         if self.product_mission is None:
             return
 
-        for goods_issue_delivery_mission_product in DeliveryNoteProductMission.objects.\
+        for goods_issue_delivery_mission_product in DeliveryMissionProduct.objects.\
                 filter(product_mission=self.product_mission):
 
             sum_all_amounts += goods_issue_delivery_mission_product.amount
 
         if self.cleaned_data.get('amount') < sum_all_amounts:
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")
+
+
+class BillingForm(forms.ModelForm):
+
+    class Meta:
+        model = Billing
+        fields = ("transport_service", "shipping_number_of_pieces", "shipping_costs")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class PickForm(forms.Form):
+    missing_amount = forms.IntegerField(label="Fehlende Menge", required=False)
+    missing_amount.widget.attrs["placeholder"] = "Fehlende Menge"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+                visible.field.widget.attrs["class"] = "form-control"

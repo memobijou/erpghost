@@ -73,10 +73,10 @@
                             <tr>
                                 <th>EAN / SKU</th>
                                 <th>Zustand</th>
-                                <th>Titel</th>
+                                <th>Artikelname</th>
                                 <th>Auftragsmenge</th>
-                                <th>Fehlende Menge</th>
-                                <th>Reale Menge</th>
+                                <th>Offene Menge</th>
+                                <th>Versendete Menge</th>
                                 <th>Lagerbestand</th>
                                 <th>Einzelpreis (Netto)</th>
                                 <th>Gesamtpreis (Netto)</th>
@@ -129,43 +129,7 @@
                             Lieferung {{ forloop.counter }}
                         </div>
                         <div class="panel-body">
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Rechnung</th>
-                                        </tr>
-                                    </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>
-                                                    <a href="{% url 'mission:partial_billing_pdf' pk=object.pk billing_number=delivery.billing.billing_number %}"
-                                                       class="btn btn-info">{{ delivery.billing.billing_number }}</a>
-                                                </td>
-                                            </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Lieferscheine</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for delivery_note in delivery.goodsissue_set.first.deliverynote_set.all %}
-                                            <tr>
-                                                <td>
-                                                    <a class="btn btn-info" href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=delivery_note.pk %}">
-                                                        {{ delivery_note.delivery_note_number }}
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="col-md-12" style="padding-left:0px;">
                             <div class="table-responsive">
                                 <table class="table table-bordered">
                                     <thead>
@@ -174,6 +138,8 @@
                                             <th>Zustand</th>
                                             <th>Artikelname</th>
                                             <th>Liefermenge</th>
+                                            <th>Offene Menge</th>
+                                            <th>Versendete Menge</th>
                                             <th>Einzelpreis (Netto)</th>
                                             <th>Gesamt (Netto)</th>
                                         </tr>
@@ -185,6 +151,8 @@
                                                 <td>{{ real_amount_row.product_mission.state|default:"" }}</td>
                                                 <td>{{ real_amount_row.product_mission.product.title|default:"" }}</td>
                                                 <td>{{ real_amount_row.amount }}</td>
+                                                <td style="color:red;">{{ real_amount_row.missing_amount }}</td>
+                                                <td style="color:green;">{{ real_amount_row.real_amount }}</td>
                                                 <td>{{real_amount_row.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                                 <td>
                                                     {% if real_amount_row.product_mission.netto_price %}
@@ -197,10 +165,111 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                            <div class="col-md-6" style="padding-left: 0px; ">
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Rechnungen
+                                    </div>
+                                    <div class="panel-body">
+                                        {% if delivery.goodsissue_set.first.billing_set.all %}
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Rechnungsnummer</th>
+                                                        <th>PDF</th>
+                                                        <th>Löschen</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for billing in delivery.goodsissue_set.first.billing_set.all %}
+                                                    <tr>
+                                                        <td>
+                                                            {{ billing.billing_number }}
+                                                        </td>
+                                                        <td>
+                                                           <a href="{% url 'mission:partial_billing_pdf' pk=object.pk partial_billing_pk=billing.pk %}"
+                                                           class="btn btn-info">PDF</a>
 
-                            <a class="btn btn-success" href="{% url 'mission:scan' pk=object.pk delivery_pk=delivery.pk %}">Zum Warenausgang</a>
-                            <a class="btn btn-info pull-right" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">Lieferschein erstellen</a>
+                                                        </td>
+                                                        <td>
+                                                            <div class="text-center">
+                                                                <a class="glyphicon glyphicon-trash btn-lg" style="color:red;padding:6px 20px 0px 0px;" href="">
+                                                                </a>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        {% else %}
+                                            Keine Rechnungen vorhanden
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
 
+                            <div class="col-md-6" style="padding-left: 0px;">
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        Lieferscheine
+                                    </div>
+                                    <div class="panel-body">
+                                        {% if delivery.goodsissue_set.first.deliverynote_set.all %}
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <th>Lieferscheinnummer</th>
+                                                    <th>PDF</th>
+                                                    <th>Löschen</th>
+                                                </thead>
+                                                <tbody>
+                                                    {% for delivery_note in delivery.goodsissue_set.first.deliverynote_set.all %}
+                                                        <tr>
+                                                            <td>{{ delivery_note.delivery_note_number }}</td>
+                                                            <td>
+                                                                <a class="btn btn-info" href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=delivery_note.pk %}">
+                                                                    PDF
+                                                                </a>
+                                                            </td>
+                                                            <td>
+                                                                <div class="text-center">
+                                                                    <a class="glyphicon glyphicon-trash btn-lg" style="color:red;padding:6px 20px 0px 0px;" href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=delivery_note.pk %}">
+                                                                    </a>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                </tbody>
+                                                {% endfor %}
+                                            </table>
+                                        </div>
+                                        {% else %}
+                                            Keine Lieferscheine vorhanden
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-12" style="padding-left:0px;">
+                                <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <a class="btn btn-info" href="{% url 'mission:picklist' pk=object.pk delivery_pk=delivery.pk %}">Pickliste</a>
+                                    <a class="btn btn-success" href="{% url 'mission:scan' pk=object.pk delivery_pk=delivery.pk %}">Zum Warenausgang</a>
+                                </div>
+                                </div>
+                            </div>
+                            <div class="col-md-12" style="padding-left:0px;">
+                            <div class="panel panel-default">
+                                <div class="panel-body">
+                                    <a class="btn btn-info" href="{% url 'mission:create_picklist' pk=object.pk delivery_pk=delivery.pk %}">
+                                        Pickliste erstellen
+                                    </a>
+                                    <a class="btn btn-info" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">Lieferschein und Rechnung erstellen</a>
+                                    <a class="btn btn-danger pull-right">Lieferung löschen</a>
+                                </div>
+                            </div>
+                            </div>
                         </div>
                     </div>
                 {% endfor %}
@@ -209,6 +278,11 @@
             </div>
         </div>
     </div>
+    <style>
+        th, td {
+            vertical-align: top !important;
+        }
+    </style>
 {% endblock %}
 
 

@@ -38,6 +38,7 @@ terms_of_delivery_choices = [
 ]
 
 shipping_choices = [
+    ("Spedition", "Spedition"),
     ("Dachser", "Dachser"),
     ("DPD", "DPD"),
     ("DHL", "DHL"),

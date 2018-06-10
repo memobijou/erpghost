@@ -1,15 +1,17 @@
 from mission.billing_pdf import BillingPdfView
 from mission.billing_pdf import *
-from mission.models import DeliveryMissionProduct
+from mission.models import DeliveryMissionProduct, Billing
 
 
 class PartialPdfView(BillingPdfView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.partial_billing = None
         self.partial_billing_number = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.partial_billing_number = self.kwargs.get("billing_number")
+        self.partial_billing = Billing.objects.get(pk=self.kwargs.get("partial_billing_pk"))
+        self.partial_billing_number = self.partial_billing.billing_number
         return super().dispatch(request, *args, **kwargs)
 
     def build_table(self):
@@ -30,9 +32,9 @@ class PartialPdfView(BillingPdfView):
         data.append(header)
         pos = 1
 
-        billing_number = f"{self.kwargs.get('billing_number')}"
+        billing_number = f"{self.partial_billing_number}"
 
-        for product_delivery in DeliveryMissionProduct.objects.filter(delivery__billing__billing_number=billing_number):
+        for product_delivery in self.partial_billing.deliverynoteproductmission_set.all():
             productmission = product_delivery.product_mission
 
             data.append(
@@ -50,6 +52,24 @@ class PartialPdfView(BillingPdfView):
             )
 
             pos += 1
+
+        # transport_service = models.CharField(choices=shipping_choices, blank=False, null=True, max_length=200,
+        #                                      verbose_name="Transportdienstleister")
+        # shipping_number_of_pieces = models.IntegerField(blank=False, null=True, verbose_name="Stückzahl Transport")
+        # shipping_costs = models.FloatField(blank=False, null=True, max_length=200, verbose_name="Transportkosten")
+
+        data.append([
+            Paragraph(str(pos), style=size_nine_helvetica),
+            Paragraph("", style=size_nine_helvetica),
+            Paragraph(f"Transportkosten: {self.partial_billing.transport_service}", style=size_nine_helvetica),
+            Paragraph(str(self.partial_billing.shipping_number_of_pieces), style=right_align_paragraph_style),
+            Paragraph(format_number_thousand_decimal_points(self.partial_billing.shipping_costs),
+                      style=right_align_paragraph_style),
+            Paragraph(format_number_thousand_decimal_points(
+                (self.partial_billing.shipping_costs * self.partial_billing.shipping_number_of_pieces)),
+                style=right_align_paragraph_style),
+        ],)
+
         table = LongTable(data, splitByRow=True, colWidths=colwidths, repeatRows=1)
         table.setStyle(
             TableStyle([
@@ -61,7 +81,7 @@ class PartialPdfView(BillingPdfView):
 
         total_netto = 0
 
-        for product_delivery in DeliveryMissionProduct.objects.filter(delivery__billing__billing_number=billing_number):
+        for product_delivery in self.partial_billing.deliverynoteproductmission_set.all():
             productmission = product_delivery.product_mission
             amount = product_delivery.amount
             if amount is not None:
@@ -70,6 +90,8 @@ class PartialPdfView(BillingPdfView):
                 continue
 
             total_netto += amount * productmission.netto_price
+
+        total_netto += self.partial_billing.shipping_number_of_pieces * self.partial_billing.shipping_costs
 
         horizontal_line_betrag = Drawing(20, 1)
         horizontal_line_betrag.add(Line(425, 0, 200, 0))

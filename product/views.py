@@ -38,7 +38,7 @@ class ProductListView(ListView):
     template_name = "product/product_list.html"
 
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Product).order_by("-id")
+        queryset = self.filter_queryset_from_request()
         return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
@@ -50,6 +50,39 @@ class ProductListView(ListView):
         print(context["object_list"])
         context["filter_fields"] = get_filter_fields(Product, exclude=["id", "main_image", "single_product_id"])
         return context
+
+    def filter_queryset_from_request(self):
+        filter_dict = {}
+        q_filter = Q()
+        for field, verbose_name in self.get_filter_fields(exclude=["main_sku"]):
+            if field in self.request.GET:
+                GET_value = self.request.GET.get(field)
+                if GET_value is not None and GET_value != "":
+                    filter_dict[f"{field}__icontains"] = str(self.request.GET.get(field)).strip()
+
+        print(f"OKAYYYY {filter_dict}")
+
+        for item in filter_dict:
+            q_filter &= Q(**{item: filter_dict[item]})
+
+        if self.request.GET.get("main_sku") is not None and self.request.GET.get("main_sku") != "":
+            sku_value = str(self.request.GET.get("main_sku")).strip()
+            print(f"khalid: {sku_value}")
+            q_filter &= Q(sku__sku__icontains=sku_value)
+
+        print(q_filter)
+        queryset = Product.objects.filter(q_filter).order_by("-id").distinct()
+        return queryset
+
+    def get_filter_fields(self, exclude=None):
+        filter_fields = []
+        fields = Product._meta.get_fields()
+        for field in fields:
+            if hasattr(field, "verbose_name") is False:
+                continue
+            if field.attname not in exclude:
+                filter_fields.append((field.attname, field.verbose_name))
+        return filter_fields
 
     def set_pagination(self, queryset):
         page = self.request.GET.get("page")

@@ -34,7 +34,7 @@
                     </td>
                     <td>{{ delivery_product.delivery_mission_product.product_mission.get_ean_or_sku }}</td>
                     <td>{{ delivery_product.delivery_mission_product.product_mission.state }}</td>
-                    <td>{{ delivery_product.real_amount }}</td>
+                    <td>{{ delivery_product.scan_amount }}</td>
                     <td>{{ delivery_product.missing_amount|default:"" }}</td>
                     <td>{{ delivery_product.amount_minus_missing_amount }}</td>
                     <td>{{ delivery_product.delivery_mission_product.product_mission.netto_price|format_number_thousand_decimal_points }}</td>

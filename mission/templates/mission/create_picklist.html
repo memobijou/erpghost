@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+                    {% if created_picklist %}
+                        <h3>Für diese Lieferung wurde bereits ein Pickauftrag erstellt.</h3>
+                    {% endif %}
+
+                    {% if not created_picklist %}
+
+                        {% if pickinglist|length == 0 %}
+                                <h3>Für diese Lieferung kann kein Pickauftrag erstellt werden.</h3>
+                                <h3>Passen Sie gegebenfalls Lagerbestände an.</h3>
+                        {% endif %}
+
+                        {% if pickinglist|length > 0 %}
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Bild</th>
+                                            <th>EAN / SKU</th>
+                                            <th>Zustand</th>
+                                            <th>Artikelname</th>
+                                            <th>Lagerplatz</th>
+                                            <th>Menge</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for goods_issue_product, stock, position in pickinglist %}
+                                            <tr>
+                                                <td>
+                                                    {% if goods_issue_product.delivery_mission_product.product_mission.product.main_image %}
+                                                        <img
+                                                            src="{{ goods_issue_product.delivery_mission_product.product_mission.product.main_image.url }}"
+                                                            class="img-responsive" style="max-height:80px;">
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {{ goods_issue_product.delivery_mission_product.product_mission.get_ean_or_sku }}
+                                                </td>
+                                                <td>
+                                                    {{  goods_issue_product.delivery_mission_product.product_mission.state }}
+                                                </td>
+                                                <td>
+                                                    {{  goods_issue_product.delivery_mission_product.product_mission.product.title|default:"" }}
+                                                </td>
+                                                <td>
+                                                    {{ position.0.lagerplatz }}
+                                                </td>
+                                                <td>
+                                                    {{ position.1 }}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <form method="POST"> {% csrf_token %}
+                                <div class="text-center">
+                                    <input type="submit" class="btn btn-primary btn-lg" value="Pickliste erstellen"/>
+                                </div>
+                            </form>
+                    {% endif %}
+                {% endif %}
+
+            </div>
+    </div>
+{% endblock %}

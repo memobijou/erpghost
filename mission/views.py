@@ -20,9 +20,9 @@ from utils.utils import get_field_names, get_queries_as_json, set_field_names_on
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
-    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct
+    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct, PickList, PickListProducts
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
-    ProductMissionUpdateForm
+    ProductMissionUpdateForm, BillingForm, PickForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import inlineformset_factory, modelform_factory
 from django.urls import reverse_lazy
@@ -37,92 +37,6 @@ from django.forms.models import model_to_dict
 from django.views import View
 from django.forms import ValidationError
 from django.core.paginator import Paginator
-
-
-class MissionBillingFormView(View):
-    template_name = "mission/billing_form.html"
-    object = None
-
-    def dispatch(self, request, *args, **kwargs):
-        self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        context = {}
-        context["object"] = self.object
-        context["title"] = "Rechnung und Lieferschein generieren"
-        context["billing_delivery_note_products"] = self.get_billing_delivery_note_products()
-        return render(request, self.template_name, context)
-
-    def get_billing_delivery_note_products(self):
-        billing_products = []
-
-        for product_mission in self.object.productmission_set.all():
-            if product_mission.confirmed is None:
-                continue
-            real_amount = 0
-            for real_amount_row in product_mission.realamount_set.all():
-                real_amount += real_amount_row.real_amount
-            if (product_mission.real_amount - real_amount) <= 0:
-                continue
-            billing_products.append((product_mission, product_mission.real_amount - real_amount))
-        return billing_products
-
-    def post(self, request, *args, **kwargs):
-
-        bulk_instances = []
-
-        new_billing = self.get_new_billing()
-        new_delivery_note = self.get_new_delivery_note()
-
-        for product_mission in self.object.productmission_set.all():
-            if product_mission.confirmed is None:
-                continue
-            real_amount = product_mission.real_amount
-            all_amounts_sum = 0
-            for real_amount_row in product_mission.realamount_set.all():
-                all_amounts_sum += real_amount_row.real_amount
-
-            real_amount -= all_amounts_sum
-
-            if product_mission.realamount_set.count() == 0:
-                real_amount = product_mission.real_amount
-            if all_amounts_sum < product_mission.real_amount:
-                bulk_instances.append(RealAmount(product_mission=product_mission,
-                                                 billing_number=new_billing.billing_number,
-                                                 delivery_note_number=new_delivery_note.delivery_note_number,
-                                                 real_amount=real_amount))
-        RealAmount.objects.bulk_create(bulk_instances)
-        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
-
-    def get_new_billing(self):
-        billing = Billing()
-        billing.save()
-        return billing
-
-    def get_new_delivery_note(self):
-        delivery_note = DeliveryNote()
-        delivery_note.save()
-        return delivery_note
-
-    def get_billing_numbers(self):
-        billing_numbers = []
-        product_missions = self.object.productmission_set.all()
-        for product_mission in product_missions:
-
-            for real_amount in product_mission.realamount_set.all():
-                if real_amount.billing.billing_number not in billing_numbers:
-                    billing_numbers.append(real_amount.billing.billing_number)
-        return billing_numbers
-
-    def get_delivery_note_numbers(self):
-        delivery_note_numbers = []
-        product_missions = self.object.productmission_set.all()
-        for product_mission in product_missions:
-            for real_amount in product_mission.realamount_set.all():
-                if real_amount.delivery_note.delivery_note_number not in delivery_note_numbers:
-                    delivery_note_numbers.append(real_amount.delivery_note.delivery_note_number)
-        return delivery_note_numbers
 
 
 class MissionDetailView(DetailView):
@@ -145,7 +59,15 @@ class MissionDetailView(DetailView):
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_products_from_stock()
+        context["deliveries"] = self.get_deliveries()
         return context
+
+    def get_deliveries(self):
+        deliveries = []
+        for delivery in self.object.delivery_set.all():
+            deliveries.append((delivery, list(zip(delivery.goodsissue_set.first().billing_set.all(),
+                               delivery.goodsissue_set.first().deliverynote_set.all()))))
+        return deliveries
 
     def build_fields(self):
         fields = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
@@ -390,7 +312,7 @@ class MissionCreateView(CreateView):
 
         for field_name in ProductMissionForm.base_fields:
             if str(field_name) in self.request.POST:
-                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index].strip()
         return data
 
     def get_amount_product_mission_forms(self):
@@ -413,6 +335,7 @@ class MissionCreateView(CreateView):
     def validate_product_forms_are_valid(self):
         self.validate_product_forms_have_no_duplicates()
         self.validate_product_forms_have_no_skus_with_states()
+        self.validate_product_forms_have_no_ean_without_states()
         product_forms_are_valid = True
         for product_form, product in self.product_forms:
             if product_form.is_valid() is False:
@@ -429,6 +352,18 @@ class MissionCreateView(CreateView):
                     product_form.add_error("state",
                                            ValidationError(
                                                "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
+
+
+    def validate_product_forms_have_no_ean_without_states(self):
+        for product_form, product in self.product_forms:
+            ean_or_sku = product_form.data.get("ean")
+            state = product_form.data.get("state")
+            print(state)
+            if product is not None and product.sku_set.filter(sku=ean_or_sku).count() == 0:
+                if state is None or state == "":
+                    product_form.add_error("state",
+                                           ValidationError(
+                                               "Wenn Sie eine EAN eingeben, müssen Sie einen Zustand auswählen"))
 
     def validate_product_forms_have_no_duplicates(self):
         duplicates = []
@@ -576,7 +511,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
         for field_name in ProductMissionForm.base_fields:
             if str(field_name) in self.request.POST:
-                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index].strip()
         if "delete" in self.request.POST:
             if index < len(self.request.POST.getlist("delete")):
                 data["delete"] = self.request.POST.getlist("delete")[index]
@@ -595,6 +530,8 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
     def validate_product_forms_are_valid(self):
         self.validate_product_forms_have_no_duplicates()
         self.validate_product_forms_have_no_skus_with_states()
+        self.validate_product_forms_have_no_ean_without_states()
+
         product_forms_are_valid = True
         for product_form, product in self.product_forms:
             if product_form.is_valid() is False:
@@ -733,10 +670,12 @@ class ScanMissionUpdateView(UpdateView):
         self.context = {}
         self.delivery = None
         self.delivery_products = None
+        self.picklist = None
 
     def dispatch(self, request, *args, **kwargs):
         self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
         self.delivery_products = self.get_delivery_products()
+        self.picklist = self.delivery.picklist_set.first()
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self, *args, **kwargs):
@@ -746,18 +685,53 @@ class ScanMissionUpdateView(UpdateView):
     def get_context_data(self, *args, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["object"] = self.get_object(*args, **kwargs)
+        self.context["delivery"] = self.delivery
         self.context["title"] = "Warenausgang"
         self.context["delivery_products"] = self.delivery_products
+        self.context["picklist_all_picked"] = self.is_picklist_all_picked()
+        self.context["picklist_has_goods"] = self.check_if_picklist_has_goods()
         self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
         self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         self.context["select_range"] = range(20)
         return self.context
 
+    def check_if_picklist_has_goods(self):
+        if self.picklist is None or self.picklist == "":
+            return False
+
+        picklist_rows = self.picklist.picklistproducts_set.all()
+
+        if picklist_rows.count() > 0:
+            goods_sum = 0
+            for pick_row in picklist_rows:
+                if pick_row.confirmed is not None:
+                    goods_sum += int(pick_row.amount_minus_missing_amount())
+            if goods_sum > 0:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    def is_picklist_all_picked(self):
+        if self.picklist is None or self.picklist == "":
+            return False
+
+        picklist_rows = self.picklist.picklistproducts_set.all()
+
+        if picklist_rows.count() > 0:
+            for pick_row in picklist_rows:
+                if pick_row.confirmed is None:
+                    return False
+            return True
+        else:
+            return False
+
     def get_delivery_products(self):
         goodsissue_products = self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all()
         exclude_amount_zero_ids = []
         for goodsissue_product in goodsissue_products:
-            if goodsissue_product.real_amount is None or goodsissue_product.real_amount == 0:
+            if goodsissue_product.scan_amount() is None or goodsissue_product.scan_amount() == 0:
                 exclude_amount_zero_ids.append(goodsissue_product.pk)
         return self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all().\
             exclude(pk__in=exclude_amount_zero_ids)
@@ -871,7 +845,7 @@ class MissionStockCheckForm(View):
             state = product_mission.state
             stock = self.get_stock_from_product(product, state)
             delivery_amount = self.get_delivery_amount(product_mission)
-            if delivery_amount > 0:
+            if int(delivery_amount) > 0:
                 delivery_products.append((product_mission, delivery_amount, stock))
             print(f"RELOAD: {delivery_amount}/{amount} --- {state} --- {stock}")
         return delivery_products
@@ -882,6 +856,9 @@ class MissionStockCheckForm(View):
         state = product_mission.state
 
         product_stock = product.stock_set.first()
+
+        if product_stock is None:
+            return 0
 
         available_stock = product_stock.get_available_total_stocks().get(state)
 
@@ -919,9 +896,7 @@ class MissionStockCheckForm(View):
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
     def create_delivery(self):
-        billing = Billing()
-        billing.save()
-        delivery = Delivery(mission=self.object, billing=billing)
+        delivery = Delivery(mission=self.object)
         delivery.save()
         goods_issue = GoodsIssue(delivery=delivery)
         goods_issue.save()
@@ -948,31 +923,102 @@ class CreatePartialDeliveryNote(View):
         super().__init__(**kwargs)
         self.goods_issue = None
         self.goods_issue_products = None
+        self.picklist = None
         self.context = None
 
     def dispatch(self, request, *args, **kwargs):
         self.goods_issue = GoodsIssue.objects.get(pk=self.kwargs.get("goods_issue_pk"))
         self.goods_issue_products = self.get_goods_issue_products()
+        self.picklist = self.goods_issue.delivery.picklist_set.first()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):
-        self.context = {"title": "Lieferschein erstellen", "goods_issue": self.goods_issue,
-                        "goods_issue_products": self.goods_issue_products}
+        self.context = self.get_context()
+        self.context["form"] = BillingForm
         return render(request, self.template_name, self.context)
 
     def post(self, request, **kwargs):
-        self.create_partial_delivery()
+        if len(self.goods_issue_products) > 0:
+
+            if BillingForm(data=request.POST).is_valid() is True:
+                self.create_partial_delivery()
+            else:
+                self.goods_issue = GoodsIssue.objects.get(pk=self.kwargs.get("goods_issue_pk"))
+                self.goods_issue_products = self.get_goods_issue_products()
+                self.context = self.get_context()
+                self.context["form"] = BillingForm(data=self.request.POST)
+                return render(request, self.template_name, self.context)
+        else:
+            self.cancel_partial_delivery()
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
+    def get_context(self):
+        self.context = {"title": "Lieferschein erstellen", "goods_issue": self.goods_issue,
+                        "goods_issue_products": self.goods_issue_products,
+                        "picklist": self.picklist,
+                        "picklist_all_picked": self.picklist_all_picked(),
+                        "picklist_with_pick_rows_exist": self.picklist_with_pick_rows_exist(),
+                        "goods_issue_has_unscanned_products": self.goods_issue_has_unscanned_products(),
+                        "goods_issue_has_nothing_to_scan": self.goods_issue_has_nothing_to_scan(),
+                        }
+
+        return self.context
+
+    def goods_issue_has_unscanned_products(self):
+        to_scan_rows = self.goods_issue.goodsissuedeliverymissionproduct_set.all()
+
+        if to_scan_rows.count() > 0:
+            for to_scan_row in to_scan_rows:
+                if to_scan_row.confirmed is None:
+                    return True
+        return False
+
+    def goods_issue_has_nothing_to_scan(self):
+        to_scan_rows = self.goods_issue.goodsissuedeliverymissionproduct_set.all()
+        sum_scan_amount = 0
+        if to_scan_rows.count() > 0:
+            for to_scan_row in to_scan_rows:
+                if to_scan_row.confirmed is None:
+                    sum_scan_amount += to_scan_row.scan_amount()
+        if sum_scan_amount <= 0:
+            return True
+        else:
+            return False
+
+    def picklist_all_picked(self):
+        if self.picklist is not None and self.picklist != "":
+            picklist_rows = self.picklist.picklistproducts_set.all()
+            if picklist_rows.count() > 0:
+                for pick_row in picklist_rows:
+                    if pick_row.confirmed is None:
+                        return False
+                return True
+
+    def picklist_with_pick_rows_exist(self):
+        if self.picklist is not None and self.picklist != "":
+            picklist_rows = self.picklist.picklistproducts_set.all()
+            if picklist_rows.count() > 0:
+                return True
+        else:
+            return False
+
     def get_goods_issue_products(self):
-        goods_issue_delivery_mission_products = GoodsIssueDeliveryMissionProduct.objects.exclude(confirmed=None)
+        goods_issue_delivery_mission_products = \
+            self.goods_issue.goodsissuedeliverymissionproduct_set.all().exclude(confirmed=None)
+
         smaller_or_equal_than_zero_ids = []
         for goods_issue_delivery_mission_product in goods_issue_delivery_mission_products:
-            if goods_issue_delivery_mission_product.real_amount -\
+            if goods_issue_delivery_mission_product.real_amount() -\
                     (goods_issue_delivery_mission_product.missing_amount or 0) <= 0:
                 smaller_or_equal_than_zero_ids.append(goods_issue_delivery_mission_product.pk)
 
-        return goods_issue_delivery_mission_products.exclude(pk__in=smaller_or_equal_than_zero_ids)
+        goods_issue_products = goods_issue_delivery_mission_products.exclude(pk__in=smaller_or_equal_than_zero_ids)
+
+        goods_issue_product_stocks = []
+        for goods_issue_product in goods_issue_products:
+            stock = self.get_product_mission_stock(goods_issue_product.delivery_mission_product.product_mission)
+            goods_issue_product_stocks.append(stock)
+        return list(zip(goods_issue_products, goods_issue_product_stocks))
 
     def create_partial_delivery(self):
         bulk_instances = []
@@ -980,19 +1026,329 @@ class CreatePartialDeliveryNote(View):
         delivery_note = DeliveryNote(goods_issue=self.goods_issue)
         delivery_note.save()
 
-        for goods_issue_product in self.goods_issue_products:
-            instance = DeliveryNoteProductMission(delivery_note=delivery_note,
-                                                  amount=goods_issue_product.amount_minus_missing_amount,
+        billing = Billing(goods_issue=self.goods_issue, transport_service=self.request.POST.get("transport_service"),
+                          shipping_number_of_pieces=self.request.POST.get("shipping_number_of_pieces"),
+                          shipping_costs=self.request.POST.get("shipping_costs"))
+        billing.save()
+
+        print(f"AKIII 1: {self.goods_issue_products} - {len(list(self.goods_issue_products))}")
+
+        for goods_issue_product, stock in self.goods_issue_products:
+            print(goods_issue_product)
+            instance = DeliveryNoteProductMission(delivery_note=delivery_note, billing=billing,
+                                                  amount=goods_issue_product.amount_minus_missing_amount(),
                                                   product_mission=goods_issue_product.delivery_mission_product
                                                   .product_mission)
             bulk_instances.append(instance)
+        print(f"AKIII 2: {bulk_instances}")
 
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
-        for goods_issue_product in self.goods_issue_products:
+        for goods_issue_product, stock in self.goods_issue_products:
             goods_issue_product.missing_amount = 0
             goods_issue_product.confirmed = None
             goods_issue_product.save()
+
+        self.goods_issue.delivery.picklist_set.all().delete()
+
+    def cancel_partial_delivery(self):
+        goods_issue_products = self.goods_issue.goodsissuedeliverymissionproduct_set.all()
+
+        for goods_issue_product in goods_issue_products:
+            goods_issue_product.missing_amount = 0
+            goods_issue_product.confirmed = None
+            goods_issue_product.save()
+
+        self.goods_issue.delivery.picklist_set.all().delete()
+
+    def get_picking_list(self):
+        picking_list = []
+
+        goods_issue_products = self.get_goods_issue_products()
+
+        for goods_issue_product, stock in goods_issue_products:
+            to_pick_stocks = self.get_product_position_with_stock(goods_issue_product)
+
+            for to_pick_stock in to_pick_stocks:
+                picking_list.append((goods_issue_product, stock, to_pick_stock))
+        return picking_list
+
+    def get_product_position_with_stock(self, goods_issue_product):
+        product_mission = goods_issue_product.delivery_mission_product.product_mission
+        sku = product_mission.product.sku_set.filter(state=product_mission.state).first()
+        product_stock = Stock.objects.filter(
+            Q(Q(sku=sku, zustand="") |
+              Q(zustand=product_mission.state, ean_vollstaendig=product_mission.product.ean))
+        ).distinct("pk").order_by("pk", '-bestand')
+        print(f"EWA {product_stock}")
+        to_pick_stocks = []
+        available_stock = product_stock.first().get_available_total_stocks().get(product_mission.state)
+
+        for single_stock in product_stock:
+            print(f"sam sam: {single_stock.lagerplatz} --- {product_mission.get_ean_or_sku()} --- {sku} ---- "
+                  f"{single_stock.bestand}")
+
+            if int(single_stock.bestand) >= int(goods_issue_product.real_amount()):
+                to_pick_stocks = [(single_stock, goods_issue_product.real_amount())]
+                break
+            else:
+                sum_to_pick_stock = 0
+                for _, amount in to_pick_stocks:
+                    sum_to_pick_stock += int(amount)
+
+                current_bestand = single_stock.bestand
+                print(f"sharumula: {current_bestand}")
+
+                if sum_to_pick_stock + int(current_bestand) >= goods_issue_product.real_amount():
+                    to_pick_stocks.append((single_stock, int(goods_issue_product.real_amount()) - sum_to_pick_stock))
+                    break
+                else:
+                    to_pick_stocks.append((single_stock, current_bestand))
+        print(f"??????!!-- {to_pick_stocks}")
+        return to_pick_stocks
+
+    def get_product_mission_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+        stock = 0
+        if product.ean is not None and product.ean != "":
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    tmp_stock = Stock.objects.filter(sku=sku_instance.sku).first()
+
+                    if tmp_stock is not None and tmp_stock != "" and tmp_stock != 0:
+                        stock = tmp_stock
+                        break
+        if stock is not None and stock != 0 and stock != "":
+            return stock.get_total_stocks().get(state)
+
+    def get_product_mission_available_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+        stock = 0
+        if product.ean is not None and product.ean != "":
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    tmp_stock = Stock.objects.filter(sku=sku_instance.sku).first()
+
+                    if tmp_stock is not None and tmp_stock != "" and tmp_stock != 0:
+                        stock = tmp_stock
+                        break
+        if stock is not None and stock != 0 and stock != "":
+            return stock.get_available_total_stocks().get(state)
+
+
+class CreatePickListView(View):
+    template_name = "mission/create_picklist.html"
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
+        self.delivery = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Mission.objects.get(pk=self.kwargs.get("pk"))
+        self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        context = {
+            "title": "Pickliste erstellen",
+            "object": self.object,
+            "delivery": self.delivery,
+            "pickinglist": self.get_picking_list(),
+            "created_picklist": self.delivery.picklist_set.all()
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        picking_list = self.get_picking_list()
+        pick_list_instance = PickList(delivery=self.delivery)
+        pick_list_instance.save()
+
+        bulk_instances = []
+
+        for goods_issue_product, stock, position in picking_list:
+            bulk_instances.append(PickListProducts(pick_list=pick_list_instance,
+                                                   product_mission=
+                                                   goods_issue_product.delivery_mission_product.product_mission,
+                                                   position=position[0].lagerplatz, amount=position[1]))
+        PickListProducts.objects.bulk_create(bulk_instances)
+        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
+
+    def get_picking_list(self):
+        picking_list = []
+        goods_issue_products = self.get_goods_issue_products()
+
+        for goods_issue_product, stock in goods_issue_products:
+            to_pick_stocks = self.get_product_position_with_stock(goods_issue_product)
+
+            for to_pick_stock in to_pick_stocks:
+                picking_list.append((goods_issue_product, stock, to_pick_stock))
+        return picking_list
+
+    def get_product_position_with_stock(self, goods_issue_product):
+        product_mission = goods_issue_product.delivery_mission_product.product_mission
+        sku = product_mission.product.sku_set.filter(state=product_mission.state).first()
+        product_stock = Stock.objects.filter(
+            Q(Q(sku=sku, zustand="") | Q(sku=sku, zustand=None) |
+              Q(zustand=product_mission.state, ean_vollstaendig=product_mission.product.ean))
+        ).exclude(bestand__lt=1).distinct("lagerplatz").order_by("lagerplatz")
+        to_pick_stocks = []
+
+        for single_stock in product_stock:
+            current_bestand_minus_missing_amount = single_stock.bestand - (single_stock.missing_amount or 0)
+
+            if current_bestand_minus_missing_amount == 0:
+                continue
+
+            if int(current_bestand_minus_missing_amount) >= int(goods_issue_product.real_amount()):
+                to_pick_stocks = [(single_stock, goods_issue_product.real_amount())]
+                break
+            else:
+                sum_to_pick_stock = 0
+                for _, amount in to_pick_stocks:
+                    sum_to_pick_stock += int(amount)
+
+                print(f"sharumula: {current_bestand_minus_missing_amount}")
+
+                if sum_to_pick_stock + int(current_bestand_minus_missing_amount) >= goods_issue_product.real_amount():
+                    to_pick_stocks.append((single_stock, int(goods_issue_product.real_amount()) - sum_to_pick_stock))
+                    break
+                else:
+                    to_pick_stocks.append((single_stock, current_bestand_minus_missing_amount))
+        return to_pick_stocks
+
+    def get_goods_issue_products(self):
+        goods_issue_delivery_mission_products = \
+            self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all()
+        smaller_or_equal_than_zero_ids = []
+        for goods_issue_delivery_mission_product in goods_issue_delivery_mission_products:
+            if goods_issue_delivery_mission_product.real_amount() -\
+                    (goods_issue_delivery_mission_product.missing_amount or 0) <= 0:
+                smaller_or_equal_than_zero_ids.append(goods_issue_delivery_mission_product.pk)
+
+        goods_issue_products = goods_issue_delivery_mission_products.exclude(pk__in=smaller_or_equal_than_zero_ids)
+
+        print(f"test este {goods_issue_products.count()}")
+        goods_issue_product_stocks = []
+        for goods_issue_product in goods_issue_products:
+            stock = self.get_product_mission_stock(goods_issue_product.delivery_mission_product.product_mission)
+            goods_issue_product_stocks.append(stock)
+        return list(zip(goods_issue_products, goods_issue_product_stocks))
+
+    def get_product_mission_stock(self, product_mission):
+        product = product_mission.product
+        state = product_mission.state
+        stock = 0
+        if product.ean is not None and product.ean != "":
+            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
+
+        for sku_instance in product.sku_set.all():
+            if sku_instance is not None:
+                if sku_instance.sku is not None and sku_instance.sku != "":
+                    tmp_stock = Stock.objects.filter(sku=sku_instance.sku).first()
+
+                    if tmp_stock is not None and tmp_stock != "" and tmp_stock != 0:
+                        stock = tmp_stock
+                        break
+        if stock is not None and stock != 0 and stock != "":
+            return stock.get_total_stocks().get(state)
+
+
+class PickListView(View):
+    template_name = "mission/picklist.html"
+
+    def __init__(self, **kwargs):
+        self.delivery = None
+        self.picklist = None
+        super().__init__(**kwargs)
+
+    def dispatch(self, request, *args, **kwargs):
+        self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.picklist = self.get_picklist()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, **kwargs):
+        context = {"title": "Pickliste", "delivery": self.delivery, "picklist": self.picklist}
+        return render(request, self.template_name, context)
+
+    def get_picklist(self):
+        if self.delivery.picklist_set.first() is None:
+            return []  # Keine Pickliste erstellt
+
+        picklist = self.delivery.picklist_set.first().picklistproducts_set.all()
+        pickforms = []
+        for pick_row in picklist:
+            pickforms.append(PickForm())
+
+        return list(zip(picklist, pickforms))
+
+    def get_validated_picklist(self, pick_id):
+        picklist = self.delivery.picklist_set.first().picklistproducts_set.all()
+        pickforms = []
+        for pick_row in picklist:
+            if int(pick_row.pk) == int(pick_id):
+                form = PickForm(data=self.request.POST)
+                form.is_valid()
+                form.add_error("missing_amount", f"Die Fehlende Menge darf nicht größer als "
+                                                 f"{pick_row.amount} sein.")
+                pickforms.append(form)
+            else:
+                pickforms.append(PickForm())
+        return list(zip(picklist, pickforms))
+
+    def post(self, request, *args, **kwargs):
+        pick_id = self.request.GET.get("pick_id")
+        pick_row = PickListProducts.objects.get(pk=pick_id)
+        missing_amount = self.request.POST.get("missing_amount")
+
+        if missing_amount is not None and missing_amount != "":
+            if int(missing_amount) > int(pick_row.amount):
+                print("????????????")
+                print(f"AKHI post {self.picklist}")
+
+                context = {"title": "Pickliste", "delivery": self.delivery,
+                           "picklist": self.get_validated_picklist(pick_id)
+                           }
+                for row, form in self.picklist:
+                    print(f"{row.pk} : {pick_id}")
+
+                return render(request, "mission/picklist.html", context)
+
+            if int(missing_amount) > 0:
+
+                pick_row.confirmed = False
+                pick_row.missing_amount = missing_amount
+        else:
+            pick_row.confirmed = True
+        pick_row.save()
+        stock = Stock.objects.filter(Q(lagerplatz=pick_row.position) &
+                                     Q(
+                                       Q(ean_vollstaendig=pick_row.product_mission.product.ean,
+                                         zustand=pick_row.product_mission.state) |
+                                       Q(sku=pick_row.product_mission.product.sku_set.
+                                         filter(state=pick_row.product_mission.state).first())
+                                    )
+                                    ).first()
+
+        if stock.bestand-pick_row.amount_minus_missing_amount() < 1:
+            stock.delete()
+        else:
+            stock.bestand -= pick_row.amount_minus_missing_amount()
+            stock.missing_amount = pick_row.missing_amount
+            stock.save()
+
+        print(pick_row.amount_minus_missing_amount())
+        return HttpResponseRedirect(
+            reverse_lazy("mission:picklist",
+                         kwargs={"pk": self.kwargs.get("pk"), "delivery_pk": self.kwargs.get("delivery_pk")}))
 
 
 class ConfirmView(View):

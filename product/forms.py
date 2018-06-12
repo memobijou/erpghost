@@ -72,7 +72,7 @@ class ProductForm(forms.ModelForm):
 class SingleProductForm(forms.ModelForm):
     class Meta:
         model = Product
-        fields = ["title", "main_image"]
+        fields = ["title", "main_image",  "short_description", "description", ]
 
     state = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"),
                                        ("C", "C"), ("D", "D")), required=True, label="Zustand")

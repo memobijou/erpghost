@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="pull-right">
+                <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
+            </div>
+            {% if picklist|length == 0 %}
+                    <div class="col-md-12">
+                        <h3>Keine Pickliste vorhanden</h3>
+                        <p>Sie können <a href="{% url 'mission:create_picklist' pk=delivery.mission.pk delivery_pk=delivery.pk%}">hier</a> eine Pickliste erstellen</p>
+                    </div>
+            {% else %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Bild</th>
+                            <th>EAN / SKU</th>
+                            <th>Zustand</th>
+                            <th>Artikelname</th>
+                            <th>Lagerplatz</th>
+                            <th>Menge</th>
+                            <th>Artikel ausbuchen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for picklist_row, pick_form in picklist %}
+                            <tr
+                                {% if picklist_row.confirmed == True %}
+                                    class="success"
+                                {% elif picklist_row.confirmed == False %}
+                                    class="danger"
+                                {% endif %}
+                            >
+                                <td>
+                                    {% if picklist_row.product_mission.product.main_image %}
+                                        <img
+                                            src="{{ picklist_row.product_mission.product.main_image.url }}"
+                                            class="img-responsive" style="max-height:80px;">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ picklist_row.product_mission.get_ean_or_sku }}
+                                </td>
+                                <td>
+                                    {{  picklist_row.product_mission.state }}
+                                </td>
+                                <td>
+                                    {{  picklist_row.product_mission.product.title|default:"" }}
+                                </td>
+                                <td>
+                                    {{ picklist_row.position }}
+                                </td>
+                                <td>
+                                    {{ picklist_row.amount }}
+                                </td>
+                                <td>
+                                    {% if picklist_row.confirmed == None %}
+                                        <form method="POST" action="?pick_id={{ picklist_row.pk }}">{% csrf_token %}
+
+                                            <div class="input-group">
+                                              <span class="input-group-btn">
+                                                <input class="btn btn-primary" type="submit" value="Ausbuchen">
+                                              </span>
+                                            {{ pick_form.missing_amount }}
+                                            </div><!-- /input-group -->
+                                            <div style="color:red;">
+                                                {% for missing_amount_error in pick_form.missing_amount.errors %}
+                                                    {{ missing_amount_error }}
+                                                {% endfor %}
+                                            </div>
+                                            {{ pick_form.non_field_errors }}
+                                            <div class="input-group">
+                                            </div>
+                                        </form>
+                                    {% else %}
+                                        <p>Ausgebuchte Menge: <b>{{ picklist_row.amount_minus_missing_amount }}</b></p>
+                                        {% if picklist_row.confirmed == False %}
+                                            <p>Fehlende Menge: <b>{{ picklist_row.missing_amount }}</b></p>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+{% endblock %}

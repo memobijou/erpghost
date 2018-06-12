@@ -179,7 +179,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 
         for field_name in ProductOrderForm.base_fields:
             if str(field_name) in self.request.POST:
-                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index].strip()
         if "delete" in self.request.POST:
             if index < len(self.request.POST.getlist("delete")):
                 data["delete"] = self.request.POST.getlist("delete")[index]

@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
-from mission.models import RealAmount, DeliveryMissionProduct
+from mission.models import RealAmount, DeliveryMissionProduct, DeliveryNoteProductMission, PickListProducts
 from product.models import Product
 from sku.models import Sku
 
@@ -32,6 +32,7 @@ class Stock(models.Model):
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
+    missing_amount = models.IntegerField(blank=True, null=True, verbose_name="Fehlender Bestand")
     product = models.ForeignKey(Product, blank=True, null=True, on_delete=models.SET_NULL)
 
     def get_absolute_url(self):
@@ -239,9 +240,23 @@ class Stock(models.Model):
                         .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
                         .aggregate(Sum("amount")).get("amount__sum")
 
+                    pick_list_total = 0
+
+                    for pick_row in PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                    product_mission__state=sku_state):
+                        if pick_row.confirmed is not None and pick_row.confirmed != "":
+                            pick_list_total += pick_row.amount_minus_missing_amount()
+
+                    delivery_note_total = 0
+
+                    for delivery_note_product in DeliveryNoteProductMission.objects\
+                            .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
+                        delivery_note_total += delivery_note_product.amount
+                    print(f"haaaa: {delivery_note_total} --- {pick_list_total}")
                     if real_amount_total is not None and real_amount_total != "":
+                        real_amount_total -= pick_list_total
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
-                        # total["Gesamt"] -= f"{int(total['Gesamt'])}"
+                        available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
                 print(f"aball 2: {available_total}")
         total["Neu"] = f"{available_total.get('Neu')}/{total.get('Neu')}"
@@ -377,14 +392,32 @@ class Stock(models.Model):
                 for sku in product.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
+
                     real_amount_total = DeliveryMissionProduct.objects.\
                         filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
                         .aggregate(Sum("amount")).get("amount__sum")
 
-                    if real_amount_total is not None:
-                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
-                        # total["Gesamt"] -= f"{int(total['Gesamt'])}"
+                    pick_list_total = 0
 
+                    for pick_row in PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                    product_mission__state=sku_state):
+                        if pick_row.confirmed is not None and pick_row.confirmed != "":
+                            pick_list_total += pick_row.amount_minus_missing_amount()
+
+                    delivery_note_total = 0
+
+                    for delivery_note_product in DeliveryNoteProductMission.objects\
+                            .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
+                        delivery_note_total += delivery_note_product.amount
+
+                    print(f"baaa {delivery_note_total} - {pick_list_total}")
+
+                    if real_amount_total is not None and real_amount_total != "":
+                        real_amount_total -= pick_list_total
+                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
+                        available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
+
+                        # total["Gesamt"] -= f"{int(total['Gesamt'])}"
                 print(f"aball 2: {available_total}")
 
         available_total_gesamt = 0
@@ -398,12 +431,20 @@ class Stock(models.Model):
 
         return available_total
 
+    def get_reserved_stocks(self):
+        available_stocks = self.get_available_total_stocks()
+        total_stocks = self.get_total()
+        reserved_stocks = {"A": int(total_stocks.get("A"))-int(available_stocks.get("A")),
+                           "B": int(total_stocks.get("B")) - int(available_stocks.get("B")),
+                           "C": int(total_stocks.get("C")) - int(available_stocks.get("C")),
+                           "D": int(total_stocks.get("D")) - int(available_stocks.get("D")),
+                           "Neu": int(total_stocks.get("Neu")) - int(available_stocks.get("Neu")),
+                           "Gesamt": int(total_stocks.get("Gesamt")) - int(available_stocks.get("Gesamt")),
+                           }
+        return reserved_stocks
+
     def get_available_stocks_of_total_stocks(self, product=None):
-        result = {}
         total_stocks = self.get_total_stocks(product=product)
-        # available_stocks = self.get_available_total_from_all_products(product=product)
-        # for state, total in total_stocks.items():
-        #     result[state] = f"{available_stocks.get(state)}/{total}"
         return total_stocks
 
     def available_total_amount(self, state=None):
@@ -439,10 +480,16 @@ class Stock(models.Model):
             total["bestand__sum"] -= total_reserved
         else:
             return None
-        print("?!?!: " + str(total))
         total = {"bestand__sum": total["bestand__sum"]}
 
         return total["bestand__sum"]
+
+    def get_state(self):
+        if self.zustand is not None and self.zustand != "":
+            return self.zustand
+
+        if self.product is not None:
+            return self.product.get_state_from_sku(self.sku)
 
 
 class Stockdocument(models.Model):

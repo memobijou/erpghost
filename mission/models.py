@@ -1,6 +1,7 @@
 from django.db import models
 import datetime
 from django.core.urlresolvers import reverse
+from django.db.models import Q
 
 from adress.models import Adress
 from customer.models import Customer
@@ -126,11 +127,34 @@ class RealAmountModelManager(models.Manager):
 
 class Delivery(models.Model):
     mission = models.ForeignKey(Mission, null=True, blank=True)
-    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
 
 
 class GoodsIssue(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+
+
+class PickList(models.Model):
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+
+
+class IgnoreStocksPickList(models.Model):
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
+
+
+class PickListProducts(models.Model):
+    pick_list = models.ForeignKey(PickList, null=True, blank=True)
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
+    position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
+    confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
+    missing_amount = models.IntegerField(verbose_name="Fehlende Menge", blank=True, null=True)
+
+    def amount_minus_missing_amount(self):
+        if self.missing_amount is not None and self.missing_amount != "":
+            return int(self.amount) - int(self.missing_amount)
+        return self.amount
 
 
 class GoodsIssueDeliveryMissionProduct(models.Model):
@@ -140,21 +164,28 @@ class GoodsIssueDeliveryMissionProduct(models.Model):
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
     confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
 
-    @property
     def amount_minus_missing_amount(self):
         if self.missing_amount is None:
-            return self.real_amount
-        return self.real_amount-self.missing_amount
+            return self.scan_amount()
+        return self.scan_amount()-self.missing_amount
 
-    @property
     def real_amount(self):
         amount = self.amount
         if self.goods_issue is not None and self.goods_issue != "":
-
             for delivery_note in self.goods_issue.deliverynote_set.all():
                 for delivery_note_product in delivery_note.deliverynoteproductmission_set\
                         .filter(product_mission__exact=self.delivery_mission_product.product_mission):
                     amount -= delivery_note_product.amount
+        return amount
+
+    def scan_amount(self):
+        amount = 0
+        picklist = self.goods_issue.delivery.picklist_set.first()
+        if picklist is not None and picklist != "":
+            for pick_row in picklist.picklistproducts_set.filter(Q(Q(confirmed=True) | Q(confirmed=False))
+                                                                 & Q(product_mission=
+                                                                     self.delivery_mission_product.product_mission)):
+                amount += pick_row.amount_minus_missing_amount()
         return amount
 
 
@@ -162,6 +193,18 @@ class DeliveryMissionProduct(models.Model):
     delivery = models.ForeignKey(Delivery, null=True, blank=True)
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     amount = models.IntegerField(blank=True, null=True)
+
+    def real_amount(self):
+        amount = 0
+        delivery_notes_products = DeliveryNoteProductMission.objects.\
+            filter(product_mission=self.product_mission, delivery_note__goods_issue__delivery=self.delivery)
+        if delivery_notes_products.count() > 0:
+            for row in delivery_notes_products:
+                amount += row.amount
+        return amount
+
+    def missing_amount(self):
+        return self.amount-self.real_amount()
 
 
 class RealAmount(models.Model):
@@ -188,6 +231,12 @@ class RealAmount(models.Model):
 
 class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
+    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+
+    transport_service = models.CharField(choices=shipping_choices, blank=False, null=True, max_length=200,
+                                         verbose_name="Transportdienstleister")
+    shipping_number_of_pieces = models.IntegerField(blank=False, null=True, verbose_name="Stückzahl Transport")
+    shipping_costs = models.FloatField(blank=False, null=True, max_length=200, verbose_name="Transportkosten")
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -202,7 +251,6 @@ class DeliveryNote(models.Model):
         ordering = ['pk']
 
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
-    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
     goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -216,6 +264,5 @@ class DeliveryNote(models.Model):
 class DeliveryNoteProductMission(models.Model):
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     amount = models.IntegerField(blank=True, null=True)
-    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
-
     delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
+    billing = models.ForeignKey("mission.Billing", blank=True, null=True)

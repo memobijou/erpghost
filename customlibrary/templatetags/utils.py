@@ -139,6 +139,8 @@ def has_group(request, name):
 
 @register.filter
 def multiply(value, arg):
+    if isinstance(arg, str):
+        arg = int(arg)
     return value*arg
 
 

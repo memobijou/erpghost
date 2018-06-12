@@ -4,6 +4,13 @@
 {% block content %}
     <div class="panel panel-default">
         <div class="panel-body">
+            <div class="pull-right">
+                <p><a href="{% url 'mission:detail' pk=goods_issue.delivery.mission.pk %}">Zur Ansicht</a></p>
+            </div>
+            <br/><br/>
+            {% if error %}
+                <h3 style="color:red;">{{ error }}</h3>
+            {% endif %}
             {% if goods_issue_products %}
                 <div class="table-responsive">
                     <table class="table table-bordered">
@@ -13,11 +20,11 @@
                                 <th>EAN / SKU</th>
                                 <th>Zustand</th>
                                 <th>Artikelname</th>
-                                <th>Menge</th>
+                                <th>Liefermenge</th>
                             </tr>
                         </thead>
                         <tbody>
-                        {% for goods_issue_product in goods_issue_products %}
+                        {% for goods_issue_product, stock in goods_issue_products %}
                             <tr>
                                 <td>
                                     {% if goods_issue_product.delivery_mission_product.product_mission.product.main_image %}
@@ -45,12 +52,60 @@
 
                 {% if goods_issue_products %}
                     <form method="POST">{% csrf_token %}
-                        <div class="text-center">
-                            <input type="Submit" class="btn btn-primary btn-lg" value="Lieferschein erstellen">
+                        <div class="col-md-3"></div>
+                        <div class="col-md-6 text-center">
+                            {{ form.as_p }}
+                        </div>
+                        <div class="col-md-3"></div>
+
+                        <div class="col-md-12" style="padding-top:30px;">
+                            <div class="text-center">
+                                <input type="Submit" class="btn btn-primary btn-lg" value="Lieferschein und Rechnung erstellen">
+                            </div>
                         </div>
                     </form>
                 {% else %}
-                    <h3>Um einen Lieferschein erstellen zu können, müssen erst alle Artikel am Warenausgang bestätigt werden.</h3>
+                    {% if picklist_all_picked == False %}
+                        <div class="col-md-12">
+                            <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
+                            <p>Sie müssen erst den Pickauftrag beenden um einen Lieferschein und eine Rechnung zu erstellen.
+                            </p>
+                            <p>
+                                <a href="{% url 'mission:picklist' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Hier</a> geht es zum Pickauftrag.
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    {% if picklist_with_pick_rows_exist == False %}
+                        <div class="col-md-12">
+                            <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
+                            <p>Um einen Lieferschein und eine Rechnung erstellen zu können, muss eine Pickliste erstellt werden
+                                und die Ware gepickt werden.</p>
+                        </div>
+                    {% endif %}
+
+                    {% if picklist_with_pick_rows_exist == True and picklist_all_picked == True %}
+                        {% if goods_issue_has_unscanned_products == True  and goods_issue_has_nothing_to_scan == False%}
+                            <div class="col-md-12">
+                                <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
+                                <p>Sie müssen erst die Ware am Warenausgang bestätigen um einen Lieferschein
+                                    und eine Rechnung zu erstellen. <a href="{% url 'mission:scan' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Hier</a> kommen Sie zum Warenausgang.</p>
+                            </div>
+                        {% else %}
+                            <div class="col-md-12">
+                                <h3>Lieferschein und Rechnnung können nicht erstellt werden</h3>
+                                <p></p>
+                            </div>
+
+                            <form method="POST">{% csrf_token %}
+                                <div class="col-md-12" style="padding-top:30px;">
+                                    <div class="text">
+                                        <input type="Submit" class="btn btn-danger btn-lg" value="Lieferschein und Rechnung stornieren">
+                                    </div>
+                                </div>
+                            </form>
+                        {% endif %}
+                    {% endif %}
                 {% endif %}
             </div>
         </div>

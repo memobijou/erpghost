@@ -82,7 +82,7 @@ class StockListView(LoginRequiredMixin, ListView):
                 if GET_value is not None and GET_value != "":
                     filter_dict[f"{field}__icontains"] = str(self.request.GET.get(field)).strip()
 
-        print(f"OKAYYYY {filter_dict}")
+        print(f"OKAYYYY1 {filter_dict}")
 
         for item in filter_dict:
             q_filter &= Q(**{item: filter_dict[item]})

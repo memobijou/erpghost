@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+        <style>
+            .is-table-row {
+                display: table;
+            }
+            .is-table-row [class*="col-"] {
+                float: none;
+                display: table-cell;
+                vertical-align: top;
+            }
+        </style>
+
+    <div class="is-table-row" style="padding-bottom: 20px;width:100%">
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+        </div>
+
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                {% if object.ean_vollstaendig %}
+                     <b>EAN: </b> <span> {{ object.ean_vollstaendig }} </span>
+                {% elif object.sku %}
+                     <b>SKU: </b> <span> {{ object.sku }} </span>
+                {% elif object.title %}
+                     <b>keine EAN oder SKU vorhanden</b>
+                {% elif product.title %}
+                     <b>keine EAN oder SKU vorhanden </b>
+                {% else %}
+                    <b>Kein Artikel gebucht</b>
+                {% endif %}
+                {% if object.zustand %}
+                     - <b>Zustand: </b>{{ object.zustand }}<br/>
+                {% elif sku_state %}
+                     - <b>Zustand: </b>{{ sku_state }}<br/>
+                {% endif %}
+        </div>
+        <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
+                <b>Aktuelle Menge: </b> <span> {{ object.bestand }} </span></br>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if object.pk %}
+                <div class="pull-right">
+                    <p><a href="{% url 'stock:detail' pk=object.id %}">Zur Ansicht</a></p>
+                </div>
+            {% endif %}
+            {% if object.missing_amount %}
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                <div class="text-center">
+                <p><b>Fehlender Bestand:</b></p>
+                <p> <span style="color:red;font-size:16pt;">{{ object.missing_amount }}</span></p>
+
+                <form method="POST">{% csrf_token %}
+                    {% for field in form %}
+                        <p style="color:red;">
+                            {% for field_error in field.errors %}
+                                {{ field_error }}
+                            {% endfor %}
+                        </p>
+                        <p>{{ field.label_tag }}{{ field }}</p>
+                    {% endfor %}
+                    <input type="submit" class="btn btn-primary btn-lg" value="Lagerbestand korrgieren"/>
+                </form>
+                </div>
+            </div>
+            <div class="col-md-3"></div>
+            {% else %}
+                <h3>Kein fehlender Bestand eingetragen</h3>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

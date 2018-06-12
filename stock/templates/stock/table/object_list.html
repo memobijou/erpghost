@@ -64,7 +64,12 @@
         </td>
         <td> {{ object.lagerplatz}} </td>
 
-        <td> {{ object.bestand}} </td>
+        <td>
+            {{ object.bestand}}
+            {% if object.missing_amount %}
+                <p style="color:red;padding-top:5px;">Fehlende Menge: {{ object.missing_amount }}</p>
+            {% endif %}
+        </td>
         <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>
                 <br/>

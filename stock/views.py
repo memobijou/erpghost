@@ -11,7 +11,7 @@ from import_excel.models import TaskDuplicates
 from product.models import Product
 from .models import Stock, Stockdocument
 from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm, GeneratePositionsForm, \
-    GeneratePositionLevelsColumnsForm
+    GeneratePositionLevelsColumnsForm, StockCorrectForm
 from tablib import Dataset
 from .resources import StockResource
 from django.core.urlresolvers import reverse_lazy
@@ -85,11 +85,7 @@ class StockListView(LoginRequiredMixin, ListView):
         print(f"OKAYYYY {filter_dict}")
 
         for item in filter_dict:
-            if self.request.GET.get("zustand") is not None and self.request.GET.get("zustand") != "":
-                zustand = self.request.GET.get("zustand").strip()
-                q_filter &= Q(**{item: filter_dict[item]}, zustand=zustand)
-            else:
-                q_filter &= Q(**{item: filter_dict[item]})
+            q_filter &= Q(**{item: filter_dict[item]})
 
         sku_filter = Q()
 
@@ -139,17 +135,17 @@ class StockListView(LoginRequiredMixin, ListView):
                 skus_list = [sku.get("sku") for sku in skus]
 
                 ean_title_q_filter &= \
-                    Q(product__ean__icontains=ean_vollstaendig, zustand=zustand)\
-                    | Q(ean_vollstaendig__icontains=ean_vollstaendig, zustand=zustand) \
-                    | Q(sku__in=skus_list)
+                    Q(
+                        Q(ean_vollstaendig__icontains=ean_vollstaendig, zustand=zustand)
+                        | Q(sku__in=skus_list)
+                    )
             else:
                 ean_title_q_filter &= \
                     Q(product__ean__icontains=ean_vollstaendig) | Q(ean_vollstaendig__icontains=ean_vollstaendig)
 
-        if self.request.GET.get("title") is None or self.request.GET.get("title") == ""\
-                and self.request.GET.get("ean_vollstaendig") is None\
-                or self.request.GET.get("ean_vollstaendig") == "" and self.request.GET.get("sku") is None \
-                or self.request.GET.get("sku") == "":
+        if (self.request.GET.get("title") is None or self.request.GET.get("title") == "") and\
+                (self.request.GET.get("ean_vollstaendig") is None or self.request.GET.get("ean_vollstaendig") == "")\
+                and (self.request.GET.get("sku") is None or self.request.GET.get("sku") == ""):
             if self.request.GET.get("zustand") is not None and self.request.GET.get("zustand") != "":
                 zustand = self.request.GET.get("zustand")
                 skus = Sku.objects.filter(state=zustand).values("sku")
@@ -228,7 +224,8 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def build_fields(self):
         fields = self.get_verbose_names(exclude=["id", "ean_upc", "scanner", "name", "karton", "box",
-                                                 "aufnahme_datum", "ignore_unique", "regal", "product_id"])
+                                                 "aufnahme_datum", "ignore_unique", "regal", "product_id",
+                                                 "missing_amount"])
         fields.append("Gesamt Bestand")
         fields = ["", "Bild"] + fields
         return fields
@@ -425,8 +422,11 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         super().__init__()
         self.object = None
 
-    def get_object(self):
+    def dispatch(self, request, *args, **kwargs):
         self.object = Stock.objects.get(id=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self):
         return self.object
 
     def get_context_data(self, **kwargs):
@@ -439,6 +439,7 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class=None)
+
         choices_with_object_zustand_value = form.fields["zustand"].choices
         for k, v in choices_with_object_zustand_value:
             print(f"{k} - {self.object.zustand} --- {v} --- {self.object.zustand}")
@@ -449,8 +450,8 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         return form
 
     def form_valid(self, form):
-        self.object = self.get_object()
-        print(f"kido: {self.object}")
+        self.object = Stock.objects.get(id=self.kwargs.get("pk"))
+
         if self.object is not None and self.object != "":
             bestand = form.data.get("bestand")
             state = None
@@ -465,16 +466,19 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
                 reserved_stocks = self.object.get_reserved_stocks()
                 if reserved_stocks is not None and reserved_stocks != "":
 
-                    stocks = self.object.get_total()
-                    if self.object and self.object.bestand is not None and self.object.bestand != "":
-                        current_bestand = int(stocks.get(state))-int(self.object.bestand)+int(bestand)
-                    else:
-                        current_bestand = int(stocks.get(state))+int(bestand)
+                    available_stocks = self.object.get_available_total_stocks()
 
-                    if int(current_bestand) < reserved_stocks.get(state):
-                        form.add_error("zustand", f"Der Gesamtbestand darf nicht kleiner als die reservierte Menge"
-                                                  f" {reserved_stocks.get(state)} sein. Momentaner Gesamtbestand:"
-                                                  f" {current_bestand}")
+                    if self.object and self.object.bestand is not None and self.object.bestand != "":
+                        current_bestand = int(available_stocks.get(state))-int(self.object.bestand)+int(bestand)
+                    else:
+                        current_bestand = int(available_stocks.get(state))+int(bestand)
+
+                    if int(bestand) < int(self.object.bestand):
+                        max_bestand = reserved_stocks.get(state)
+                        if int(current_bestand) < 0:
+                            form.add_error("zustand", f"Der Gesamtbestand darf nicht kleiner als die reservierte "
+                                                      f"Menge {max_bestand} sein. Momentaner verfügbarer Bestand:"
+                                                      f" {current_bestand}")
 
         if form.is_valid() is False:
             return super().form_invalid(form)
@@ -485,15 +489,42 @@ class StockDeleteView(DeleteView):
     model = Stock
     success_url = reverse_lazy("stock:list")
 
+    def __init__(self):
+        self.object = None
+        super().__init__()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        obj = context["object"]
-        product_ean_or_sku_or_title = self.get_product_ean_or_sku_or_title(obj)
+        self.object = context["object"]
+        product_ean_or_sku_or_title = self.get_product_ean_or_sku_or_title(self.object)
         context["product_ean_or_sku_or_title"] = product_ean_or_sku_or_title
-        context['title'] = f"{obj.bestand} x Artikel {product_ean_or_sku_or_title} von {obj.lagerplatz} ausbuchen"
+        context['title'] = f"{self.object.bestand} x Artikel {product_ean_or_sku_or_title} von " \
+                           f"{self.object.lagerplatz} ausbuchen"
         return context
 
     def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        print(self.object)
+        state = self.object.zustand
+        if state is None or state == "":
+            sku = Sku.objects.filter(sku__iexact=self.object.sku).first()
+            if sku is not None and sku != "":
+                state = sku.state
+
+        if state is not None and state != "":
+            reserved_stock = self.object.get_reserved_stocks().get(state)
+            available_stock = self.object.get_available_total_stocks().get(state)
+            if reserved_stock > 0:
+                if int(self.object.bestand) > int(available_stock):
+                    context = self.get_context_data(**kwargs)
+
+                    if int(available_stock) <= 0:
+                        context["error"] = f"Sie können diesen Bestand nicht ausbuchen. \n" \
+                                           f"Der gesamte Bestand von diesem Artikel ist reserviert."
+                    else:
+                        context["error"] = f"Sie können diesen Bestand nicht ausbuchen.\n Sie können maximal " \
+                                           f"{int(available_stock)} stk von diesem Artikel ausbuchen."
+                    return render(request, "stock/stock_confirm_delete.html", context)
         messages.add_message(self.request, messages.INFO, "Artikel wurde erfolgreich ausgebucht")
         return super().delete(request, *args, **kwargs)
 
@@ -504,6 +535,28 @@ class StockDeleteView(DeleteView):
             return obj.sku
         elif obj.title is not None and obj.title != "":
             return obj.title
+
+
+class StockCorrectView(UpdateView):
+    template_name = "stock/stock_correct_form.html"
+    form_class = StockCorrectForm
+
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Stock.objects.get(pk=self.kwargs.get("pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        return self.object
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Lagerbestand korrigieren"
+        context["object"] = self.object
+        return context
 
 
 class StockCopyView(StockUpdateView):

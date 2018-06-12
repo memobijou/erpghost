@@ -34,25 +34,19 @@
 
                     {% if picklist_all_picked == False %}
                         <div class="col-md-12" style="padding:0px;">
-                            <div class="col-md-1"></div>
-                            <div class="col-md-10">
-                            <h3>Sie müssen den Pickauftrag erst vollständig abarbeiten.</h3>
-                        </div>
+                            <h3>Ware kann nicht gescannt werden</h3>
+                            <p>Sie müssen erst die Pickliste vollständig abarbeiten. Sie können die Pickliste
+                                <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=object.delivery_set.first.pk %}">hier</a> weiter bearbeiten.</p>
                         </div>
                     {% else %}
                         {% if picklist_has_goods == False %}
                             <div class="col-md-12" style="padding:0px;">
-                                <div class="col-md-1"></div>
-                                <div class="col-md-10">
-                                    <h3>Sie haben keine Ware für diese Lieferung gepickt.
-                                    </h3>
-                                    <p>Unter
-                                        <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">
-                                            Lieferschein und Rechnung erstellen</a>
-                                        können Sie stornieren und dann erneut einen
-                                        Pickauftrag erstellen.
-                                    </p>
-                                </div>
+                                <h3>Keine Ware für Lieferung gepickt
+                                </h3>
+                                <p>Sie können
+                                    <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">
+                                        hier</a> den Vorgang stornieren und anschließend eine neue Pickliste erstellen.
+                                </p>
                             </div>
                         {% endif %}
                     {% endif %}

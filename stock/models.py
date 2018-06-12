@@ -32,6 +32,7 @@ class Stock(models.Model):
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
+    missing_amount = models.IntegerField(blank=True, null=True, verbose_name="Fehlender Bestand")
     product = models.ForeignKey(Product, blank=True, null=True, on_delete=models.SET_NULL)
 
     def get_absolute_url(self):
@@ -443,11 +444,7 @@ class Stock(models.Model):
         return reserved_stocks
 
     def get_available_stocks_of_total_stocks(self, product=None):
-        result = {}
         total_stocks = self.get_total_stocks(product=product)
-        # available_stocks = self.get_available_total_from_all_products(product=product)
-        # for state, total in total_stocks.items():
-        #     result[state] = f"{available_stocks.get(state)}/{total}"
         return total_stocks
 
     def available_total_amount(self, state=None):
@@ -483,10 +480,16 @@ class Stock(models.Model):
             total["bestand__sum"] -= total_reserved
         else:
             return None
-        print("?!?!: " + str(total))
         total = {"bestand__sum": total["bestand__sum"]}
 
         return total["bestand__sum"]
+
+    def get_state(self):
+        if self.zustand is not None and self.zustand != "":
+            return self.zustand
+
+        if self.product is not None:
+            return self.product.get_state_from_sku(self.sku)
 
 
 class Stockdocument(models.Model):

@@ -196,7 +196,8 @@ class DeliveryMissionProduct(models.Model):
 
     def real_amount(self):
         amount = 0
-        delivery_notes_products = DeliveryNoteProductMission.objects.filter(product_mission=self.product_mission)
+        delivery_notes_products = DeliveryNoteProductMission.objects.\
+            filter(product_mission=self.product_mission, delivery_note__goods_issue__delivery=self.delivery)
         if delivery_notes_products.count() > 0:
             for row in delivery_notes_products:
                 amount += row.amount

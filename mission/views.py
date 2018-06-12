@@ -59,7 +59,15 @@ class MissionDetailView(DetailView):
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_products_from_stock()
+        context["deliveries"] = self.get_deliveries()
         return context
+
+    def get_deliveries(self):
+        deliveries = []
+        for delivery in self.object.delivery_set.all():
+            deliveries.append((delivery, list(zip(delivery.goodsissue_set.first().billing_set.all(),
+                               delivery.goodsissue_set.first().deliverynote_set.all()))))
+        return deliveries
 
     def build_fields(self):
         fields = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
@@ -304,7 +312,7 @@ class MissionCreateView(CreateView):
 
         for field_name in ProductMissionForm.base_fields:
             if str(field_name) in self.request.POST:
-                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index]
+                data[str(field_name)] = self.request.POST.getlist(str(field_name))[index].strip()
         return data
 
     def get_amount_product_mission_forms(self):
@@ -931,7 +939,6 @@ class CreatePartialDeliveryNote(View):
 
     def post(self, request, **kwargs):
         if len(self.goods_issue_products) > 0:
-            print(f"123456789 - {self.goods_issue_products}")
 
             if BillingForm(data=request.POST).is_valid() is True:
                 self.create_partial_delivery()
@@ -940,10 +947,8 @@ class CreatePartialDeliveryNote(View):
                 self.goods_issue_products = self.get_goods_issue_products()
                 self.context = self.get_context()
                 self.context["form"] = BillingForm(data=self.request.POST)
-
                 return render(request, self.template_name, self.context)
         else:
-            print("PERRRRRRRRRRLE")
             self.cancel_partial_delivery()
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
 
@@ -954,6 +959,7 @@ class CreatePartialDeliveryNote(View):
                         "picklist_all_picked": self.picklist_all_picked(),
                         "picklist_with_pick_rows_exist": self.picklist_with_pick_rows_exist(),
                         "goods_issue_has_unscanned_products": self.goods_issue_has_unscanned_products(),
+                        "goods_issue_has_nothing_to_scan": self.goods_issue_has_nothing_to_scan(),
                         }
 
         return self.context
@@ -966,6 +972,18 @@ class CreatePartialDeliveryNote(View):
                 if to_scan_row.confirmed is None:
                     return True
         return False
+
+    def goods_issue_has_nothing_to_scan(self):
+        to_scan_rows = self.goods_issue.goodsissuedeliverymissionproduct_set.all()
+        sum_scan_amount = 0
+        if to_scan_rows.count() > 0:
+            for to_scan_row in to_scan_rows:
+                if to_scan_row.confirmed is None:
+                    sum_scan_amount += to_scan_row.scan_amount()
+        if sum_scan_amount <= 0:
+            return True
+        else:
+            return False
 
     def picklist_all_picked(self):
         if self.picklist is not None and self.picklist != "":
@@ -1141,7 +1159,7 @@ class CreatePickListView(View):
 
     def get(self, request, *args, **kwargs):
         context = {
-            "title": "Pickliste",
+            "title": "Pickliste erstellen",
             "object": self.object,
             "delivery": self.delivery,
             "pickinglist": self.get_picking_list(),
@@ -1178,19 +1196,19 @@ class CreatePickListView(View):
     def get_product_position_with_stock(self, goods_issue_product):
         product_mission = goods_issue_product.delivery_mission_product.product_mission
         sku = product_mission.product.sku_set.filter(state=product_mission.state).first()
-        print(f"before EWA: {product_mission.state} - {sku} - {product_mission.product.ean}")
         product_stock = Stock.objects.filter(
             Q(Q(sku=sku, zustand="") | Q(sku=sku, zustand=None) |
               Q(zustand=product_mission.state, ean_vollstaendig=product_mission.product.ean))
         ).exclude(bestand__lt=1).distinct("lagerplatz").order_by("lagerplatz")
-        print(f"EWA {product_stock}")
         to_pick_stocks = []
 
         for single_stock in product_stock:
-            print(f"sam sam: {single_stock.lagerplatz} --- {product_mission.get_ean_or_sku()} --- {sku} ---- "
-                  f"{single_stock.bestand}")
+            current_bestand_minus_missing_amount = single_stock.bestand - (single_stock.missing_amount or 0)
 
-            if int(single_stock.bestand) >= int(goods_issue_product.real_amount()):
+            if current_bestand_minus_missing_amount == 0:
+                continue
+
+            if int(current_bestand_minus_missing_amount) >= int(goods_issue_product.real_amount()):
                 to_pick_stocks = [(single_stock, goods_issue_product.real_amount())]
                 break
             else:
@@ -1198,15 +1216,13 @@ class CreatePickListView(View):
                 for _, amount in to_pick_stocks:
                     sum_to_pick_stock += int(amount)
 
-                current_bestand = single_stock.bestand
-                print(f"sharumula: {current_bestand}")
+                print(f"sharumula: {current_bestand_minus_missing_amount}")
 
-                if sum_to_pick_stock + int(current_bestand) >= goods_issue_product.real_amount():
+                if sum_to_pick_stock + int(current_bestand_minus_missing_amount) >= goods_issue_product.real_amount():
                     to_pick_stocks.append((single_stock, int(goods_issue_product.real_amount()) - sum_to_pick_stock))
                     break
                 else:
-                    to_pick_stocks.append((single_stock, current_bestand))
-        print(f"??????!!-- {to_pick_stocks}")
+                    to_pick_stocks.append((single_stock, current_bestand_minus_missing_amount))
         return to_pick_stocks
 
     def get_goods_issue_products(self):
@@ -1326,6 +1342,7 @@ class PickListView(View):
             stock.delete()
         else:
             stock.bestand -= pick_row.amount_minus_missing_amount()
+            stock.missing_amount = pick_row.missing_amount
             stock.save()
 
         print(pick_row.amount_minus_missing_amount())

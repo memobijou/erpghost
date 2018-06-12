@@ -4,20 +4,25 @@
 {% block content %}
     <div class="panel panel-default">
         <div class="panel-body">
+                    <div class="pull-right">
+                        <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
+                    </div>
+        <br/><br/>
                     {% if created_picklist %}
-                        <h3>Für diese Lieferung wurde bereits ein Pickauftrag erstellt.</h3>
+                        <h3>Pickliste schon vorhanden</h3>
+                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=object.delivery_set.first.pk %}">hier</a> zur Pickliste.</p>
                     {% endif %}
 
                     {% if not created_picklist %}
 
                         {% if pickinglist|length == 0 %}
-                                <h3>Für diese Lieferung kann kein Pickauftrag erstellt werden.</h3>
-                                <h3>Passen Sie gegebenfalls Lagerbestände an.</h3>
+                                <h3>Für diese Lieferung kann kein Pickauftrag erstellt werden</h3>
+                                <p>Passen Sie gegebenfalls Lagerbestände an.</p>
                         {% endif %}
 
                         {% if pickinglist|length > 0 %}
                             <div class="table-responsive">
-                                <table class="table table-bordered">
+                                <table class="table">
                                     <thead>
                                         <tr>
                                             <th>Bild</th>
@@ -63,7 +68,7 @@
                                     <input type="submit" class="btn btn-primary btn-lg" value="Pickliste erstellen"/>
                                 </div>
                             </form>
-                    {% endif %}
+                        {% endif %}
                 {% endif %}
 
             </div>

@@ -3,21 +3,29 @@
 {% block content %}
 <div class="panel panel-default">
     <div class="panel-body">
-        <form action="" method="post">{% csrf_token %}
-            <h3><span  style="color:red;">Achtung!</span></h3><br/>
-            <p style="font-size:25px;">Sie haben vor den Artikel <b>{{ product_ean_or_sku_or_title }}</b>
-                auf <b>{{ object.lagerplatz }}</b>,
-                <b>{{ object.bestand }}x</b> auszubuchen
-            </p>
-            <p style="font-size:25px;"><b>Dieser Vorgang kann nicht rückgängig gemacht werden.</b></p>
+        {% if error %}
+        <div style="color:red;">
+            <h4>{{ error }}</h4>
+        </div>
+        {% endif %}
 
-            <br/>
-            <br/>
-            <div class="text-center">
-                <input type="submit" value="{{object.bestand}} x Artikel: {{ product_ean_or_sku_or_title }} von {{ object.lagerplatz }} ausbuchen"
-                       class="btn btn-lg btn-danger" />
-            </div>
-        </form>
+        {% if not error %}
+            <form action="" method="post">{% csrf_token %}
+                <h3><span  style="color:red;">Achtung!</span></h3><br/>
+                <p style="font-size:25px;">Sie haben vor den Artikel <b>{{ product_ean_or_sku_or_title }}</b>
+                    auf <b>{{ object.lagerplatz }}</b>,
+                    <b>{{ object.bestand }}x</b> auszubuchen
+                </p>
+                <p style="font-size:25px;"><b>Dieser Vorgang kann nicht rückgängig gemacht werden.</b></p>
+
+                <br/>
+                <br/>
+                <div class="text-center">
+                    <input type="submit" value="{{object.bestand}} x Artikel: {{ product_ean_or_sku_or_title }} von {{ object.lagerplatz }} ausbuchen"
+                           class="btn btn-lg btn-danger" />
+                </div>
+            </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

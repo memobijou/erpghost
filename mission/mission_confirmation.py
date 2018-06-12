@@ -81,7 +81,7 @@ class MissionConfirmationPdfView(View):
             right_align_header_data.append(
                 [
                     Paragraph("Ihre Bestellung", style=size_nine_helvetica_leading_10),
-                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 10),
+                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 20),
                               style=size_nine_helvetica_leading_10),
                 ],
             )
@@ -89,7 +89,7 @@ class MissionConfirmationPdfView(View):
         right_align_header_data.append(
             [
                 Paragraph("Unser Auftrag", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(mission_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(mission_number, 20), style=size_nine_helvetica_leading_10),
             ],
         )
         # right_align_header_data.append([
@@ -101,7 +101,7 @@ class MissionConfirmationPdfView(View):
             customer_number = self.mission.customer.customer_number or ""
             right_align_header_data.append([
                 Paragraph("Kunden-Nr.", style=size_nine_helvetica_leading_10),
-                Paragraph(add_new_line_to_string_at_index(customer_number, 10), style=size_nine_helvetica_leading_10),
+                Paragraph(add_new_line_to_string_at_index(customer_number, 20), style=size_nine_helvetica_leading_10),
             ])
 
         self.story.extend(create_right_align_header(created_date, additional_data=right_align_header_data))
@@ -252,7 +252,8 @@ class MissionConfirmationPdfView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def build_after_table(self):
-        first_warning_text = "Es gelten die Allgemeinen Verkaufsbedingungen der BTC GmbH.<br/>"\
+        first_warning_text = f"Es gelten die Allgemeinen Verkaufsbedingungen der " \
+                             f"{self.client.contact.billing_address.firma}.<br/>"\
                              "Verkauf erfolgt unter Zugrundelegung unserer Allgemeinen Geschäftsbedingungen.<br/>"\
                              "AGB's gelesen und Akzeptiert.<br/>"\
                              "Es besteht auch die Möglichkeit, die Bedingungen unter folgender Internet-Adresse " \

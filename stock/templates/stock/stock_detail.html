@@ -50,6 +50,7 @@
 
     <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
         <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
+        <div class="col-md-12" style="padding-left: 0px;">
         {% if product %}
             {% if product.title %}
                 <h4>{{ product.title }}</h4>
@@ -59,10 +60,10 @@
         {% elif object.title %}
                 <h4>{{ object.title }}</h4>
         {% endif %}
-
+        </div>
         {% if product %}
             {% if product.main_image %}
-                <div class="col-md-3">
+                <div class="col-md-3" style="padding-left: 0px;">
                     <p>
                         <img src="{{ product.main_image.url }}" class="img-responsive img-modal"
                              style="cursor:pointer;"/>
@@ -80,9 +81,10 @@
                     </div>
                 </div>
             {% endif %}
-            {% if product.short_description %}
+        <div class="col-md-6">
+        {% if product.short_description %}
             <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
-            {% endif %}
+        {% endif %}
         {% endif %}
         {% if object.name %}
             <p><b>Person: </b>{{ object.name }}</p>
@@ -104,9 +106,22 @@
         {% endif %}
         <br/>
         <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ stock.total }}</h4>
-            <br/>
+        {% if object.missing_amount %}
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    Fehlende Bestände
+                </div>
+                <div class="panel-body text-center">
+                    <h3 style="color:red;">
+                        {{ object.missing_amount }}
+                    </h3>
+                    <p>
+                    <a class="btn btn-info"  href="{% url 'stock:correct' pk=object.id %}" >Bestand korrigieren</a>
+                    </p>
+                </div>
+            </div>
+        {% endif %}
         {% if stock.total %}
-        <div class="col-md-8" style="margin:-15px;">
           <table class="table table-bordered">
             <thead>
                 <th>Neu</th>
@@ -135,8 +150,8 @@
                 </tr>
             </tbody>
           </table>
-        </div>
         {% endif %}
+        </div>
                 <div class="col-md-11" style="padding-right: 0px;padding-left:0px;">
                     {% if object.product and object.product.productimage_set.all %}
                                 <div class="panel panel-default">

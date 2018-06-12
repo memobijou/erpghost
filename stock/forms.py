@@ -65,6 +65,38 @@ class StockCreateForm(ModelForm):
         return bestand
 
 
+class StockCorrectForm(forms.ModelForm):
+    class Meta:
+        model = Stock
+        fields = ["missing_amount"]
+        labels = {
+            "missing_amount": "Tatsächlich fehlender Bestand"
+        }
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.fields["missing_amount"].required = True
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.BooleanField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_missing_amount(self):
+        missing_amount = self.cleaned_data.get("missing_amount")
+        if self.instance.missing_amount is None or self.instance.missing_amount == "" \
+                or self.instance.missing_amount == 0:
+            raise forms.ValidationError(f"Vorgang nicht möglich, da kein fehlender Bestand eingetragen ist")
+
+        if missing_amount > self.instance.missing_amount or missing_amount < 0:
+            raise forms.ValidationError(f"Sie dürfen nur einen Wert zwischen 0 und {self.instance.missing_amount}"
+                                        f" angeben")
+
+        if missing_amount == 0:
+            return None
+        else:
+            self.instance.bestand -= missing_amount
+            return None
+
+
 class GeneratePositionsForm(forms.Form):
     prefix = forms.CharField(label='Prefix', max_length=100)
     shelf_number = forms.IntegerField(label='Regalnummer')

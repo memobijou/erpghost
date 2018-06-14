@@ -14,52 +14,54 @@
                         <h3>Keine Pickliste vorhanden</h3>
                         <p>Sie können <a href="{% url 'mission:create_picklist' pk=delivery.mission.pk delivery_pk=delivery.pk%}">hier</a> eine Pickliste erstellen</p>
                     </div>
+
             {% else %}
-                        {% with pick_row=picklist.0.0 %}
-                            {% with pick_form=picklist.0.1  %}
-                                {% if pick_row.confirmed == None %}
-                                    <div class="col-md-12" style="padding-left:0px;">
-                                        <div class="col-md-12">
-                                            <h3>{{ pick_row.product_mission.product.title|default:'' }}</h3>
-                                        </div>
-                                        <div class="col-md-3">
-                                            {% if pick_row.product_mission.product.main_image %}
-                                                <img
-                                                    src="{{ pick_row.product_mission.product.main_image.url }}"
-                                                    class="img-responsive" style="max-height:200px;">
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-9">
-                                            <br/>
-                                            <p style="font-size:15px;"><b>EAN/SKU:</b> {{ pick_row.product_mission.get_ean_or_sku }}</p>
-                                            <p style="font-size:15px;"><b>Lagerplatz:</b> {{ pick_row.position|default:"" }}</p>
-                                            <p style="font-size:15px;"><b>Menge:</b> {{ pick_row.amount }}</p>
-                                            <div class="col-md-6" style="padding:0px;pading-bottom:15px;">
-                                                <form method="POST" action="?pick_id={{ pick_row.pk }}">{% csrf_token %}
 
-                                                    <div class="input-group">
-                                                    {{ pick_form.missing_amount }}
-                                                      <span class="input-group-btn">
-                                                        <input class="btn btn-primary" type="submit" value="Ausbuchen">
-                                                      </span>
-                                                    </div><!-- /input-group -->
-                                                    <div style="color:red;">
-                                                        {% for missing_amount_error in pick_form.missing_amount.errors %}
-                                                            {{ missing_amount_error }}
-                                                        {% endfor %}
-                                                    </div>
-                                                    {{ pick_form.non_field_errors }}
-                                                    <div class="input-group">
-                                                    </div>
-                                                </form>
+                {% with pick_row=picklist.0.0 %}
+                    {% with pick_form=picklist.0.1  %}
+                        {% if pick_row.confirmed == None %}
+                            <div class="col-md-12" style="padding-left:0px;">
+                                <div class="col-md-12">
+                                    <h3>{{ pick_row.product_mission.product.title|default:'' }}</h3>
+                                </div>
+                                <div class="col-md-3">
+                                    {% if pick_row.product_mission.product.main_image %}
+                                        <img
+                                            src="{{ pick_row.product_mission.product.main_image.url }}"
+                                            class="img-responsive" style="max-height:200px;">
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-9">
+                                    <br/>
+                                    <p style="font-size:15px;"><b>EAN/SKU:</b> {{ pick_row.product_mission.get_ean_or_sku }}</p>
+                                    <p style="font-size:15px;"><b>Lagerplatz:</b> {{ pick_row.position|default:"" }}</p>
+                                    <p style="font-size:15px;"><b>Menge:</b> {{ pick_row.amount }}</p>
+                                    <div class="col-md-6" style="padding:0px;pading-bottom:15px;">
+                                        <form method="POST" action="?pick_id={{ pick_row.pk }}">{% csrf_token %}
 
+                                            <div class="input-group">
+                                            {{ pick_form.missing_amount }}
+                                              <span class="input-group-btn">
+                                                <input class="btn btn-primary" type="submit" value="Ausbuchen">
+                                              </span>
+                                            </div><!-- /input-group -->
+                                            <div style="color:red;">
+                                                {% for missing_amount_error in pick_form.missing_amount.errors %}
+                                                    {{ missing_amount_error }}
+                                                {% endfor %}
                                             </div>
+                                            {{ pick_form.non_field_errors }}
+                                            <div class="input-group">
+                                            </div>
+                                        </form>
 
-                                        </div>
                                     </div>
-                                {% endif %}
-                            {% endwith %}
-                        {% endwith %}
+
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endwith %}
+                {% endwith %}
             <div class="col-md-12" style="padding-right: 30px;padding-top:30px;">
                 <div class="table-responsive">
                     <table class="table">

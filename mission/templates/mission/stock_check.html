@@ -67,6 +67,7 @@
                         <div class="thead">
                             <tr>
                                 <th>EAN / SKU</th>
+                                <th>Artikelname</th>
                                 <th>Zustand</th>
                                 <th>Liefermenge</th>
                                 <th>Lagerbestand</th>
@@ -78,6 +79,7 @@
                             {% for product_mission, amount, product_stock in delivery_products %}
                                 <tr>
                                     <td>{{ product_mission.get_ean_or_sku }}</td>
+                                    <td>{{ product_mission.product.title |default:"" }}</td>
                                     <td>{{ product_mission.state }}</td>
                                     <td>{{ amount }}/{{ product_mission.amount }}</td>
                                     <td>{{ product_stock }}</td>

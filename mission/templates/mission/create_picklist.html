@@ -10,7 +10,7 @@
         <br/><br/>
                     {% if created_picklist %}
                         <h3>Pickliste schon vorhanden</h3>
-                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=object.delivery_set.first.pk %}">hier</a> zur Pickliste.</p>
+                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=delivery.pk %}">hier</a> zur Pickliste.</p>
                     {% endif %}
 
                     {% if not created_picklist %}

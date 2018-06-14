@@ -63,7 +63,6 @@
                     {% endwith %}
                 {% endwith %}
             <div class="col-md-12" style="padding-right: 30px;padding-top:30px;">
-                <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
@@ -103,6 +102,7 @@
                                         {% endif %}
                                 >
                                     <td colspan="3">
+                                        <div class="col-md-6" style="padding:0px;">
                                         <p><b>Artikelname: </b>{{  picklist_row.product_mission.product.title|default:"" }}</p>
 
 
@@ -110,6 +110,14 @@
 
 
                                         <p><b>Menge: </b>{{ picklist_row.amount }}</p>
+
+                                        <p style="color:green;font-size:13pt;"><b>Ausgebuchte Menge: </b>{{  picklist_row.amount_minus_missing_amount|default:"" }}</p>
+
+                                        {% if picklist_row.missing_amount %}
+                                          <p style="color:red;font-size:13pt;"><b>Fehlende Menge: </b>{{  picklist_row.missing_amount|default:"" }}</p>
+                                        {% endif %}
+
+                                        </div>
                                     </td>
                                 </tr>
                                 <tr>
@@ -118,10 +126,12 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                </div>
             </div>
             {% endif %}
         </div>
     </div>
+    <style>
 
+
+    </style>
 {% endblock %}

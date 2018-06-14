@@ -33,6 +33,7 @@
                                 <div class="col-md-9">
                                     <br/>
                                     <p style="font-size:15px;"><b>EAN/SKU:</b> {{ pick_row.product_mission.get_ean_or_sku }}</p>
+                                    <p style="font-size:15px;"><b>Zustand:</b> {{ pick_row.product_mission.state }}</p>
                                     <p style="font-size:15px;"><b>Lagerplatz:</b> {{ pick_row.position|default:"" }}</p>
                                     <p style="font-size:15px;"><b>Menge:</b> {{ pick_row.amount }}</p>
                                     <div class="col-md-6" style="padding:0px;pading-bottom:15px;">
@@ -69,9 +70,6 @@
                                 <th>Bild</th>
                                 <th>EAN / SKU</th>
                                 <th>Zustand</th>
-                                <th>Artikelname</th>
-                                <th>Lagerplatz</th>
-                                <th>Menge</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -96,15 +94,26 @@
                                     <td>
                                         {{  picklist_row.product_mission.state }}
                                     </td>
-                                    <td>
-                                        {{  picklist_row.product_mission.product.title|default:"" }}
+                                </tr>
+                                <tr
+                                    {% if picklist_row.confirmed == True %}
+                                            class="success"
+                                        {% elif picklist_row.confirmed == False %}
+                                            class="danger"
+                                        {% endif %}
+                                >
+                                    <td colspan="3">
+                                        <p><b>Artikelname: </b>{{  picklist_row.product_mission.product.title|default:"" }}</p>
+
+
+                                        <p><b>Lagerplatz: </b>{{ picklist_row.position }}</p>
+
+
+                                        <p><b>Menge: </b>{{ picklist_row.amount }}</p>
                                     </td>
-                                    <td>
-                                        {{ picklist_row.position }}
-                                    </td>
-                                    <td>
-                                        {{ picklist_row.amount }}
-                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3"></td>
                                 </tr>
                             {% endfor %}
                         </tbody>

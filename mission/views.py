@@ -1328,7 +1328,7 @@ class PickListView(View):
         return list(zip(picklist, pickforms))
 
     def get_validated_picklist(self, pick_id):
-        picklist = self.delivery.picklist_set.first().picklistproducts_set.all().order_by("position")
+        picklist = self.delivery.picklist_set.first().picklistproducts_set.all().order_by("-confirmed", "position")
         pickforms = []
         for pick_row in picklist:
             if int(pick_row.pk) == int(pick_id):

@@ -86,8 +86,8 @@ class MissionDetailView(DetailView):
         real_amounts_list.append(real_amount_rows)
 
     def get_products_from_stock(self):
-        billing_products = []
-        print(billing_products)
+        products = []
+        print(products)
         for product_mission in self.object.productmission_set.all():
             product_stock = self.get_product_stock(product_mission)
 
@@ -109,9 +109,9 @@ class MissionDetailView(DetailView):
 
             print(f"ABI: {real_amount}")
 
-            billing_products.append((product_mission,  missing_amount,  product_stock, real_amount))
-            print(billing_products)
-        return billing_products
+            products.append((product_mission,  missing_amount,  product_stock, real_amount))
+            print(products)
+        return products
 
     def get_product_stock(self, product_mission):
         product = product_mission.product
@@ -353,7 +353,6 @@ class MissionCreateView(CreateView):
                                            ValidationError(
                                                "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
 
-
     def validate_product_forms_have_no_ean_without_states(self):
         for product_form, product in self.product_forms:
             ean_or_sku = product_form.data.get("ean")
@@ -383,6 +382,7 @@ class MissionCreateView(CreateView):
                                            ValidationError(f'Der Eintrag {ean_or_sku} mit dem Zustand {state} ist'
                                                            f' doppelt'))
                 duplicates.append((ean_or_sku, state))
+
             if ean is not None:
                 if (ean, state) not in duplicates:
                     duplicates.append((ean, state))
@@ -420,7 +420,6 @@ class MissionCreateView(CreateView):
                 product_mission_instance.state = state
             else:
                 product_mission_instance.state = product.sku_set.filter(sku=ean_or_sku).first().state
-            print(f"ALLLLLF: {state} --- {product_form.data}")
             product_mission_instance.save()
             self.object.productmission_set.add(product_mission_instance)
         self.object.save()
@@ -531,8 +530,10 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         self.validate_product_forms_have_no_duplicates()
         self.validate_product_forms_have_no_skus_with_states()
         self.validate_product_forms_have_no_ean_without_states()
+        self.validate_product_forms_not_deleting_or_changing_delivery_products()
 
         product_forms_are_valid = True
+
         for product_form, product in self.product_forms:
             if product_form.is_valid() is False:
                 product_forms_are_valid = False
@@ -559,6 +560,52 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                     product_form.add_error("state",
                                            ValidationError(
                                                "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen"))
+                    product_form.data["state"] = None
+
+    def validate_product_forms_not_deleting_or_changing_delivery_products(self):
+        form_index = 0
+        for product_form, product in self.product_forms:
+
+            product_mission = None
+            if hasattr(product_form, "product_mission") is True:
+                product_mission = product_form.product_mission
+
+            if product_mission is None or product_mission == "":
+                continue
+
+            delete_value = self.request.POST.getlist("delete")[form_index]
+
+            state_value = self.request.POST.getlist("state")[form_index]
+
+            netto_price_value = self.request.POST.getlist("netto_price")[form_index]
+
+            sum_all_amounts = 0
+
+            for goods_issue_delivery_mission_product in DeliveryMissionProduct.objects.\
+                    filter(product_mission=product_mission):
+                sum_all_amounts += goods_issue_delivery_mission_product.amount
+
+            if sum_all_amounts > 0:
+
+                if delete_value == "on":
+                    product_form.add_error("ean",  f"Dieser Artikel hat im Auftrag Lieferungen und kann daher "
+                                                   f"nicht gelöscht werden")
+                    product_form.data["delete"] = "off"
+
+                if state_value != product_mission.state:
+                    if product.ean is not None and product.ean != "":
+                        product_form.add_error("state", f"Dieser Artikel hat im Auftrag Lieferungen, daher kann "
+                                                        f"dessen Zustand nicht geändert werden")
+
+                        if product_form.data["state"] is not None and product_form.data["state"] != "":
+                            product_form.data["state"] = product_mission.state
+
+                if float(netto_price_value) != float(product_mission.netto_price):
+                    product_form.add_error("netto_price", f"Dieser Artikel hat im Auftrag Lieferungen, daher kann "
+                                                          f"dessen Einzelpreis nicht geändert werden")
+                    product_form.data["netto_price"] = product_mission.netto_price
+
+            form_index += 1
 
     def validate_product_forms_have_no_duplicates(self):
         duplicates = []
@@ -573,6 +620,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                     sku = ean_or_sku
 
             state = product_form.data.get("state")
+
             if ean is not None:
                 if (ean, state) not in duplicates:
                     duplicates.append((ean, state))
@@ -584,6 +632,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
             elif sku is not None:
                 if product is not None:
                     sku_instance = product.sku_set.filter(sku=ean_or_sku).first()
+
                     if product.ean is not None and product.ean != "":
                         if (product.ean, sku_instance.state) not in duplicates:
                             duplicates.append((product.ean, sku_instance.state))
@@ -591,6 +640,12 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                             product_form.add_error('ean', ValidationError(
                                 f'Dieser Artikel existiert bereits mit der EAN {product.ean} und dem Zustand'
                                 f' {sku_instance.state} in diesem Auftrag'))
+                    else:
+                        if (sku_instance.sku, sku_instance.state) not in duplicates:
+                            duplicates.append((sku_instance.sku, sku_instance.state))
+                        else:
+                            product_form.add_error('ean', ValidationError(
+                                f'Dieser Artikel existiert bereits mit der SKU {sku_instance.sku} in diesem Auftrag'))
                 else:
                     product_form.add_error('ean', ValidationError(f'Dieser Artikel existiert bereits in diesem'
                                                                   f' Auftrag'))
@@ -844,6 +899,7 @@ class MissionStockCheckForm(View):
             product = product_mission.product
             state = product_mission.state
             stock = self.get_stock_from_product(product, state)
+            print(f"BERND: {product.title} -  {stock}")
             delivery_amount = self.get_delivery_amount(product_mission)
             if int(delivery_amount) > 0:
                 delivery_products.append((product_mission, delivery_amount, stock))
@@ -1003,22 +1059,17 @@ class CreatePartialDeliveryNote(View):
             return False
 
     def get_goods_issue_products(self):
-        goods_issue_delivery_mission_products = \
-            self.goods_issue.goodsissuedeliverymissionproduct_set.all().exclude(confirmed=None)
 
-        smaller_or_equal_than_zero_ids = []
-        for goods_issue_delivery_mission_product in goods_issue_delivery_mission_products:
-            if goods_issue_delivery_mission_product.real_amount() -\
-                    (goods_issue_delivery_mission_product.missing_amount or 0) <= 0:
-                smaller_or_equal_than_zero_ids.append(goods_issue_delivery_mission_product.pk)
+        goods_issue_products = self.goods_issue.goodsissuedeliverymissionproduct_set.all().exclude(confirmed=None)
+        exclude_amount_zero_ids = []
+        for goodsissue_product in goods_issue_products:
+            if goodsissue_product.scan_amount() is None or goodsissue_product.scan_amount() == 0:
+                exclude_amount_zero_ids.append(goodsissue_product.pk)
+            elif goodsissue_product.amount_minus_missing_amount() == 0:
+                exclude_amount_zero_ids.append(goodsissue_product.pk)
+        goods_issue_products = goods_issue_products.exclude(pk__in=exclude_amount_zero_ids)
 
-        goods_issue_products = goods_issue_delivery_mission_products.exclude(pk__in=smaller_or_equal_than_zero_ids)
-
-        goods_issue_product_stocks = []
-        for goods_issue_product in goods_issue_products:
-            stock = self.get_product_mission_stock(goods_issue_product.delivery_mission_product.product_mission)
-            goods_issue_product_stocks.append(stock)
-        return list(zip(goods_issue_products, goods_issue_product_stocks))
+        return goods_issue_products
 
     def create_partial_delivery(self):
         bulk_instances = []
@@ -1031,20 +1082,17 @@ class CreatePartialDeliveryNote(View):
                           shipping_costs=self.request.POST.get("shipping_costs"))
         billing.save()
 
-        print(f"AKIII 1: {self.goods_issue_products} - {len(list(self.goods_issue_products))}")
-
-        for goods_issue_product, stock in self.goods_issue_products:
+        for goods_issue_product in self.goods_issue_products:
             print(goods_issue_product)
             instance = DeliveryNoteProductMission(delivery_note=delivery_note, billing=billing,
                                                   amount=goods_issue_product.amount_minus_missing_amount(),
                                                   product_mission=goods_issue_product.delivery_mission_product
                                                   .product_mission)
             bulk_instances.append(instance)
-        print(f"AKIII 2: {bulk_instances}")
 
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
-        for goods_issue_product, stock in self.goods_issue_products:
+        for goods_issue_product in self.goods_issue_products:
             goods_issue_product.missing_amount = 0
             goods_issue_product.confirmed = None
             goods_issue_product.save()
@@ -1061,18 +1109,6 @@ class CreatePartialDeliveryNote(View):
 
         self.goods_issue.delivery.picklist_set.all().delete()
 
-    def get_picking_list(self):
-        picking_list = []
-
-        goods_issue_products = self.get_goods_issue_products()
-
-        for goods_issue_product, stock in goods_issue_products:
-            to_pick_stocks = self.get_product_position_with_stock(goods_issue_product)
-
-            for to_pick_stock in to_pick_stocks:
-                picking_list.append((goods_issue_product, stock, to_pick_stock))
-        return picking_list
-
     def get_product_position_with_stock(self, goods_issue_product):
         product_mission = goods_issue_product.delivery_mission_product.product_mission
         sku = product_mission.product.sku_set.filter(state=product_mission.state).first()
@@ -1080,9 +1116,7 @@ class CreatePartialDeliveryNote(View):
             Q(Q(sku=sku, zustand="") |
               Q(zustand=product_mission.state, ean_vollstaendig=product_mission.product.ean))
         ).distinct("pk").order_by("pk", '-bestand')
-        print(f"EWA {product_stock}")
         to_pick_stocks = []
-        available_stock = product_stock.first().get_available_total_stocks().get(product_mission.state)
 
         for single_stock in product_stock:
             print(f"sam sam: {single_stock.lagerplatz} --- {product_mission.get_ean_or_sku()} --- {sku} ---- "
@@ -1180,7 +1214,9 @@ class CreatePickListView(View):
                                                    goods_issue_product.delivery_mission_product.product_mission,
                                                    position=position[0].lagerplatz, amount=position[1]))
         PickListProducts.objects.bulk_create(bulk_instances)
-        return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")}))
+        return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": self.kwargs.get("pk"),
+                                                                             "delivery_pk":
+                                                                                 self.kwargs.get("delivery_pk")}))
 
     def get_picking_list(self):
         picking_list = []
@@ -1283,22 +1319,27 @@ class PickListView(View):
         if self.delivery.picklist_set.first() is None:
             return []  # Keine Pickliste erstellt
 
-        picklist = self.delivery.picklist_set.first().picklistproducts_set.all()
+        picklist = self.delivery.picklist_set.first().picklistproducts_set.all().order_by("-confirmed", "position")
         pickforms = []
-        for pick_row in picklist:
+
+        for _ in picklist:
             pickforms.append(PickForm())
 
         return list(zip(picklist, pickforms))
 
     def get_validated_picklist(self, pick_id):
-        picklist = self.delivery.picklist_set.first().picklistproducts_set.all()
+        picklist = self.delivery.picklist_set.first().picklistproducts_set.all().order_by("position")
         pickforms = []
         for pick_row in picklist:
             if int(pick_row.pk) == int(pick_id):
                 form = PickForm(data=self.request.POST)
-                form.is_valid()
-                form.add_error("missing_amount", f"Die Fehlende Menge darf nicht größer als "
-                                                 f"{pick_row.amount} sein.")
+                form_validation = form.is_valid()
+
+                if form_validation is True:
+                    missing_amount = form.cleaned_data.get("missing_amount")
+                    if missing_amount > pick_row.amount:
+                        form.add_error("missing_amount", f"Die Fehlende Menge darf nicht größer als "
+                                                         f"{pick_row.amount} sein.")
                 pickforms.append(form)
             else:
                 pickforms.append(PickForm())
@@ -1308,27 +1349,26 @@ class PickListView(View):
         pick_id = self.request.GET.get("pick_id")
         pick_row = PickListProducts.objects.get(pk=pick_id)
         missing_amount = self.request.POST.get("missing_amount")
-
+        context = self.get_context()
         if missing_amount is not None and missing_amount != "":
-            if int(missing_amount) > int(pick_row.amount):
-                print("????????????")
-                print(f"AKHI post {self.picklist}")
+            validated_picklist = self.get_validated_picklist(pick_id)
+            context["picklist"] = validated_picklist
 
-                context = {"title": "Pickliste", "delivery": self.delivery,
-                           "picklist": self.get_validated_picklist(pick_id)
-                           }
-                for row, form in self.picklist:
-                    print(f"{row.pk} : {pick_id}")
-
-                return render(request, "mission/picklist.html", context)
+            for row, pick_form in validated_picklist:
+                if int(row.pk) == int(pick_id):
+                    if pick_form.is_valid() is False:
+                        return render(request, "mission/picklist.html", context)
 
             if int(missing_amount) > 0:
-
                 pick_row.confirmed = False
                 pick_row.missing_amount = missing_amount
+            if int(missing_amount) == 0:
+                pick_row.confirmed = True
         else:
             pick_row.confirmed = True
+
         pick_row.save()
+
         stock = Stock.objects.filter(Q(lagerplatz=pick_row.position) &
                                      Q(
                                        Q(ean_vollstaendig=pick_row.product_mission.product.ean,
@@ -1342,13 +1382,21 @@ class PickListView(View):
             stock.delete()
         else:
             stock.bestand -= pick_row.amount_minus_missing_amount()
-            stock.missing_amount = pick_row.missing_amount
+            if stock.missing_amount is None or stock.missing_amount == "":
+                stock.missing_amount = pick_row.missing_amount
+            else:
+                if int(stock.missing_amount) > 0:
+                    if pick_row.missing_amount is not None and pick_row.missing_amount != "":
+                        stock.missing_amount = int(stock.missing_amount) + int(pick_row.missing_amount)
             stock.save()
 
-        print(pick_row.amount_minus_missing_amount())
         return HttpResponseRedirect(
             reverse_lazy("mission:picklist",
                          kwargs={"pk": self.kwargs.get("pk"), "delivery_pk": self.kwargs.get("delivery_pk")}))
+
+    def get_context(self):
+        context = {"title": "Pickliste", "delivery": self.delivery}
+        return context
 
 
 class ConfirmView(View):

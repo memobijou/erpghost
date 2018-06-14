@@ -72,6 +72,10 @@ class Product(models.Model):
                 if product_sku.sku == sku:
                     return product_sku.state
 
+    def get_sku_from_state(self, state):
+        if state is not None and state != "":
+            return self.sku_set.filter(state=state).first()
+
 
 class SingleProduct(models.Model):
     ean = models.CharField(max_length=200, verbose_name="EAN", null=True, blank=True)

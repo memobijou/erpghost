@@ -24,7 +24,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                        {% for goods_issue_product, stock in goods_issue_products %}
+                        {% for goods_issue_product in goods_issue_products %}
                             <tr>
                                 <td>
                                     {% if goods_issue_product.delivery_mission_product.product_mission.product.main_image %}
@@ -85,7 +85,7 @@
                     {% endif %}
 
                     {% if picklist_with_pick_rows_exist == True and picklist_all_picked == True %}
-                        {% if goods_issue_has_unscanned_products == True  and goods_issue_has_nothing_to_scan == False%}
+                        {% if goods_issue_has_unscanned_products == True and goods_issue_has_nothing_to_scan == False%}
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
                                 <p>Sie müssen erst die Ware am Warenausgang bestätigen um einen Lieferschein
@@ -94,7 +94,8 @@
                         {% else %}
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnnung können nicht erstellt werden</h3>
-                                <p></p>
+                                <p>Um einen Lieferschein und eine Rechnung erstellen zu können muss Ware am Warenausgang vorhanden sein.</p>
+                                <p>Prüfen Sie am <a href="{% url 'mission:scan' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Warenausgang</a>, ob tatsächlich kein Artikel vorhanden ist, andernfalls können Sie den Lieferschein und die Rechnung stornieren.</p>
                             </div>
 
                             <form method="POST">{% csrf_token %}

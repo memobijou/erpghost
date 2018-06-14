@@ -455,6 +455,7 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         if self.object is not None and self.object != "":
             bestand = form.data.get("bestand")
             state = None
+
             if self.object.ean_vollstaendig is not None and self.object.ean_vollstaendig != "":
                 state = form.data.get("zustand")
             else:
@@ -478,7 +479,12 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
                         if int(current_bestand) < 0:
                             form.add_error("zustand", f"Der Gesamtbestand darf nicht kleiner als die reservierte "
                                                       f"Menge {max_bestand} sein. Momentaner verfügbarer Bestand:"
-                                                      f" {current_bestand}")
+                                                      f" {current_bestand}.")
+            if self.object.missing_amount is not None and self.object.missing_amount != "":
+                if int(bestand) < int(self.object.missing_amount):
+                    form.add_error("zustand", f"Auf dieser Position fehlen {self.object.missing_amount} stk von "
+                                              f"diesem Artikel. Sie können diese Menge erst ausbuchen wenn Sie die "
+                                              f"fehlende Menge bestätigen oder korrigieren.")
 
         if form.is_valid() is False:
             return super().form_invalid(form)
@@ -514,9 +520,10 @@ class StockDeleteView(DeleteView):
         if state is not None and state != "":
             reserved_stock = self.object.get_reserved_stocks().get(state)
             available_stock = self.object.get_available_total_stocks().get(state)
+            context = self.get_context_data(**kwargs)
+
             if reserved_stock > 0:
                 if int(self.object.bestand) > int(available_stock):
-                    context = self.get_context_data(**kwargs)
 
                     if int(available_stock) <= 0:
                         context["error"] = f"Sie können diesen Bestand nicht ausbuchen. \n" \
@@ -525,6 +532,13 @@ class StockDeleteView(DeleteView):
                         context["error"] = f"Sie können diesen Bestand nicht ausbuchen.\n Sie können maximal " \
                                            f"{int(available_stock)} stk von diesem Artikel ausbuchen."
                     return render(request, "stock/stock_confirm_delete.html", context)
+            if self.object.missing_amount is not None and self.object.missing_amount != "" \
+                    and self.object.missing_amount != 0:
+                context["error"] = f"Auf dieser Position fehlen {self.object.missing_amount} stk von " \
+                                   f"diesem Artikel. Sie können diesen Bestand erst ausbuchen wenn Sie" \
+                                   f" die fehlende Menge bestätigen oder korrigieren."
+                return render(request, "stock/stock_confirm_delete.html", context)
+
         messages.add_message(self.request, messages.INFO, "Artikel wurde erfolgreich ausgebucht")
         return super().delete(request, *args, **kwargs)
 
@@ -575,7 +589,7 @@ class StockCopyView(StockUpdateView):
     def form_valid(self, form, *args, **kwargs):
         self.object.id = Stock.objects.latest("id").id+1
         self.object.save()
-        return super().form_valid(form)
+        return HttpResponseRedirect(reverse_lazy("stock:detail", kwargs={"pk": self.object.pk}))
 
 
 class StockImportView(FormView):

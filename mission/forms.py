@@ -103,6 +103,7 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
             sum_all_amounts += goods_issue_delivery_mission_product.amount
 
         if self.cleaned_data.get('amount') < sum_all_amounts:
+            self.data["amount"] = self.product_mission.amount
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")
 
 
@@ -126,3 +127,10 @@ class PickForm(forms.Form):
         super().__init__(**kwargs)
         for visible in self.visible_fields():
                 visible.field.widget.attrs["class"] = "form-control"
+
+    def clean_missing_amount(self):
+        missing_amount = self.cleaned_data.get("missing_amount")
+        print(f"karada: {missing_amount}")
+        if int(missing_amount) < 0:
+            raise forms.ValidationError(f"Die Menge darf nicht kleiner als 0 sein")
+        return missing_amount

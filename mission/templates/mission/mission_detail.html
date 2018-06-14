@@ -226,9 +226,6 @@
                             <div class="col-md-12" style="padding-left:0px;">
                             <div class="panel panel-default">
                                 <div class="panel-body">
-                                    <a class="btn btn-info" href="{% url 'mission:create_picklist' pk=object.pk delivery_pk=delivery.pk %}">
-                                        Pickliste erstellen
-                                    </a>
                                     <a class="btn btn-info" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">Lieferschein und Rechnung erstellen</a>
                                 </div>
                             </div>

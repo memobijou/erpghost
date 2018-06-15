@@ -14,13 +14,14 @@ class PartialDeliveryNoteView(DeliveryNoteView):
         return super().dispatch(request, *args, **kwargs)
 
     def build_table(self):
-        colwidths = [30, 68, 282, 60]
+        colwidths = [30, 70, 38, 242, 60]
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                                      rightIndent=17)
         header = [
             Paragraph("<b>Pos</b>", style=size_nine_helvetica),
             Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
+            Paragraph("<b>Zustand</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
         ]
@@ -39,6 +40,8 @@ class PartialDeliveryNoteView(DeliveryNoteView):
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(deliverynoteproductmission.product_mission.get_ean_or_sku(),
+                              style=size_nine_helvetica),
+                    Paragraph(deliverynoteproductmission.product_mission.state,
                               style=size_nine_helvetica),
                     Paragraph(deliverynoteproductmission.product_mission.product.title or "",
                               style=size_nine_helvetica),

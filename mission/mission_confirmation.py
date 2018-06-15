@@ -164,13 +164,14 @@ class MissionConfirmationPdfView(View):
                            mission_horizontal_line])
 
     def build_table(self):
-        colwidths = [30, 68, 152, 60, 65, 65]
+        colwidths = [30, 70, 55, 100, 60, 65, 60]
 
         right_align_paragraph_style = ParagraphStyle("adsadsa", alignment=TA_RIGHT, fontName="Helvetica", fontSize=9,
                                                      rightIndent=17)
         header = [
             Paragraph("<b>Pos</b>", style=size_nine_helvetica),
             Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
+            Paragraph("<b>Zustand</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
             Paragraph("<b>Einzelpreis</b>", style=right_align_paragraph_style),
@@ -187,6 +188,7 @@ class MissionConfirmationPdfView(View):
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
+                    Paragraph(productmission.state, style=size_nine_helvetica),
                     Paragraph(productmission.product.title or "", style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productmission.netto_price),

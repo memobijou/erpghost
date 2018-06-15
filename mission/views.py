@@ -37,6 +37,7 @@ from django.forms.models import model_to_dict
 from django.views import View
 from django.forms import ValidationError
 from django.core.paginator import Paginator
+from django.contrib import messages
 
 
 class MissionDetailView(DetailView):
@@ -184,35 +185,21 @@ class MissionListView(ListView):
         billing_numbers_list = []
         delivery_note_numbers_list = []
 
-        for object in object_list:
+        for mission in object_list:
             billing_numbers = []
-            for productmission in object.productmission_set.all():
-                for real_amount in productmission.realamount_set.all():
-                    billing = real_amount.billing
-                    billing_number = None
-
-                    if billing is not None:
-                        billing_number = billing.billing_number
-
-                    if billing_number is not None and billing_number not in billing_numbers:
-                        billing_numbers.append(billing_number)
+            for delivery in mission.delivery_set.all():
+                for billing in delivery.goodsissue_set.first().billing_set.all():
+                    billing_numbers.append(billing.billing_number)
 
             billing_numbers_list.append(billing_numbers)
 
-        for object in object_list:
-            delivery_note_numbers = []
-            for productmission in object.productmission_set.all():
-                for real_amount in productmission.realamount_set.all():
-                    delivery_note = real_amount.delivery_note
-                    delivery_note_number = None
+        for mission in object_list:
+            delivery_notes = []
+            for delivery in mission.delivery_set.all():
+                for delivery_note in delivery.goodsissue_set.first().deliverynote_set.all():
+                    delivery_notes.append(delivery_note.delivery_note_number)
 
-                    if delivery_note is not None:
-                        delivery_note_number = delivery_note.delivery_note_number
-
-                    if delivery_note_number is not None and delivery_note_number not in delivery_note_numbers:
-                        delivery_note_numbers.append(delivery_note_number)
-
-            delivery_note_numbers_list.append(delivery_note_numbers)
+            delivery_note_numbers_list.append(delivery_notes)
 
         return zip(object_list, billing_numbers_list, delivery_note_numbers_list)
 
@@ -246,20 +233,28 @@ class MissionListView(ListView):
             if get_value is not None and get_value != "":
                 q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
 
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+        print(f"{search_value}")
+        if search_value is not None and search_value != "":
+            search_filter |= Q(**{f"mission_number__icontains": search_value.strip()})
+            search_filter |= Q(delivery__goodsissue__billing__billing_number__icontains=search_value.strip())
+            search_filter |= Q(delivery__goodsissue__deliverynote__delivery_note_number__icontains=search_value.strip())
+            search_filter |= Q(customer__contact__billing_address__firma__icontains=search_value.strip())
+
+        print(f"s: {search_filter}")
+        q_filter &= search_filter
+
         billing_number = self.request.GET.get("billing_number")
         delivery_note_number = self.request.GET.get("delivery_note_number")
 
         if billing_number is not None and billing_number != "":
-            q_filter &= Q(productmission__realamount__billing__billing_number__icontains=billing_number)
-
-        print(f"MERC: {q_filter}")
+            q_filter &= Q(delivery__goodsissue__billing__billing_number__icontains=billing_number)
 
         if delivery_note_number is not None and delivery_note_number != "":
-            q_filter &= \
-                Q(productmission__realamount__delivery_note__delivery_note_number__icontains=delivery_note_number)
+            q_filter &= Q(delivery__goodsissue__deliverynote__delivery_note_number__icontains=delivery_note_number)
 
         queryset = Mission.objects.filter(q_filter).order_by("-id").distinct()
-        print(queryset)
         return queryset
 
     def get_fields(self, exclude=None):
@@ -1412,3 +1407,31 @@ class ConfirmView(View):
 
         refresh_mission_status(self.object, original_mission_products=original_mission_products)
         return HttpResponseRedirect(reverse_lazy("mission:detail", kwargs={"pk": self.object.pk}))
+
+
+class GoToPickListView(View):
+    def post(self, request, *args, **kwargs):
+        pick_id = self.request.POST.get("pick_id")
+        picklist = PickList.objects.filter(pick_id=pick_id).first()
+
+        if picklist is not None:
+            mission = picklist.delivery.mission
+            return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": mission.pk,
+                                                                                 "delivery_pk": picklist.delivery.pk}))
+        else:
+            messages.add_message(self.request, messages.INFO, "Pickauftrag konnte nicht gefunden werden")
+            return HttpResponseRedirect(reverse_lazy("mission:list"))
+
+
+class GoToScanView(View):
+    def post(self, request, *args, **kwargs):
+        scan_id = self.request.POST.get("scan_id")
+        packlist = GoodsIssue.objects.filter(scan_id=scan_id).first()
+
+        if packlist is not None:
+            mission = packlist.delivery.mission
+            return HttpResponseRedirect(reverse_lazy("mission:scan", kwargs={"pk": mission.pk,
+                                                                             "delivery_pk": packlist.delivery.pk}))
+        else:
+            messages.add_message(self.request, messages.INFO, "Verpackerliste konnte nicht gefunden werden")
+            return HttpResponseRedirect(reverse_lazy("mission:list"))

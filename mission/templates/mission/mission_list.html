@@ -2,21 +2,43 @@
 
 {% block content %}
 
-    <!-- {% include "snippets/navigation.html" %}
-{% include "snippets/filter.html" %}
-{% include "snippets/pagination.html" %}
-
-
-{% include "snippets/table.html" %}
- -->
-
-
-
     <div>
+        {% if messages %}
+            <div class="col-md-12">
+                <div class="alert alert-danger">
+                    {% for msg in messages %}
+                        {{ msg }}
+                    {% endfor %}
+                </div>
+        </div>
+        {% endif %}
         {% include "snippets/navigation.html" %}
         {% include "snippets/filter.html" %}
         {% include "snippets/pagination.html" %}
-
+            <form method="POST" action="{% url 'mission:goto_picklist' %}">{% csrf_token %}
+                <div class="col-md-6" style="padding-bottom:25px;">
+                    <div>
+                        <div class="input-group">
+                          <input class="form-control" placeholder="Pick ID" name="pick_id"/>
+                          <span class="input-group-btn">
+                            <input class="btn btn-info" type="submit" value="Picken">
+                          </span>
+                        </div><!-- /input-group -->
+                    </div>
+                </div>
+            </form>
+            <div class="col-md-6" style="padding-bottom:25px;">
+                <form method="POST" action="{% url 'mission:goto_scan' %}">{% csrf_token %}
+                    <div>
+                        <div class="input-group">
+                          <input class="form-control" placeholder="Verpacker ID" name="scan_id"/>
+                          <span class="input-group-btn">
+                            <input class="btn btn-info" type="submit" value="Verpacken">
+                          </span>
+                        </div><!-- /input-group -->
+                    </div>
+                </form>
+            </div>
 
         {% include "snippets/table.html" with app="mission" %}
     </div>

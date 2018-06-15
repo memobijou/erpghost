@@ -1,5 +1,5 @@
 {% load utils %}
-
+<div class="col-md-2" style="padding:15px 5px 0px 0px;">
 <input type="text"
         {% if request.GET %}
        value="{{ request.GET|get_from_GET:field}}"
@@ -12,4 +12,4 @@
         {% endif %}
 >
 </input>
-
+</div>

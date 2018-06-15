@@ -16,6 +16,9 @@
                     </div>
 
             {% else %}
+                <div class="col-md-12">
+                    <h3>Pick ID: {{ delivery.picklist_set.first.pick_id }}</h3>
+                </div>
                 {% with pick_row=picklist.0.0 %}
                     {% with pick_form=picklist.0.1  %}
                         {% if pick_row.confirmed == None %}

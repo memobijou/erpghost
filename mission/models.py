@@ -132,9 +132,26 @@ class Delivery(models.Model):
 class GoodsIssue(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
+    scan_id = models.CharField(max_length=200, blank=True, null=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.scan_id is None or self.scan_id == "":
+            self.scan_id = f"PK{self.pk+1}"
+        super().save()
+
 
 class PickList(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    pick_id = models.CharField(max_length=200, blank=True, null=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.pick_id is None or self.pick_id == "":
+            self.pick_id = f"PK{self.pk+1}"
+        super().save()
 
 
 class IgnoreStocksPickList(models.Model):

@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
     MissionDeleteView, MissionStockCheckForm, CreatePartialDeliveryNote, CreatePickListView, \
-    PickListView
+    PickListView, GoToPickListView, GoToScanView
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.billing_pdf import BillingPdfView
 from mission.partial_billing import PartialPdfView
@@ -29,4 +29,8 @@ urlpatterns = [
         name="create_picklist"),
     url(r'^(?P<pk>\d+)/picklist/(?P<delivery_pk>\d+)/$', PickListView.as_view(),
         name="picklist"),
+    url(r'^gotopicklist/$', GoToPickListView.as_view(),
+        name="goto_picklist"),
+    url(r'^gotopackingist/$', GoToScanView.as_view(),
+        name="goto_scan"),
 ]

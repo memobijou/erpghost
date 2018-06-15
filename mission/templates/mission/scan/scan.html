@@ -4,6 +4,9 @@
 {% block content %}
     <div class="panel panel-default">
         <div class="panel-body">
+            <div class="col-md-12" style="padding-left:50px;padding-bottom:0px;">
+                <h3>Verpacker ID: {{ delivery.goodsissue_set.first.scan_id  }}</h3>
+            </div>
             {% if delivery_products %}
                 {% if picklist_all_picked == False %}
                         <div class="col-md-12" style="padding:0px;">

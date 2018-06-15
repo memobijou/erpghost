@@ -1,8 +1,21 @@
 {% load utils %}
 
-<div class="col-md-12">
-    <form id="filter_form" action="." class="form-inline">
-        <div>
+    <form id="filter_form" action="." class="">
+    <div class="col-md-12" style="padding-bottom: 25px;">
+        <div class="input-group">
+            <input class="form-control" placeholder="Suche ..." name="q"/>
+            <span class="input-group-btn">
+                <input class="btn btn-info" type="submit" value="Los!">
+            </span>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <buttton class="btn btn-default show_hide_filter_btn">
+            Filter einblenden
+        </buttton>
+    </div>
+    <div class="col-md-12 display_filter" style="display:none;">
+        <div class="col-md-12" style="padding:0px;">
             {% for field, verbose_name in filter_fields %}
                 {% for option_row in option_fields %}
                     {% if option_row|getattr:field %}
@@ -20,28 +33,31 @@
                 {% endfor %}
             {% endif %}
         </div>
-<div class="form-group form-inline">
-    {% for field, verbose_name in filter_fields %}
-        {% if option_fields %}
-            {% for option_row in option_fields %}
 
-                {% if option_row|getattr:field %}
+        <div class="col-md-12" style="padding:0px;">
+        {% for field, verbose_name in filter_fields %}
+            {% if option_fields %}
+                {% for option_row in option_fields %}
 
-                {% else %}
-                    {% include "snippets/filter/input.html" %}
+                    {% if option_row|getattr:field %}
 
-                {% endif %}
-            {% endfor %}
-        {% else %}
-            {% include "snippets/filter/input.html" %}
-        {% endif %}
-    {% endfor %}
-    <button type="submit" class="btn btn-info">Filter</button>
-</div>
+                    {% else %}
+                        {% include "snippets/filter/input.html" %}
 
-</form>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                {% include "snippets/filter/input.html" %}
+            {% endif %}
+        {% endfor %}
+        </div>
+        <div class="col-md-2" style="padding-top:15px;padding-left: 0px;">
+            <button type="submit" class="btn btn-info" style="">Filter</button>
+        </div>
+    </div>
 
-</div>
+    </form>
+
 
 <style>
 .form-inline > * {
@@ -72,5 +88,20 @@
 
     // elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
     // alert(elements[i].innerHTML );
+
+
+    // DISPLAY FILTER PART
+
+    var show_hide_filter_btn = document.getElementsByClassName("show_hide_filter_btn")[0];
+    var display_filter = document.getElementsByClassName("display_filter")[0];
+    show_hide_filter_btn.onclick = function(){
+        if(display_filter.style.display == "none"){
+            display_filter.style.display = "";
+            this.innerHTML = "Filter ausblenden"
+        }else{
+            display_filter.style.display = "none";
+            this.innerHTML = "Filter einblenden"
+        }
+    }
 
 </script>

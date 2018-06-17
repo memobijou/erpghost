@@ -70,6 +70,23 @@ class ProductListView(ListView):
             print(f"khalid: {sku_value}")
             q_filter &= Q(sku__sku__icontains=sku_value)
 
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+        print(f"{search_value}")
+        if search_value is not None and search_value != "":
+            search_filter |= Q(**{f"ean__icontains": search_value.strip()})
+            search_filter |= Q(sku__sku__icontains=search_value.strip())
+            search_filter |= Q(title__icontains=search_value.strip())
+            search_filter |= Q(brandname__icontains=search_value.strip())
+            search_filter |= Q(manufacturer__icontains=search_value.strip())
+            search_filter |= Q(part_number__icontains=search_value.strip())
+            search_filter |= Q(short_description__icontains=search_value.strip())
+            search_filter |= Q(description__icontains=search_value.strip())
+
+
+        print(f"s: {search_filter}")
+        q_filter &= search_filter
+
         print(q_filter)
         queryset = Product.objects.filter(q_filter).order_by("-id").distinct()
         return queryset

@@ -17,6 +17,7 @@ class Stock(models.Model):
         ('NOT_IGNORE', 'Nein'),
     )
 
+    id = models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
     ean_vollstaendig = models.CharField(max_length=250, verbose_name="EAN", null=True, blank=True)
     sku = models.CharField(max_length=250, verbose_name="Sku", null=True, blank=True)
     title = models.CharField(max_length=250, verbose_name="Artikelname", null=True, blank=True)
@@ -42,12 +43,12 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+             update_fields=None, *args, **kwargs):
         print("BLATT TEIG TEIG TEIG")
         product = self.get_product()
         if product is not None:
             self.product = product
-        super().save()
+        super().save(*args, **kwargs)
 
     def clean(self):
 

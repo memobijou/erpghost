@@ -13,7 +13,6 @@ from .models import Stock, Stockdocument
 from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm, GeneratePositionsForm, \
     GeneratePositionLevelsColumnsForm, StockCorrectForm
 from tablib import Dataset
-from .resources import StockResource
 from django.core.urlresolvers import reverse_lazy
 from django.http import HttpResponseRedirect
 from utils.utils import filter_queryset_from_request
@@ -279,70 +278,6 @@ class StockListView(LoginRequiredMixin, ListView):
         return filter_fields
 
 
-class StockCreateView(LoginRequiredMixin, CreateView):
-    template_name = "stock/stock_create.html"
-    form_class = StockdocumentForm
-    login_url = "/login/"
-
-    def form_valid(self, form, *args, **kwargs):
-        context = self.get_context_data(**kwargs)
-        stock_resource = StockResource()
-        dataset = Dataset()
-        document = form.cleaned_data["document"]
-
-        imported_data = dataset.load(document.read())
-        dataset.insert_col(0, lambda r: "", header='id')
-
-        is_only_block = has_only_block(imported_data)
-
-        if is_only_block is False:
-            duplicate = check_duplicate_inside_excel(imported_data)
-
-            if duplicate:
-                error_messages = ['Doppelter Eintrag in <b>Exceldatei</b>!', duplicate]
-                return render_error_page(self, context, form, error_messages)
-
-            for row in imported_data:
-                if Stock.objects.filter(lagerplatz=row[4], ean_vollstaendig=row[1], zustand=row[6]).exists():
-                    error_messages = ['Eintrag in <b>Datenbank</b> vorhanden!', f"{row[1]} - {row[4]} - {row[6]} "]
-                    return render_error_page(self, context, form, error_messages)
-
-        result = stock_resource.import_data(dataset, dry_run=True)  # Test the data import
-        if not result.has_errors():
-            stock_resource.import_data(dataset, dry_run=False)  # Actually import
-        else:
-            error_messages = ["Ein unbekannter Fehler ist aufgetaucht!"]
-            return render_error_page(self, context, form, error_messages)
-        messages.success(self.request, f"{document} erfolgreich hochgeladen!")
-        super(StockCreateView, self).form_valid(form)
-        return HttpResponseRedirect(self.get_success_url())
-
-
-def render_error_page(self_, context, form, error_messages):
-    for error_message in error_messages:
-        messages.error(self_.request, error_message)
-    super(StockCreateView, self_).form_valid(form)
-    return render(self_.request, self_.template_name, context)
-
-
-def has_only_block(arr):
-    for i, row in enumerate(arr):
-        if "block" not in row[4].lower():
-            return False
-    return True
-
-
-def check_duplicate_inside_excel(arr):
-    for i, row in enumerate(arr):
-        for j, against_row in enumerate(arr):
-            if i != j:
-                if row[1] == against_row[1] and row[4] == against_row[4] and row[6] == against_row[6]:
-                    print(f"error: {row[1]} - {row[4]} - {row[6]} " \
-                          f"== {against_row[1]} - {against_row[4]} - {against_row[6]}")
-                    return f"{row[1]} - {row[4]} - {row[6]} " \
-                           f"== {against_row[1]} - {against_row[4]} - {against_row[6]}"
-
-
 class StockDocumentDetailView(LoginRequiredMixin, DetailView):
     template_name = "stock/stock_document_detail.html"
 
@@ -486,9 +421,35 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
                                               f"diesem Artikel. Sie können diese Menge erst ausbuchen wenn Sie die "
                                               f"fehlende Menge bestätigen oder korrigieren.")
 
+            if self.object.product is None or self.object.product == "":
+                product = self.get_product(form)
+            else:
+                product = self.object.product
+
+            if product is not None:
+                if product.single_product is not None and product.single_product != "":
+                    bestand = form.data.get("bestand")
+                    if bestand is not None and bestand != "":
+                        if int(bestand) > 1:
+                            form.add_error("bestand", f"Auf diesen Bestand darf die Menge nicht größer als 1 sein, da "
+                                                      f"der Artikel auf dieser Position ein Einzelartikel ist.")
+
         if form.is_valid() is False:
             return super().form_invalid(form)
         return super().form_valid(form)
+
+    def get_product(self, form):
+        product = None
+        ean = form.data.get("ean_vollstaendig").strip()
+        sku = form.data.get("sku").strip()
+        if sku is not None and sku != "":
+            product = Product.objects.filter(sku__sku=sku).first()
+
+        if ean is not None and ean != "":
+            product = Product.objects.filter(ean=ean).first()
+
+        print(f"INWI: {ean} - {sku} - {product}")
+        return product
 
 
 class StockDeleteView(DeleteView):
@@ -572,13 +533,29 @@ class StockCorrectView(UpdateView):
         context["object"] = self.object
         return context
 
+    def form_valid(self, form):
+        self.object = form.save(commit=False)
+        if int(self.object.bestand) == 0:
+            self.object.delete()
+            messages.add_message(self.request, messages.INFO, "Artikel wurde erfolgreich ausgebucht")
+            return HttpResponseRedirect(reverse_lazy("stock:list"))
+        return super().form_valid(form)
+
 
 class StockCopyView(StockUpdateView):
+    def __init__(self):
+        super().__init__()
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().dispatch(request, *args, **kwargs)
+
     def get_object(self):
         position = Stock.objects.get(pk=self.kwargs.get("pk")).lagerplatz
         copy = Stock()
         copy.lagerplatz = position
-        copy.zustand = "Neu"
+        copy.zustand = ""
         return copy
 
     def get_context_data(self, *args, **kwargs):
@@ -587,10 +564,37 @@ class StockCopyView(StockUpdateView):
         return context
 
     def form_valid(self, form, *args, **kwargs):
-        self.object.id = Stock.objects.latest("id").id+1
+        print(f"häää")
+        if self.object.product is None or self.object.product == "":
+            product = self.get_product(form)
+        else:
+            product = self.object.product
+        print(product)
+        if product is not None:
+            if product.single_product is not None and product.single_product != "":
+                bestand = form.data.get("bestand")
+                if bestand is not None and bestand != "":
+                    if int(bestand) > 1:
+                        form.add_error("bestand", f"Auf diesen Bestand darf die Menge nicht größer als 1 sein, da "
+                                                  f"der Artikel auf dieser Position ein Einzelartikel ist.")
+        if form.is_valid() is False:
+            return super().form_invalid(form)
+        self.object.id = int(Stock.objects.latest("pk").pk)+1
         self.object.save()
         return HttpResponseRedirect(reverse_lazy("stock:detail", kwargs={"pk": self.object.pk}))
 
+    def get_product(self, form):
+        product = None
+        ean = form.data.get("ean_vollstaendig").strip()
+        sku = form.data.get("sku").strip()
+        if sku is not None and sku != "":
+            product = Product.objects.filter(sku__sku=sku).first()
+
+        if ean is not None and ean != "":
+            product = Product.objects.filter(ean=ean).first()
+
+        print(f"INWI: {ean} - {sku} - {product}")
+        return product
 
 class StockImportView(FormView):
     template_name = "stock/import.html"
@@ -709,19 +713,43 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
             'lagerplatz': self.current_position,
         }
 
-    def form_invalid(self, form):
-        print("HEROKu FAILURE: ")
-        return super().form_invalid(form)
-
     def form_valid(self, form):
         object = form.save(commit=False)
+
+        product = self.get_product(form)
+
+        if product is not None:
+            if product.single_product is not None and product.single_product != "":
+                bestand = form.data.get("bestand")
+                if bestand is not None and bestand != "":
+                    if int(bestand) > 1:
+                        form.add_error("bestand", f"Auf diesen Bestand darf die Menge nicht größer als 1 sein, da "
+                                                  f"der Artikel auf dieser Position ein Einzelartikel ist.")
+
+        if form.is_valid() is False:
+            return super().form_invalid(form)
+
         object.lagerplatz = self.current_position
-        print(f"HEROKU 4: {object.id}")
+
         object.id = Stock.objects.latest("id").id+1
-        print(f"HEROKU 5: {object.id}")
         object.save()
-        print(f"HEROKU 6: {object.id}")
+
         return super().form_valid(form)
+
+    def get_product(self, form):
+        product = None
+
+        ean = form.data.get("ean_vollstaendig").strip()
+        sku = form.data.get("sku").strip()
+
+        if sku is not None and sku != "":
+            product = Product.objects.filter(sku__sku=sku).first()
+        print(f"warum: {product}")
+        if ean is not None and ean != "":
+            product = Product.objects.filter(ean=ean).first()
+
+        print(f"INWI: {ean} - {sku} - {product}")
+        return product
 
     @property
     def current_position(self):

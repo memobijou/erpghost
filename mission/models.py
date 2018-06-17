@@ -154,6 +154,51 @@ class PickList(models.Model):
         super().save()
 
 
+class PackingList(models.Model):
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    packing_id = models.CharField(max_length=200, blank=True, null=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.packing_id is None or self.packing_id == "":
+            self.packing_id = f"VR{self.pk+1}"
+        super().save()
+
+
+class PackingListProduct(models.Model):
+    packing_list = models.ForeignKey("mission.PackingList", null=True, blank=True)
+    delivery_mission_product = models.ForeignKey("mission.DeliveryMissionProduct", null=True, blank=True)
+    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge", default=0)
+    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
+    confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
+
+    def amount_minus_missing_amount(self):
+        if self.missing_amount is None:
+            return self.scan_amount()
+        return self.scan_amount()-self.missing_amount
+
+    def real_amount(self):
+        amount = self.amount
+        if self.goods_issue is not None and self.goods_issue != "":
+            for delivery_note in self.goods_issue.deliverynote_set.all():
+                for delivery_note_product in delivery_note.deliverynoteproductmission_set\
+                        .filter(product_mission__exact=self.delivery_mission_product.product_mission):
+                    amount -= delivery_note_product.amount
+        return amount
+
+    def scan_amount(self):
+        amount = 0
+        picklist = self.goods_issue.delivery.picklist_set.first()
+
+        if picklist is not None and picklist != "":
+            for pick_row in picklist.picklistproducts_set.filter(Q(Q(confirmed=True) | Q(confirmed=False))
+                                                                 & Q(product_mission=
+                                                                     self.delivery_mission_product.product_mission)):
+                amount += pick_row.amount_minus_missing_amount()
+        return amount
+
+
 class IgnoreStocksPickList(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)

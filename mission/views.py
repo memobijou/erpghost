@@ -20,7 +20,8 @@ from utils.utils import get_field_names, get_queries_as_json, set_field_names_on
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
-    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct, PickList, PickListProducts
+    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct, PickList, PickListProducts, \
+    PackingList, PackingListProduct
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm, BillingForm, PickForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -241,7 +242,8 @@ class MissionListView(ListView):
             search_filter |= Q(delivery__goodsissue__billing__billing_number__icontains=search_value.strip())
             search_filter |= Q(delivery__goodsissue__deliverynote__delivery_note_number__icontains=search_value.strip())
             search_filter |= Q(customer__contact__billing_address__firma__icontains=search_value.strip())
-
+            search_filter |= Q(delivery__goodsissue__billing__transport_service__icontains=search_value.strip())
+            search_filter |= Q(customer_order_number__icontains=search_value.strip())
         print(f"s: {search_filter}")
         q_filter &= search_filter
 
@@ -741,6 +743,7 @@ class ScanMissionUpdateView(UpdateView):
         self.context["picklist_all_picked"] = self.is_picklist_all_picked()
         self.context["picklist_has_goods"] = self.check_if_picklist_has_goods()
         self.context["last_checked_checkbox"] = self.request.session.get("last_checked_checkbox")
+        self.context["is_packing_list_all_scanned"] = self.is_packing_list_all_scanned()
         self.context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         self.context["select_range"] = range(20)
         return self.context
@@ -772,6 +775,18 @@ class ScanMissionUpdateView(UpdateView):
         if picklist_rows.count() > 0:
             for pick_row in picklist_rows:
                 if pick_row.confirmed is None:
+                    return False
+            return True
+        else:
+            return False
+
+    def is_packing_list_all_scanned(self):
+        if self.delivery_products is None or self.delivery_products == "":
+            return False
+
+        if self.delivery_products.count() > 0:
+            for product in self.delivery_products:
+                if product.confirmed is None:
                     return False
             return True
         else:
@@ -1197,6 +1212,12 @@ class CreatePickListView(View):
         return render(request, self.template_name, context)
 
     def post(self, request, *args, **kwargs):
+        self.create_picking_list()
+        return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": self.kwargs.get("pk"),
+                                                                             "delivery_pk":
+                                                                                 self.kwargs.get("delivery_pk")}))
+
+    def create_picking_list(self):
         picking_list = self.get_picking_list()
         pick_list_instance = PickList(delivery=self.delivery)
         pick_list_instance.save()
@@ -1209,9 +1230,23 @@ class CreatePickListView(View):
                                                    goods_issue_product.delivery_mission_product.product_mission,
                                                    position=position[0].lagerplatz, amount=position[1]))
         PickListProducts.objects.bulk_create(bulk_instances)
-        return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": self.kwargs.get("pk"),
-                                                                             "delivery_pk":
-                                                                                 self.kwargs.get("delivery_pk")}))
+
+    def create_packing_list(self):
+        packing_list_instance = PackingList(delivery=self.delivery)
+        packing_list_instance.save()
+
+        bulk_instances = []
+
+        PackingListProduct.objects.bulk_create(bulk_instances)
+
+    def get_to_scan_products(self):
+        goodsissue_products = self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all()
+        exclude_amount_zero_ids = []
+        for goodsissue_product in goodsissue_products:
+            if goodsissue_product.scan_amount() is None or goodsissue_product.scan_amount() == 0:
+                exclude_amount_zero_ids.append(goodsissue_product.pk)
+        return self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all().\
+            exclude(pk__in=exclude_amount_zero_ids)
 
     def get_picking_list(self):
         picking_list = []

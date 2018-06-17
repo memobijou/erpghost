@@ -76,7 +76,7 @@
                                 <th>Artikelname</th>
                                 <th>Auftragsmenge</th>
                                 <th>Offene Menge</th>
-                                <th>Versendete Menge</th>
+                                <th>Liefermenge</th>
                                 <th>Lagerbestand</th>
                                 <th>Einzelpreis (Netto)</th>
                                 <th>Gesamtpreis (Netto)</th>
@@ -202,17 +202,8 @@
                                     </div>
                                     <div class="panel-body">
                                         {% if delivery.goodsissue_set.first.billing_set.all %}
-                                            <table class="table table-bordered">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Rechnungen & Lieferscheine</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
                                                     {% for b, d in billings_and_delivery_notes %}
-                                                    <tr>
-                                                        <td>
-                                                            <div class="col-md-6">
+                                                                <div class="col-md-6">
                                                                 <div class="panel panel-default">
                                                                     <div class="panel-heading">
                                                                         Rechnung <b>{{ b.billing_number }}</b>
@@ -220,7 +211,7 @@
                                                                     <div class="panel-body">
                                                                         <div class="text-center">
                                                                              <a href="{% url 'mission:partial_billing_pdf' pk=object.pk partial_billing_pk=b.pk %}"
-                                                                                       class="btn btn-info btn-lg">Rechnung ansehen</a>
+                                                                                       class="btn btn-info" style="white-space: normal;">Rechnung ansehen</a>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -233,16 +224,13 @@
                                                                     <div class="panel-body">
                                                                         <div class="text-center">
                                                                            <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=d.pk %}"
-                                                                           class="btn btn-info btn-lg">Lieferschein ansehen</a>
+                                                                           class="btn btn-info" style="white-space: normal;">Lieferschein ansehen</a>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </td>
-                                                    </tr>
                                                     {% endfor %}
-                                                </tbody>
-                                            </table>
+
                                         {% else %}
                                             Keine Rechnungen und Lieferscheine vorhanden
                                         {% endif %}
@@ -255,16 +243,9 @@
                                 <div class="panel panel-default">
                                 <div class="panel-body">
                                     <a class="btn btn-info" style="white-space: normal;"  href="{% url 'mission:picklist' pk=object.pk delivery_pk=delivery.pk %}">Pickliste</a>
-                                    <a class="btn btn-success" style="white-space: normal;" href="{% url 'mission:scan' pk=object.pk delivery_pk=delivery.pk %}">Zum Warenausgang</a>
+                                    <a class="btn btn-success" style="white-space: normal;" href="{% url 'mission:scan' pk=object.pk delivery_pk=delivery.pk %}">Verpackerliste</a>
                                 </div>
                                 </div>
-                            </div>
-                            <div class="col-md-12" style="padding-left:0px;">
-                            <div class="panel panel-default">
-                                <div class="panel-body">
-                                    <a class="btn btn-info" style="white-space: normal;" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">Lieferschein und Rechnung erstellen</a>
-                                </div>
-                            </div>
                             </div>
                         </div>
                     </div>

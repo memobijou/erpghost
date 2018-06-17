@@ -3,7 +3,12 @@
     <form id="filter_form" action="." class="">
     <div class="col-md-12" style="padding-bottom: 25px;">
         <div class="input-group">
-            <input class="form-control" placeholder="Suche ..." name="q"/>
+            {% if request.GET %}
+                <input class="form-control" placeholder="Suche ..." name="q"
+                       value="{{ request.GET|get_from_GET:'q'}}"/>
+            {% else %}
+                <input class="form-control" placeholder="Suche ..." name="q"/>
+            {% endif %}
             <span class="input-group-btn">
                 <input class="btn btn-info" type="submit" value="Los!">
             </span>

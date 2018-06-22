@@ -42,7 +42,7 @@ class CustomPdf:
         self.doc.build(self.story, canvasmaker=CustomCanvas)
 
     def add_sender_address_to_story(self, client):
-        sender_address = f"<br/><br/><br/>{client.contact.billing_address.firma} - " \
+        sender_address = f"<br/><br/><br/><br/><br/><br/><br/><br/>{client.contact.billing_address.firma} - " \
                          f"{client.contact.billing_address.strasse} "\
                          f"{client.contact.billing_address.hausnummer}- {client.contact.billing_address.zip} "\
                          f"{client.contact.billing_address.place}"
@@ -118,7 +118,7 @@ class CustomCanvas(canvas.Canvas):
         """
 
         if len(self.pages) == 0:
-            self.draw_logo(433, 705, self.logo_width, self.logo_height)
+            self.draw_logo(433, 647, self.logo_width, self.logo_height)
 
         self.pages.append(dict(self.__dict__))
         self._startPage()

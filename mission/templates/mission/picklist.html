@@ -114,10 +114,10 @@
 
                                         <p><b>Menge: </b>{{ picklist_row.amount }}</p>
                                         {% if picklist_row.confirmed == True or picklist_row.confirmed == False %}
-                                            <p style="color:green;font-size:13pt;"><b>Ausgebuchte Menge: </b>{{  picklist_row.amount_minus_missing_amount|default:"" }}</p>
+                                            <p style="color:green;font-size:13pt;"><b>Ausgebuchte Menge: </b>{{  picklist_row.amount_minus_missing_amount|default:"0" }}</p>
 
                                             {% if picklist_row.missing_amount %}
-                                              <p style="color:red;font-size:13pt;"><b>Fehlende Menge: </b>{{  picklist_row.missing_amount|default:"" }}</p>
+                                              <p style="color:red;font-size:13pt;"><b>Fehlende Menge: </b>{{  picklist_row.missing_amount|default:"0" }}</p>
                                             {% endif %}
                                         {% endif %}
                                         </div>

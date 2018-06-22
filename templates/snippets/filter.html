@@ -30,6 +30,7 @@
                     {% endif %}
                 {% endfor %}
             {% endfor %}
+
             {% if extra_options %}
                 {% for field, options  in extra_options %}
                     {% for option in options %}
@@ -40,22 +41,36 @@
         </div>
 
         <div class="col-md-12" style="padding:0px;">
-        {% for field, verbose_name in filter_fields %}
-            {% if option_fields %}
-                {% for option_row in option_fields %}
+            {% for field, verbose_name in filter_fields %}
+                {% if option_fields %}
+                    {% for option_row in option_fields %}
 
-                    {% if option_row|getattr:field %}
+                        {% if option_row|getattr:field %}
 
-                    {% else %}
-                        {% include "snippets/filter/input.html" %}
+                        {% else %}
+                            {% include "snippets/filter/input.html" %}
 
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                {% include "snippets/filter/input.html" %}
-            {% endif %}
-        {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {% include "snippets/filter/input.html" %}
+                {% endif %}
+            {% endfor %}
         </div>
+        {% if app == 'product' %}
+                <div class="col-md-12" style="padding:15px 0 0 0;">
+                    <label class="radio-inline"><input type="radio" name="order_by_amount" value="up"
+                    {% if order_by_amount == "up" %}
+                       checked
+                    {% endif %}
+                    class="fire_submit">Menge aufsteigend</label>
+                    <label class="radio-inline"><input type="radio" name="order_by_amount" value="down"
+                    {% if order_by_amount == "down" %}
+                               checked
+                    {% endif %}
+                    class="fire_submit">Menge absteigend</label>
+                </div>
+        {% endif %}
         <div class="col-md-2" style="padding-top:15px;padding-left: 0px;">
             <button type="submit" class="btn btn-info" style="">Filter</button>
         </div>

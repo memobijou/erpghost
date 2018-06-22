@@ -77,18 +77,15 @@
               <table class="table table-bordered">
                 <thead>
                     <th>Neu</th>
-                    <th>A</th>
                     <th>B</th>
                     <th>C</th>
                     <th>D</th>
+                    <th>G</th>
                 </thead>
                 <tbody>
                     <tr>
                       <td>
                           {{ stock.total_neu|default:''}}
-                      </td>
-                      <td>
-                          {{ stock.total_a|default:''}}
                       </td>
                       <td>
                           {{ stock.total_b|default:''}}
@@ -98,6 +95,9 @@
                       </td>
                       <td>
                           {{ stock.total_d|default:''}}
+                      </td>
+                      <td>
+                          {{ stock.total_g|default:''}}
                       </td>
                     </tr>
                 </tbody>

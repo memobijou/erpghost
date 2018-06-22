@@ -14,7 +14,7 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/$', MissionDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/edit/$', MissionUpdateView.as_view(), name="update"),
     url(r'^(?P<pk>\d+)/scan/(?P<delivery_pk>\d+)/$', ScanMissionUpdateView.as_view(), name="scan"),
-    url(r'^(?P<pk>\d+)/partial_delivery_note_form/(?P<goods_issue_pk>\d+)/$', CreatePartialDeliveryNote.as_view(),
+    url(r'^(?P<pk>\d+)/partial_delivery_note_form/(?P<delivery_pk>\d+)/$', CreatePartialDeliveryNote.as_view(),
         name="partial_delivery_note_form"),
     url(r'^delete/$', MissionDeleteView.as_view(), name="delete"),
     url(r'^(?P<pk>\d+)/delivery_note/$', DeliveryNoteView.as_view(), name="delivery_note"),

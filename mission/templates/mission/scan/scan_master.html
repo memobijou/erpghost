@@ -12,11 +12,11 @@
             <th>Einzelpreis (Netto)</th>
         </thead>
         <tbody>
-            {% for delivery_product in delivery_products %}
+            {% for packinglist_product in packinglist_products %}
                 <tr
-                    {% if delivery_product.confirmed == True %}
+                    {% if packinglist_product.confirmed == True %}
                         class="success"
-                    {% elif delivery_product.confirmed == False %}
+                    {% elif packinglist_product.confirmed == False %}
                         class="danger"
                     {% endif %}
                 >
@@ -25,32 +25,37 @@
                         <span class="glyphicon glyphicon-chevron-down"></span>
                     </td>
                     <td>
-                        {% if delivery_product.delivery_mission_product.product_mission.product.main_image %}
+                        {% if packinglist_product.product_mission.product.main_image %}
                             <div style="max-height: 80px;max-width:80px;">
-                                <img src="{{ delivery_product.delivery_mission_product.product_mission.product.main_image.url }}"
+                                <img src="{{ packinglist_product.product_mission.product.main_image.url }}"
                                                 style="max-height:80px;" class="img-responsive">
                             </div>
                         {% endif %}
                     </td>
-                    <td>{{ delivery_product.delivery_mission_product.product_mission.get_ean_or_sku }}</td>
-                    <td>{{ delivery_product.delivery_mission_product.product_mission.state }}</td>
-                    <td>{{ delivery_product.scan_amount }}</td>
-                    <td>{{ delivery_product.missing_amount|default:"" }}</td>
-                    <td>{{ delivery_product.amount_minus_missing_amount }}</td>
-                    <td>{{ delivery_product.delivery_mission_product.product_mission.netto_price|format_number_thousand_decimal_points }}</td>
+                    <td>{{ packinglist_product.product_mission.get_ean_or_sku }}</td>
+                    <td>{{ packinglist_product.product_mission.state }}</td>
+                    <td>{{ packinglist_product.scan_amount }}</td>
+                    <td>{{ packinglist_product.missing_amount|default:"" }}</td>
+                    <td>{{ packinglist_product.amount_minus_missing_amount }}</td>
+                    <td>{{ packinglist_product.product_mission.netto_price|format_number_thousand_decimal_points }}</td>
                 </tr>
                 <tr id="collapse_{{ forloop.counter }}"
-                    {% if delivery_product.delivery_mission_product.product_mission.confirmed == True %}
+                    {% if packinglist_product.product_mission.confirmed == True %}
                         class="collapse success"
-                    {% elif delivery_product.delivery_mission_product.product_mission.confirmed == False %}
+                    {% elif packinglist_product.product_mission.confirmed == False %}
                         class="collapse danger"
                     {% else %}
                         class="collapse"
                     {% endif %}
                 >
                     <td colspan="8">
-                        <p><b>Artikelname: </b>{{ delivery_product.delivery_mission_product.product_mission.product.title }}</p>
-                        <p><b>Kurzbeschreibung: </b>{{ delivery_product.delivery_mission_product.product_mission.product.short_description }}</p>
+                        {% if packinglist_product.product_mission.product.title %}
+                            <p><b>Artikelname: </b>{{ packinglist_product.product_mission.product.title }}</p>
+                        {% endif %}
+
+                        {% if packinglist_product.product_mission.product.short_description %}
+                            <p><b>Kurzbeschreibung: </b>{{ packinglist_product.product_mission.product.short_description }}</p>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}

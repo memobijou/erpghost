@@ -195,7 +195,7 @@ class StockListView(LoginRequiredMixin, ListView):
 
                 stock_dict["total"] = total.get("Gesamt")
                 stock_dict["total_neu"] = total.get("Neu")
-                stock_dict["total_a"] = total.get("A")
+                stock_dict["total_g"] = total.get("G")
                 stock_dict["total_b"] = total.get("B")
                 stock_dict["total_c"] = total.get("C")
                 stock_dict["total_d"] = total.get("D")
@@ -341,7 +341,7 @@ class StockDetailView(LoginRequiredMixin, DetailView):
 
             stock_dict["total"] = total.get('Gesamt')
             stock_dict["total_neu"] = total.get("Neu")
-            stock_dict["total_a"] = total.get("A")
+            stock_dict["total_g"] = total.get("G")
             stock_dict["total_b"] = total.get("B")
             stock_dict["total_c"] = total.get("C")
             stock_dict["total_d"] = total.get("D")
@@ -375,13 +375,16 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
     def get_form(self, form_class=None):
         form = super().get_form(form_class=None)
 
-        choices_with_object_zustand_value = form.fields["zustand"].choices
-        for k, v in choices_with_object_zustand_value:
-            print(f"{k} - {self.object.zustand} --- {v} --- {self.object.zustand}")
-            if k == self.object.zustand or v == self.object.zustand:
-                return form
-        form.fields["zustand"].choices.append((self.object.zustand, self.object.zustand))
-        form.fields["zustand"]._set_choices(choices_with_object_zustand_value)
+        if self.object.pk is not None:
+            print(f"ben ben: {self.object}")
+
+            state = self.object.get_state()
+
+            if (state, state) not in form.fields["zustand"].choices:
+                choices_with_object_zustand_value = form.fields["zustand"].choices
+                form.fields["zustand"].choices.append((state, state))
+                form.fields["zustand"]._set_choices(choices_with_object_zustand_value)
+                form.initial["zustand"] = (state, state)
         return form
 
     def form_valid(self, form):
@@ -593,8 +596,8 @@ class StockCopyView(StockUpdateView):
         if ean is not None and ean != "":
             product = Product.objects.filter(ean=ean).first()
 
-        print(f"INWI: {ean} - {sku} - {product}")
         return product
+
 
 class StockImportView(FormView):
     template_name = "stock/import.html"

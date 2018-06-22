@@ -57,18 +57,19 @@ class Mission(models.Model):
         super().__init__(*args, **kwargs)
         self.__original_confirmed = self.confirmed
 
-    def save(self, *args, **kwargs):
-        # if self.__original_confirmed != self.confirmed:
-        #     if self.confirmed is True:
-        #             self.status = "PICKBEREIT"
-        #     elif self.confirmed is False:
-        #         self.status = "AUSSTEHEND"
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.mission_number is None or self.mission_number == "":
+            self.mission_number = f"A{self.pk+1}"
+        super().save()
 
-        if self.mission_number == "":
-            today = date.today().strftime('%d%m%y')
-            count = Mission.objects.filter(mission_number__icontains=today).count()+1
-            self.mission_number = f"A{today}" + '%03d' % count
-        super().save(force_insert=False, force_update=False, *args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if self.mission_number == "":
+    #         today = date.today().strftime('%d%m%y')
+    #         count = Mission.objects.filter(mission_number__icontains=today).count()+1
+    #         self.mission_number = f"A{today}" + '%03d' % count
+    #     super().save(force_insert=False, force_update=False, *args, **kwargs)
 
     def __str__(self):
         return self.mission_number
@@ -168,7 +169,7 @@ class PackingList(models.Model):
 
 class PackingListProduct(models.Model):
     packing_list = models.ForeignKey("mission.PackingList", null=True, blank=True)
-    delivery_mission_product = models.ForeignKey("mission.DeliveryMissionProduct", null=True, blank=True)
+    product_mission = models.ForeignKey("mission.ProductMission", null=True, blank=True)
     amount = models.IntegerField(blank=True, null=True, verbose_name="Menge", default=0)
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
     confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
@@ -189,12 +190,11 @@ class PackingListProduct(models.Model):
 
     def scan_amount(self):
         amount = 0
-        picklist = self.goods_issue.delivery.picklist_set.first()
+        picklist = self.packing_list.delivery.picklist_set.first()
 
         if picklist is not None and picklist != "":
             for pick_row in picklist.picklistproducts_set.filter(Q(Q(confirmed=True) | Q(confirmed=False))
-                                                                 & Q(product_mission=
-                                                                     self.delivery_mission_product.product_mission)):
+                                                                 & Q(product_mission=self.product_mission)):
                 amount += pick_row.amount_minus_missing_amount()
         return amount
 
@@ -259,7 +259,8 @@ class DeliveryMissionProduct(models.Model):
     def real_amount(self):
         amount = 0
         delivery_notes_products = DeliveryNoteProductMission.objects.\
-            filter(product_mission=self.product_mission, delivery_note__goods_issue__delivery=self.delivery)
+            filter(product_mission=self.product_mission, delivery_note__delivery=self.delivery)
+
         if delivery_notes_products.count() > 0:
             for row in delivery_notes_products:
                 amount += row.amount
@@ -293,7 +294,7 @@ class RealAmount(models.Model):
 
 class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
-    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
     transport_service = models.CharField(choices=shipping_choices, blank=False, null=True, max_length=200,
                                          verbose_name="Transportdienstleister")
@@ -313,7 +314,7 @@ class DeliveryNote(models.Model):
         ordering = ['pk']
 
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
-    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

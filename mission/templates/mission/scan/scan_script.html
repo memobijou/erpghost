@@ -110,21 +110,21 @@
             var ean_json = {};
             var sku_json = {};
 
-            {% for delivery_product in delivery_products %}
-                    var state = "{{ delivery_product.delivery_mission_product.product_mission.state }}";
-                    var tmp_ean = "{{ delivery_product.delivery_mission_product.product_mission.product.ean }}";
+            {% for packinglist_product in packinglist_products %}
+                    var state = "{{ packinglist_product.product_mission.state }}";
+                    var tmp_ean = "{{ packinglist_product.product_mission.product.ean }}";
                     var tmp_sku_number = null;
 
                     if(tmp_ean) {
                         var data = {
-                            "title": "{{ delivery_product.delivery_mission_product.product_mission.product.title|default:'' }}",
+                            "title": "{{ packinglist_product.product_mission.product.title|default:'' }}",
                             "current_state": state,
-                            "id": "{{ delivery_product.id}}",
-                            "amount": "{{ delivery_product.scan_amount }}"
+                            "id": "{{ packinglist_product.id}}",
+                            "amount": "{{ packinglist_product.scan_amount }}"
                         };
 
-                        {% if delivery_product.delivery_mission_product.product_mission.product.main_image %}
-                            data.main_image = "{{ delivery_product.delivery_mission_product.product_mission.product.main_image.url }}";
+                        {% if packinglist_product.product_mission.product.main_image %}
+                            data.main_image = "{{ packinglist_product.product_mission.product.main_image.url }}";
                         {% endif %}
 
                         if (tmp_ean in ean_json) {
@@ -140,8 +140,8 @@
                         }
                     }
 
-                    {% for sku in delivery_product.delivery_mission_product.product_mission.product.sku_set.all %}
-                        {% if sku.state == delivery_product.delivery_mission_product.product_mission.state %}
+                    {% for sku in packinglist_product.product_mission.product.sku_set.all %}
+                        {% if sku.state == packinglist_product.product_mission.state %}
                             tmp_sku_number = "{{ sku.sku }}";
                         {% endif %}
                     {% endfor %}
@@ -152,16 +152,16 @@
                             if("states" in sku_json[tmp_sku_number]){
                                 sku_json[tmp_sku_number].states.push(state);
                             }
-                            ean_json["amount"] = "{{ delivery_product.scan_amount}}";
+                            ean_json["amount"] = "{{ packinglist_product.scan_amount}}";
                             ean_json["current_state"] = state;
                         } else {
                             sku_json[tmp_sku_number] = {"states": [state],
-                                                        "title": "{{ delivery_product.delivery_mission_product.product_mission.product.title|default:'' }}",
+                                                        "title": "{{ packinglist_product.product_mission.product.title|default:'' }}",
                                                         "current_state": state,
-                                                        "id": "{{ delivery_product.id}}",
-                                                        "amount": "{{ delivery_product.scan_amount }}"};
-                           {% if  delivery_product.delivery_mission_product.product_mission.product.main_image %}
-                                        sku_json[tmp_sku_number].main_image = "{{  delivery_product.delivery_mission_product.product_mission.product.main_image.url }}";
+                                                        "id": "{{ packinglist_product.id}}",
+                                                        "amount": "{{ packinglist_product.scan_amount }}"};
+                           {% if  packinglist_product.product_mission.product.main_image %}
+                                        sku_json[tmp_sku_number].main_image = "{{  packinglist_product.product_mission.product.main_image.url }}";
                             {% endif %}
                         }
                     }
@@ -186,7 +186,6 @@
             if(input.value == ean || input.value == sku_number){
 
                     matches[input.id] = true;
-
                     if(ean){
                         if(confirm_state != null && confirm_state.toLowerCase() in ean_json[ean] == false){
 
@@ -200,7 +199,6 @@
 
                             match_amount.innerHTML = ean_json[ean][confirm_state.toLowerCase()].amount;
                             match_amount_value = ean_json[ean][confirm_state.toLowerCase()].amount;
-
                             if(ean_json[ean][confirm_state.toLowerCase()].main_image){
                                 match_img.src = ean_json[ean][confirm_state.toLowerCase()].main_image;
                             }
@@ -221,6 +219,7 @@
                         match_ean_sku.innerHTML = sku_number;
 
                         match_amount.innerHTML = sku_json[sku_number].amount;
+                        match_amount_value = sku_json[sku_number].amount;
 
                         if(sku_json[sku_number].main_image){
                             match_img.src = sku_json[sku_number].main_image;
@@ -296,7 +295,7 @@
             missing_amount = parseInt(missing_amount);
             match_amount_value = parseInt(match_amount_value);
 
-            while(missing_amount >match_amount_value || missing_amount <= 0 || isNaN(missing_amount)){
+            while(missing_amount > match_amount_value || missing_amount <= 0 || isNaN(missing_amount)){
                 missing_amount = prompt("Sie können nur ein Zahl von 1 bis " + match_amount_value + " eingeben");
                 if(!missing_amount){
                     return;

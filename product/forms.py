@@ -74,8 +74,8 @@ class SingleProductForm(forms.ModelForm):
         model = Product
         fields = ["title", "main_image",  "short_description", "description", ]
 
-    state = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("A", "A"), ("B", "B"),
-                                       ("C", "C"), ("D", "D")), required=True, label="Zustand")
+    state = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("B", "B"),
+                                       ("C", "C"), ("D", "D"), ("D", "D")), required=True, label="Zustand")
 
     more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
                                   required=False)

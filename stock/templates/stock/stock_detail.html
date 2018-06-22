@@ -48,7 +48,11 @@
         </div>
     </div>
 
-    <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;">
+    <div class="col-md-12" style="padding:0">
+        <div class="panel panel-default">
+            <div class="panel-body">
+
+
         <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
         <div class="col-md-12" style="padding-left: 0px;">
         {% if product %}
@@ -81,10 +85,13 @@
                     </div>
                 </div>
             {% endif %}
-        <div class="col-md-6">
-        {% if product.short_description %}
-            <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
         {% endif %}
+
+        <div class="col-md-6">
+        {% if product %}
+            {% if product.short_description %}
+                <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
+            {% endif %}
         {% endif %}
         {% if object.name %}
             <p><b>Person: </b>{{ object.name }}</p>
@@ -125,18 +132,15 @@
           <table class="table table-bordered">
             <thead>
                 <th>Neu</th>
-                <th>A</th>
                 <th>B</th>
                 <th>C</th>
                 <th>D</th>
+                <th>G</th>
             </thead>
             <tbody>
                 <tr>
                   <td>
                       {{ stock.total_neu|default:''}}
-                  </td>
-                  <td>
-                      {{ stock.total_a|default:''}}
                   </td>
                   <td>
                       {{ stock.total_b|default:''}}
@@ -146,6 +150,9 @@
                   </td>
                   <td>
                       {{ stock.total_d|default:''}}
+                  </td>
+                  <td>
+                      {{ stock.total_g|default:''}}
                   </td>
                 </tr>
             </tbody>
@@ -185,10 +192,12 @@
                                     </div>
                                 </div>
                         {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
-        <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
+        <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
             <br/>
             <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
         </div>

@@ -32,6 +32,7 @@ from django.core import files
 import base64
 import json
 import imghdr
+from django.db.models import Case, When, Value, IntegerField, Sum
 
 
 class ProductListView(ListView):
@@ -39,6 +40,17 @@ class ProductListView(ListView):
 
     def get_queryset(self):
         queryset = self.filter_queryset_from_request()
+
+        if "order_by_amount" in self.request.GET and self.request.GET.get("order_by_amount") == "down":
+            queryset = queryset.values_as_instances().annotate(total_stock=Sum("stock__bestand")).\
+                annotate(nulls_last=Case(When(total_stock=None, then=Value(0)),
+                                         output_field=IntegerField())).order_by("-nulls_last", "-total_stock")
+
+        if "order_by_amount" in self.request.GET and self.request.GET.get("order_by_amount") == "up":
+            queryset = queryset.values_as_instances().annotate(total_stock=Sum("stock__bestand")).\
+                annotate(nulls_last=Case(When(total_stock=None, then=Value(0)), output_field=IntegerField())).\
+                order_by("nulls_last", "total_stock")
+
         return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
@@ -47,32 +59,30 @@ class ProductListView(ListView):
         context["fields"] = self.build_fields()
         context["object_list"] = self.get_queryset()
         context["object_list_zip"] = zip(context["object_list"], self.get_product_stocks())
-        print(context["object_list"])
+        context["order_by_amount"] = self.request.GET.get("order_by_amount")
         context["filter_fields"] = get_filter_fields(Product, exclude=["id", "main_image", "single_product_id"])
         return context
 
     def filter_queryset_from_request(self):
         filter_dict = {}
         q_filter = Q()
+
         for field, verbose_name in self.get_filter_fields(exclude=["main_sku"]):
             if field in self.request.GET:
                 GET_value = self.request.GET.get(field)
                 if GET_value is not None and GET_value != "":
                     filter_dict[f"{field}__icontains"] = str(self.request.GET.get(field)).strip()
 
-        print(f"OKAYYYY {filter_dict}")
-
         for item in filter_dict:
             q_filter &= Q(**{item: filter_dict[item]})
 
         if self.request.GET.get("main_sku") is not None and self.request.GET.get("main_sku") != "":
             sku_value = str(self.request.GET.get("main_sku")).strip()
-            print(f"khalid: {sku_value}")
             q_filter &= Q(sku__sku__icontains=sku_value)
 
         search_filter = Q()
         search_value = self.request.GET.get("q")
-        print(f"{search_value}")
+
         if search_value is not None and search_value != "":
             search_filter |= Q(**{f"ean__icontains": search_value.strip()})
             search_filter |= Q(sku__sku__icontains=search_value.strip())
@@ -83,11 +93,8 @@ class ProductListView(ListView):
             search_filter |= Q(short_description__icontains=search_value.strip())
             search_filter |= Q(description__icontains=search_value.strip())
 
-
-        print(f"s: {search_filter}")
         q_filter &= search_filter
 
-        print(q_filter)
         queryset = Product.objects.filter(q_filter).order_by("-id").distinct()
         return queryset
 
@@ -127,16 +134,14 @@ class ProductListView(ListView):
                 total = stock.get_available_stocks_of_total_stocks(product=q)
                 stock_dict["total"] = total.get('Gesamt')
                 stock_dict["total_neu"] = total.get("Neu")
-                stock_dict["total_a"] = total.get("A")
+                stock_dict["total_g"] = total.get("G")
                 stock_dict["total_b"] = total.get("B")
                 stock_dict["total_c"] = total.get("C")
                 stock_dict["total_d"] = total.get("D")
-                print(stock_dict)
                 total_stocks.append(stock_dict)
             else:
                 stock_dict["total"] = None
                 total_stocks.append(stock_dict)
-                print(stock_dict)
         return total_stocks
 
     def build_fields(self):
@@ -156,9 +161,11 @@ class ProductUpdateView(UpdateView):
         super().__init__()
         self.context = {}
         self.object = None
+        self.sku_instances = None
 
     def get_object(self):
         self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        self.sku_instances = self.get_sku_instances()
         return self.object
 
     def get_context_data(self, **kwargs):
@@ -168,18 +175,19 @@ class ProductUpdateView(UpdateView):
         return self.context
 
     def initialize_purchasing_forms(self):
-        sku_instances = self.get_sku_instances()
-        new_sku = sku_instances[0]
-        A_sku = sku_instances[1]
-        B_sku = sku_instances[2]
-        C_sku = sku_instances[3]
-        D_sku = sku_instances[4]
+        new_sku = self.sku_instances[0]
+        b_sku = self.sku_instances[1]
+        c_sku = self.sku_instances[2]
+        d_sku = self.sku_instances[3]
+        g_sku = self.sku_instances[4]
 
-        purchasing_forms = [(new_sku.first(), PurchasingPriceForm(data=new_sku.values("purchasing_price").first())),
-                            (A_sku.first(), PurchasingPriceForm(data=A_sku.values("purchasing_price").first())),
-                            (B_sku.first(), PurchasingPriceForm(data=B_sku.values("purchasing_price").first())),
-                            (C_sku.first(), PurchasingPriceForm(data=C_sku.values("purchasing_price").first())),
-                            (D_sku.first(), PurchasingPriceForm(data=D_sku.values("purchasing_price").first()))]
+        purchasing_forms = [
+                        (new_sku, PurchasingPriceForm(data={"purchasing_price": new_sku.purchasing_price})),
+                        (b_sku, PurchasingPriceForm(data={"purchasing_price": b_sku.purchasing_price})),
+                        (c_sku, PurchasingPriceForm(data={"purchasing_price": c_sku.purchasing_price})),
+                        (d_sku, PurchasingPriceForm(data={"purchasing_price": d_sku.purchasing_price})),
+                        (g_sku, PurchasingPriceForm(data={"purchasing_price": g_sku.purchasing_price})),
+                    ]
         return purchasing_forms
 
     def get_success_url(self):
@@ -212,9 +220,9 @@ class ProductUpdateView(UpdateView):
             post_forms.append(purchasing_price_form)
 
         purchasing_price_forms = []
-        print(purchasing_price_forms)
-        for sku, price in zip(self.get_sku_instances(), post_forms):
+        for sku, price in zip(self.sku_instances, post_forms):
             purchasing_price_forms.append((sku, price))
+        print(purchasing_price_forms)
         return purchasing_price_forms
 
     def validate_purchasing_prices_forms(self, purchasing_forms):
@@ -229,17 +237,17 @@ class ProductUpdateView(UpdateView):
             return False
 
     def get_sku_instances(self):
-        new_sku = Sku.objects.filter(product_id=self.object.pk, state="Neu")
-        A_sku = Sku.objects.filter(product_id=self.object.pk, state="A")
-        B_sku = Sku.objects.filter(product_id=self.object.pk, state="B")
-        C_sku = Sku.objects.filter(product_id=self.object.pk, state="C")
-        D_sku = Sku.objects.filter(product_id=self.object.pk, state="D")
-        return [new_sku, A_sku, B_sku, C_sku, D_sku]
+        new_sku = Sku.objects.filter(product_id=self.object.pk, state="Neu").first()
+        B_sku = Sku.objects.filter(product_id=self.object.pk, state="B").first()
+        C_sku = Sku.objects.filter(product_id=self.object.pk, state="C").first()
+        D_sku = Sku.objects.filter(product_id=self.object.pk, state="D").first()
+        G_sku = Sku.objects.filter(product_id=self.object.pk, state="G").first()
+        return [new_sku, B_sku, C_sku, D_sku, G_sku]
 
     def update_sku_purchasing_prices(self):
         print(self.object)
-        for sku, purchasing_price in zip(self.object.sku_set.all().order_by("sku"),
-                                         self.request.POST.getlist("purchasing_price")):
+        sku_instances = self.sku_instances
+        for sku, purchasing_price in zip(sku_instances, self.request.POST.getlist("purchasing_price")):
             if purchasing_price is not None and purchasing_price != "":
                 sku.purchasing_price = float(purchasing_price)
                 sku.save()
@@ -310,7 +318,7 @@ class ProductCreateView(CreateView):
         return HttpResponseRedirect(self.get_success_url())
 
     def create_sku_purchasing_prices(self):
-        for sku, purchasing_price in zip(self.object.sku_set.all().order_by("sku"),
+        for sku, purchasing_price in zip(self.get_sku_instances(),
                                          self.request.POST.getlist("purchasing_price")):
             if purchasing_price is not None and purchasing_price != "":
                 sku.purchasing_price = float(purchasing_price)
@@ -359,6 +367,14 @@ class ProductCreateView(CreateView):
         for image in more_images:
             img_object = ProductImage(image=image, product_id=self.object.pk)
             img_object.save()
+
+    def get_sku_instances(self):
+        new_sku = Sku.objects.filter(product_id=self.object.pk, state="Neu").first()
+        B_sku = Sku.objects.filter(product_id=self.object.pk, state="B").first()
+        C_sku = Sku.objects.filter(product_id=self.object.pk, state="C").first()
+        D_sku = Sku.objects.filter(product_id=self.object.pk, state="D").first()
+        G_sku = Sku.objects.filter(product_id=self.object.pk, state="G").first()
+        return [new_sku, B_sku, C_sku, D_sku, G_sku]
 
 
 class ProductSingleCreateView(CreateView):
@@ -633,10 +649,10 @@ class ProductDetailView(DetailView):
             total = stock.get_available_stocks_of_total_stocks()
             stock_dict["total"] = total.get('Gesamt')
             stock_dict["total_neu"] = total.get("Neu")
-            stock_dict["total_a"] = total.get("A")
             stock_dict["total_b"] = total.get("B")
             stock_dict["total_c"] = total.get("C")
             stock_dict["total_d"] = total.get("D")
+            stock_dict["total_g"] = total.get("G")
         else:
             stock_dict["total"] = None
         return stock_dict

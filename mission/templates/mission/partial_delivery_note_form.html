@@ -5,13 +5,13 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="pull-right">
-                <p><a href="{% url 'mission:detail' pk=goods_issue.delivery.mission.pk %}">Zur Ansicht</a></p>
+                <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
             </div>
             <br/><br/>
             {% if error %}
                 <h3 style="color:red;">{{ error }}</h3>
             {% endif %}
-            {% if goods_issue_products %}
+            {% if packinglist_products %}
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <thead>
@@ -24,25 +24,25 @@
                             </tr>
                         </thead>
                         <tbody>
-                        {% for goods_issue_product in goods_issue_products %}
+                        {% for packinglist_product in packinglist_products %}
                             <tr>
                                 <td>
-                                    {% if goods_issue_product.delivery_mission_product.product_mission.product.main_image %}
-                                        <img src="{{ goods_issue_product.delivery_mission_product.product_mission.product.main_image.url }}"
+                                    {% if packinglist_product.product_mission.product.main_image %}
+                                        <img src="{{ packinglist_product.product_mission.product.main_image.url }}"
                                              class="img-responsive" style="max-height: 70px;"/>
                                     {% endif %}
                                 </td>
                                 <td>
-                                  {{ goods_issue_product.delivery_mission_product.product_mission.get_ean_or_sku }}
+                                  {{ packinglist_product.product_mission.get_ean_or_sku }}
                                 </td>
                                 <td>
-                                  {{ goods_issue_product.delivery_mission_product.product_mission.state }}
+                                  {{ packinglist_product.product_mission.state }}
                                 </td>
                                 <td>
-                                  {{ goods_issue_product.delivery_mission_product.product_mission.product.title|default:"" }}
+                                  {{ packinglist_product.product_mission.product.title|default:"" }}
                                 </td>
                                 <td>
-                                  {{ goods_issue_product.amount_minus_missing_amount|default:"0" }}
+                                  {{ packinglist_product.amount_minus_missing_amount|default:"0" }}
                                 </td>
                             </tr>
                         {% endfor %}
@@ -50,7 +50,7 @@
                     </table>
                 {% endif %}
 
-                {% if goods_issue_products %}
+                {% if packinglist_products %}
                     <form method="POST">{% csrf_token %}
                         <div class="col-md-3"></div>
                         <div class="col-md-6 text-center">
@@ -71,7 +71,7 @@
                             <p>Sie müssen erst den Pickauftrag beenden um einen Lieferschein und eine Rechnung zu erstellen.
                             </p>
                             <p>
-                                <a href="{% url 'mission:picklist' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Hier</a> geht es zum Pickauftrag.
+                                <a href="{% url 'mission:picklist' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Hier</a> geht es zum Pickauftrag.
                             </p>
                         </div>
                     {% endif %}
@@ -89,13 +89,13 @@
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
                                 <p>Sie müssen erst die Ware am Warenausgang bestätigen um einen Lieferschein
-                                    und eine Rechnung zu erstellen. <a href="{% url 'mission:scan' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Hier</a> kommen Sie zum Warenausgang.</p>
+                                    und eine Rechnung zu erstellen. <a href="{% url 'mission:scan' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Hier</a> kommen Sie zum Warenausgang.</p>
                             </div>
                         {% else %}
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnnung können nicht erstellt werden</h3>
                                 <p>Um einen Lieferschein und eine Rechnung erstellen zu können muss Ware am Warenausgang vorhanden sein.</p>
-                                <p>Prüfen Sie am <a href="{% url 'mission:scan' pk=goods_issue.delivery.mission.pk delivery_pk=goods_issue.delivery.pk %}">Warenausgang</a>, ob tatsächlich kein Artikel vorhanden ist, andernfalls können Sie den Lieferschein und die Rechnung stornieren.</p>
+                                <p>Prüfen Sie am <a href="{% url 'mission:scan' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Warenausgang</a>, ob tatsächlich kein Artikel vorhanden ist, andernfalls können Sie den Lieferschein und die Rechnung stornieren.</p>
                             </div>
 
                             <form method="POST">{% csrf_token %}

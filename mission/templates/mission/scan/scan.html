@@ -10,9 +10,11 @@
                 </div>
             </div>
             <div class="col-md-12" style="padding: 0 0 0 25px;" >
-                <h3>Verpacker ID: {{ delivery.goodsissue_set.first.scan_id  }}</h3>
+                {% if packinglist %}
+                    <h3>Verpacker ID: {{ packinglist.packing_id  }}</h3>
+                {% endif %}
             </div>
-            {% if delivery_products %}
+            {% if packinglist_products %}
                 {% if picklist_all_picked == False %}
                         <div class="col-md-12">
                             <div class="col-md-1"></div>
@@ -44,7 +46,7 @@
                                 <h3>Keine Ware für Lieferung gepickt
                                 </h3>
                                 <p>Sie können
-                                    <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}">
+                                    <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk delivery_pk=delivery.pk %}">
                                         hier</a> den Vorgang stornieren und anschließend eine neue Pickliste erstellen.
                                 </p>
                             </div>
@@ -55,7 +57,7 @@
             {% if is_packing_list_all_scanned == True %}
                 <div class="col-md-12" style="padding-left: 25px;padding-top:25px;">
                 <div class="text-center">
-                    <a class="btn btn-info btn-lg" href="{% url 'mission:partial_delivery_note_form' pk=object.pk goods_issue_pk=delivery.goodsissue_set.first.pk %}"
+                    <a class="btn btn-info btn-lg" href="{% url 'mission:partial_delivery_note_form' pk=object.pk delivery_pk=delivery.pk %}"
                        style="white-space: normal;">Zu Lieferschein und Rechnung</a>
                 </div>
                 </div>

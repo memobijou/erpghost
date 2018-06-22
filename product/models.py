@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models.query import ValuesIterable
 
 from sku.models import Sku
 from supplier.models import Supplier
@@ -12,6 +13,26 @@ class Manufacturer(models.Model):
 
 class Brand(models.Model):
     name = models.CharField(blank=True, null=False, max_length=200, verbose_name="Markenname")
+
+
+class ProductQuerySet(models.QuerySet):
+    def values_as_instances(self, *fields, **expressions):
+        clone = self._clone()
+        if expressions:
+            clone = clone.annotate(**expressions)
+        clone._fields = fields
+        return clone
+
+
+class CustomManger(models.Manager):
+    def get_queryset(self):
+        return ProductQuerySet(self.model, using=self._db)  # Important!
+
+
+class ProductObjectManager(CustomManger):
+    def table_list(self):
+
+        return self.all()
 
 
 class Product(models.Model):
@@ -32,6 +53,8 @@ class Product(models.Model):
     height = models.FloatField(null=True, blank=True, default=None, verbose_name="Höhe")
     width = models.FloatField(null=True, blank=True, default=None, verbose_name="Breite")
     length = models.FloatField(null=True, blank=True, default=None, verbose_name="Länge")
+
+    objects = ProductObjectManager()
 
     def __str__(self):
         return f"{self.ean}"
@@ -59,12 +82,27 @@ class Product(models.Model):
             return  # SKU will then be created from single_product form
 
         if generate_skus is True:
-            bulk_instances = [Sku(product_id=self.pk, sku=f"{self.main_sku}", state="Neu"),
-                              Sku(product_id=self.pk, sku=f"A{self.main_sku}", state="A"),
+            bulk_instances = [Sku(product_id=self.pk, sku=f"N{self.main_sku}", state="Neu"),
+                              Sku(product_id=self.pk, sku=f"G{self.main_sku}", state="G"),
                               Sku(product_id=self.pk, sku=f"B{self.main_sku}", state="B"),
                               Sku(product_id=self.pk, sku=f"C{self.main_sku}", state="C"),
                               Sku(product_id=self.pk, sku=f"D{self.main_sku}", state="D")]
             Sku.objects.bulk_create(bulk_instances)
+        else:
+            skus = self.sku_set.all()
+            sku_strings = [sku.state for sku in skus]
+            states = ["Neu", "G", "B", "C", "D"]
+
+            for state in states:
+                if state not in sku_strings:
+
+                    if state == "Neu":
+                        prefix = "N"
+                    else:
+                        prefix = state
+
+                    sku_instance = Sku(product_id=self.pk, sku=f"{prefix}{self.main_sku}", state=f"{state}")
+                    sku_instance.save()
 
     def get_state_from_sku(self, sku):
         if sku is not None and sku != "":

@@ -34,6 +34,7 @@ class ClientCreateForm(forms.Form):
     fax = forms.CharField(max_length=200, label="Fax")
     email = forms.CharField(max_length=200, label="Email")
     website = forms.CharField(max_length=200, label="Webseite")
+    website_conditions_link = forms.CharField(max_length=200, label="AGBs Link", required=False)
     bank = forms.CharField(max_length=200, label="Bank")
     bic = forms.CharField(max_length=200, label="BIC")
     iban = forms.CharField(max_length=200, label="IBAN")

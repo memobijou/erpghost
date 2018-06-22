@@ -26,9 +26,9 @@
                 <td> {{object.customer|default:""}} </td>
                 <td> {{object.customer_order_number|default:""}} </td>
                 <td> {{object.delivery_address|default:""}} </td>
-                <td> {{ object.shipping|default:''}} </td>
-                <td> {{ object.shipping_number_of_pieces|default:''}} </td>
-                <td> {{ object.shipping_costs|format_number_thousand_decimal_points|default:''}} </td>
+                <td> {{object.shipping|default:''}} </td>
+                <td> {{object.shipping_number_of_pieces|default:''}} </td>
+                <td> {{object.shipping_costs|format_number_thousand_decimal_points|default:''}} </td>
                 <td>
                     {% if object.difference_delivery_date_today > 0 %}
                      <span class="label label-danger">

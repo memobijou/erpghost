@@ -5,10 +5,10 @@
               <select class="form-control" name="{{ attname }}">
                 <option value="">Zustand auswählen</option>
                 <option value="Neu" {% if "Neu" == GET_value %}selected="true"{% endif %}>Neu</option>
-                <option value="A" {% if "A" == GET_value %}selected="true"{% endif %}>A</option>
                 <option value="B" {% if "B" == GET_value %}selected="true"{% endif %}>B</option>
                 <option value="C" {% if "C" == GET_value %}selected="true"{% endif %}>C</option>
                 <option value="D" {% if "D" == GET_value %}selected="true"{% endif %}>D</option>
+                <option value="G" {% if "G" == GET_value %}selected="true"{% endif %}>G</option>
               </select>
         {% else %}
             <input class="form-control" name="{{ attname }}" placeholder="{{ verbose_name }}" value="{{ GET_value }}">

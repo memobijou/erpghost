@@ -90,12 +90,19 @@ class Order(models.Model):
         super(Order, self).__init__(*args, **kwargs)
         self.__original_verified = self.verified
 
-    def save(self, force_insert=False, force_update=False, *args, **kwargs):
-        if self.ordernumber == "":
-            today = date.today().strftime('%d%m%y')
-            count = Order.objects.filter(ordernumber__icontains=today).count()+1
-            self.ordernumber = f"B{today}" + '%03d' % count
-        super().save(force_insert=False, force_update=False, *args, **kwargs)
+    # def save(self, force_insert=False, force_update=False, *args, **kwargs):
+    #     if self.ordernumber == "":
+    #         today = date.today().strftime('%d%m%y')
+    #         count = Order.objects.filter(ordernumber__icontains=today).count()+1
+    #         self.ordernumber = f"B{today}" + '%03d' % count
+    #     super().save(force_insert=False, force_update=False, *args, **kwargs)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.ordernumber is None or self.ordernumber == "":
+            self.ordernumber = f"B{self.pk+1}"
+        super().save()
 
 
 class ProductOrder(models.Model):

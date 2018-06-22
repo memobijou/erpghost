@@ -44,6 +44,7 @@ class ClientCreateView(generic.FormView):
         bank = Bank(bank=data.get("bank"), bic=data.get("bic"), iban=data.get("iban"))
         contact = Contact(company_image=data.get("company_image"), telefon=data.get("phone"), fax=data.get("fax"),
                           email=data.get("email"), website=data.get("website"),
+                          website_conditions_link=data.get("website_conditions_link"),
                           commercial_register=data.get("commercial_register"), tax_number=data.get("tax_number"),
                           sales_tax_identification_number=data.get("sales_tax_identification_number"))
         billing_address = Adress(firma=data.get("billing_company"), strasse=data.get("billing_street"),
@@ -90,6 +91,7 @@ class ClientUpdateView(generic.FormView):
         data = {"name": object_.name, "company_image": object_.contact.company_image,
                 "phone": object_.contact.telefon,
                 "fax": object_.contact.fax, "email": object_.contact.email, "website": object_.contact.website,
+                "website_conditions_link": object_.contact.website_conditions_link,
                 "commercial_register": object_.contact.commercial_register, "tax_number": object_.contact.tax_number,
                 "sales_tax_identification_number": object_.contact.sales_tax_identification_number,
                 "qr_code": object_.qr_code
@@ -135,6 +137,7 @@ class ClientUpdateView(generic.FormView):
         client.contact.fax = data.get("fax")
         client.contact.email = data.get("email")
         client.contact.website = data.get("website")
+        client.contact.website_conditions_link = data.get("website_conditions_link")
         client.contact.commercial_register = data.get("commercial_register")
         client.contact.tax_number = data.get("tax_number")
         client.contact.sales_tax_identification_number = data.get("sales_tax_identification_number")

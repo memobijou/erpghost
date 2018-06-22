@@ -264,12 +264,16 @@ class BillingPdfView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def build_after_table(self):
-        first_warning_text = "Es gelten die Allgemeinen Verkaufsbedingungen der BTC GmbH.<br/>"\
-                             "Verkauf erfolgt unter Zugrundelegung unserer Allgemeinen Geschäftsbedingungen.<br/>"\
-                             "AGB's gelesen und Akzeptiert.<br/>"\
-                             "Es besteht auch die Möglichkeit, die Bedingungen unter folgender Internet-Adresse " \
-                             "einzusehen, herunterzuladen oder auszudrucken: http://btcgmbh.eu/agb-geschaeftskunden."
-
+        first_warning_text = f"Es gelten die Allgemeinen Verkaufsbedingungen der " \
+                             f"{self.client.name}.<br/>"\
+                             f"Verkauf erfolgt unter Zugrundelegung unserer Allgemeinen Geschäftsbedingungen.<br/>"\
+                             f"AGB's gelesen und Akzeptiert.<br/>"
+        if self.client.contact.website_conditions_link is not None\
+                and self.client.contact.website_conditions_link != "":
+            abg_text = f"Es besteht auch die Möglichkeit, die Bedingungen unter folgender Internet-Adresse " \
+                       f"einzusehen, herunterzuladen oder auszudrucken: " \
+                       f"{self.client.contact.website_conditions_link}."
+            first_warning_text += abg_text
         first_warning_paragraph = Paragraph(first_warning_text, size_ten_helvetica)
 
         first_warning_data = [

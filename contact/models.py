@@ -13,6 +13,7 @@ class Contact(models.Model):
     fax = models.CharField(blank=True, null=True, max_length=200, verbose_name="Fax")
     email = models.CharField(blank=True, null=True, max_length=200, verbose_name="Email")
     website = models.CharField(blank=True, null=True, max_length=200, verbose_name="Webseite")
+    website_conditions_link = models.CharField(blank=True, null=True, max_length=200, verbose_name="Webseite")
     skype_id = models.CharField(blank=True, null=True, max_length=200)
     billing_address = models.ForeignKey(Adress, null=True, blank=True, related_name='billing_contact')
     delivery_address = models.ForeignKey(Adress, null=True, blank=True, related_name='delivery_contact')

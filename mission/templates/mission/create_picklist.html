@@ -34,23 +34,23 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for goods_issue_product, stock, position in pickinglist %}
+                                        {% for delivery_product, stock, position in pickinglist %}
                                             <tr>
                                                 <td>
-                                                    {% if goods_issue_product.delivery_mission_product.product_mission.product.main_image %}
+                                                    {% if delivery_product.product_mission.product.main_image %}
                                                         <img
-                                                            src="{{ goods_issue_product.delivery_mission_product.product_mission.product.main_image.url }}"
+                                                            src="{{ delivery_product.product_mission.product.main_image.url }}"
                                                             class="img-responsive" style="max-height:80px;">
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {{ goods_issue_product.delivery_mission_product.product_mission.get_ean_or_sku }}
+                                                    {{ delivery_product.product_mission.get_ean_or_sku }}
                                                 </td>
                                                 <td>
-                                                    {{  goods_issue_product.delivery_mission_product.product_mission.state }}
+                                                    {{  delivery_product.product_mission.state }}
                                                 </td>
                                                 <td>
-                                                    {{  goods_issue_product.delivery_mission_product.product_mission.product.title|default:"" }}
+                                                    {{  delivery_product.product_mission.product.title|default:"" }}
                                                 </td>
                                                 <td>
                                                     {{ position.0.lagerplatz }}

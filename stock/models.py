@@ -17,6 +17,7 @@ class Stock(models.Model):
         ('NOT_IGNORE', 'Nein'),
     )
 
+    id = models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
     ean_vollstaendig = models.CharField(max_length=250, verbose_name="EAN", null=True, blank=True)
     sku = models.CharField(max_length=250, verbose_name="Sku", null=True, blank=True)
     title = models.CharField(max_length=250, verbose_name="Artikelname", null=True, blank=True)
@@ -42,12 +43,11 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        print("BLATT TEIG TEIG TEIG")
+             update_fields=None, *args, **kwargs):
         product = self.get_product()
         if product is not None:
             self.product = product
-        super().save()
+        super().save(*args, **kwargs)
 
     def clean(self):
 
@@ -89,12 +89,12 @@ class Stock(models.Model):
         if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
             skus_with_same_ean = []
             products_with_ean = Product.objects.filter(ean=self.ean_vollstaendig)
+
             for product_with_ean in products_with_ean:
                 sku_of_product_with_ean = product_with_ean.sku_set.filter(state=self.zustand).first().sku
                 stock_sku = Stock.objects.filter(sku=sku_of_product_with_ean)
                 if stock_sku.count() > 0:
                     skus_with_same_ean.append(sku_of_product_with_ean)
-            print(f"HABDU IBDO: {skus_with_same_ean}")
             stocks = Stock.objects.filter(Q(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
                                           lagerplatz=self.lagerplatz) | Q(sku__in=skus_with_same_ean,
                                                                           lagerplatz=self.lagerplatz))\
@@ -167,22 +167,22 @@ class Stock(models.Model):
                 total_from_sku = self.get_total_from_sku()
                 if total_from_sku is not None:
                     return {"Gesamt": total_from_sku, "Neu": self.get_total_from_sku(state="Neu"),
-                            "A": self.get_total_from_sku(state="A"), "B": self.get_total_from_sku(state="B"),
-                            "C": self.get_total_from_sku(state="C"), "D": self.get_total_from_sku(state="D"),
+                            "B": self.get_total_from_sku(state="B"), "C": self.get_total_from_sku(state="C"),
+                            "D": self.get_total_from_sku(state="D"), "G": self.get_total_from_sku(state="G")
                             }
             if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
                 total_from_ean = self.get_total_from_ean()
                 if total_from_ean is not None:
                     return {"Gesamt": total_from_ean, "Neu": self.get_total_from_ean(state="Neu"),
-                            "A": self.get_total_from_ean(state="A"), "B": self.get_total_from_ean(state="B"),
-                            "C": self.get_total_from_ean(state="C"), "D": self.get_total_from_ean(state="D"),
+                            "B": self.get_total_from_ean(state="B"), "C": self.get_total_from_ean(state="C"),
+                            "D": self.get_total_from_ean(state="D"), "G": self.get_total_from_ean(state="G"),
                             }
             if self.title is not None and self.title != "":
                 total_from_title = self.get_total_from_title()
                 if total_from_title is not None:
                     return {"Gesamt": total_from_title, "Neu": self.get_total_from_title(state="Neu"),
-                            "A": self.get_total_from_title(state="A"), "B": self.get_total_from_title(state="B"),
-                            "C": self.get_total_from_title(state="C"), "D": self.get_total_from_title(state="D"),
+                            "B": self.get_total_from_title(state="B"), "C": self.get_total_from_title(state="C"),
+                            "D": self.get_total_from_title(state="D"), "G": self.get_total_from_title(state="G")
                             }
 
         total = self.get_total_from_all_products(product)
@@ -199,9 +199,9 @@ class Stock(models.Model):
         if product is None:
             product = self.get_product()
 
-        total = {"Neu": 0, "A": 0, "B": 0, "C": 0, "D": 0}
+        total = {"Neu": 0, "B": 0, "C": 0, "D": 0, "G": 0}
         all_products = self.get_all_products(product)
-        print(all_products)
+
         if all_products is not None:
             for p in all_products:
                 for sku in p.sku_set.all():
@@ -210,7 +210,8 @@ class Stock(models.Model):
                     state_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).\
                         get("bestand__sum")
                     if state_total is not None:
-                        total[sku_state] += int(state_total)
+                        if sku_state in total:
+                            total[sku_state] += int(state_total)
 
         ean_stocks = None
         if product is not None:
@@ -219,23 +220,23 @@ class Stock(models.Model):
 
         if ean_stocks is not None:
             for ean_stock in ean_stocks:
-                total[ean_stock.zustand] += int(ean_stock.bestand)
+                if ean_stock.zustand in total:
+                    total[ean_stock.zustand] += int(ean_stock.bestand)
 
-        total["Gesamt"] = total["Neu"] + total["A"] + total["B"] + total["C"] + total["D"]
-        print(f"aballllll:  {total}")
+        total["Gesamt"] = total["Neu"] + total["G"] + total["B"] + total["C"] + total["D"]
+
         return total
 
     def get_available_total_from_all_products(self, products, total):
         available_total = total.copy()
-        print(f"balkan: {available_total}")
-        print(f"balkan: {products}")
+
         if products is not None:
             for product in products:
-                print(f"balkan: {product}")
+
                 for sku in product.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
-                    print(f"lampe: {sku_string} - - - {sku_state}")
+
                     real_amount_total = DeliveryMissionProduct.objects\
                         .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
                         .aggregate(Sum("amount")).get("amount__sum")
@@ -252,24 +253,23 @@ class Stock(models.Model):
                     for delivery_note_product in DeliveryNoteProductMission.objects\
                             .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
                         delivery_note_total += delivery_note_product.amount
-                    print(f"haaaa: {delivery_note_total} --- {pick_list_total}")
+
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
                         available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
-                print(f"aball 2: {available_total}")
         total["Neu"] = f"{available_total.get('Neu')}/{total.get('Neu')}"
-        total["A"] = f"{available_total.get('A')}/{total.get('A')}"
         total["B"] = f"{available_total.get('B')}/{total.get('B')}"
         total["C"] = f"{available_total.get('C')}/{total.get('C')}"
         total["D"] = f"{available_total.get('D')}/{total.get('D')}"
+        total["G"] = f"{available_total.get('G')}/{total.get('G')}"
         available_total_gesamt = 0
         available_total_gesamt += int(available_total.get("Neu"))
-        available_total_gesamt += int(available_total.get("A"))
         available_total_gesamt += int(available_total.get("B"))
         available_total_gesamt += int(available_total.get("C"))
         available_total_gesamt += int(available_total.get("D"))
+        available_total_gesamt += int(available_total.get("G"))
 
         total["Gesamt"] = f"{available_total_gesamt}/{total['Gesamt']}"
 
@@ -362,10 +362,10 @@ class Stock(models.Model):
                 return result
             if product.ean is not None and product.ean != "":
                 result = add_ean_of_state_x_to_result("Neu", result)
-                result = add_ean_of_state_x_to_result("A", result)
                 result = add_ean_of_state_x_to_result("B", result)
                 result = add_ean_of_state_x_to_result("C", result)
                 result = add_ean_of_state_x_to_result("D", result)
+                result = add_ean_of_state_x_to_result("G", result)
 
         total = 0
         for k, v in result.items():
@@ -384,7 +384,7 @@ class Stock(models.Model):
         total = self.get_total(product=product)
 
         products = self.get_all_products(product)
-        print(f"badi: {products}")
+
         available_total = total.copy()
 
         if products is not None:
@@ -410,22 +410,19 @@ class Stock(models.Model):
                             .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
                         delivery_note_total += delivery_note_product.amount
 
-                    print(f"baaa {delivery_note_total} - {pick_list_total}")
-
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
                         available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
                         # total["Gesamt"] -= f"{int(total['Gesamt'])}"
-                print(f"aball 2: {available_total}")
 
         available_total_gesamt = 0
         available_total_gesamt += int(available_total.get("Neu"))
-        available_total_gesamt += int(available_total.get("A"))
         available_total_gesamt += int(available_total.get("B"))
         available_total_gesamt += int(available_total.get("C"))
         available_total_gesamt += int(available_total.get("D"))
+        available_total_gesamt += int(available_total.get("G"))
 
         available_total["Gesamt"] = f"{available_total_gesamt}"
 
@@ -434,7 +431,7 @@ class Stock(models.Model):
     def get_reserved_stocks(self):
         available_stocks = self.get_available_total_stocks()
         total_stocks = self.get_total()
-        reserved_stocks = {"A": int(total_stocks.get("A"))-int(available_stocks.get("A")),
+        reserved_stocks = {"G": int(total_stocks.get("G"))-int(available_stocks.get("G")),
                            "B": int(total_stocks.get("B")) - int(available_stocks.get("B")),
                            "C": int(total_stocks.get("C")) - int(available_stocks.get("C")),
                            "D": int(total_stocks.get("D")) - int(available_stocks.get("D")),

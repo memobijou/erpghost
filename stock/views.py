@@ -384,7 +384,6 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
                 choices_with_object_zustand_value = form.fields["zustand"].choices
                 form.fields["zustand"].choices.append((state, state))
                 form.fields["zustand"]._set_choices(choices_with_object_zustand_value)
-                form.initial["zustand"] = (state, state)
         return form
 
     def form_valid(self, form):

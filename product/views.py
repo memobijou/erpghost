@@ -110,7 +110,7 @@ class ProductListView(ListView):
 
     def set_pagination(self, queryset):
         page = self.request.GET.get("page")
-        paginator = Paginator(queryset, 15)
+        paginator = Paginator(queryset, 1) # test
         if not page:
             page = 1
         current_page_object = paginator.page(int(page))

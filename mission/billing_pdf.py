@@ -35,6 +35,11 @@ class BillingPdfView(View):
         super().__init__(**kwargs)
         self.partial_billing_number = None
         self.story = []
+        self.delivery_date = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.delivery_date = self.mission.delivery_date
+        return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
         exception = self.validate_pdf()
@@ -122,7 +127,7 @@ class BillingPdfView(View):
         delivery_address_object = self.mission.customer.contact.delivery_address
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
-        delivery_date = self.mission.delivery_date
+        delivery_date = self.delivery_date
         terms_of_delivery = self.mission.terms_of_delivery
         terms_of_payment = self.mission.terms_of_payment
 

@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.views import generic
@@ -20,7 +21,7 @@ class CustomerListView(generic.ListView):
     template_name = "customer/customer_list.html"
 
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Customer).order_by("-id")
+        queryset = self.filter_queryset_from_request()
         return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
@@ -30,6 +31,21 @@ class CustomerListView(generic.ListView):
         context["fields"].extend(get_verbose_names(Customer, exclude=["id", "contact_id"]))
         context["filter_fields"] = get_filter_fields(Customer, exclude=["id", "contact_id"])
         return context
+
+    def filter_queryset_from_request(self):
+        if self.request.GET.get("customer_number") is not None and self.request.GET.get("customer_number") != "":
+            q_filter = Q(customer_number__icontains=self.request.GET.get("customer_number").strip())
+        else:
+            q_filter = Q()
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+
+        if search_value is not None and search_value != "":
+            search_filter |= Q(customer_number__icontains=search_value.strip())
+            search_filter |= Q(contact__billing_address__firma__icontains=search_value.strip())
+
+        q_filter &= search_filter
+        return Customer.objects.filter(q_filter).order_by("id")
 
     def set_pagination(self, queryset):
         page = self.request.GET.get("page")

@@ -111,12 +111,16 @@ class BillingForm(forms.ModelForm):
 
     class Meta:
         model = Billing
-        fields = ("transport_service", "shipping_number_of_pieces", "shipping_costs")
+        fields = ("transport_service", "shipping_number_of_pieces", "shipping_costs", "delivery_date")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         for visible in self.visible_fields():
-                visible.field.widget.attrs["class"] = "form-control"
+            visible.field.widget.attrs["class"] = "form-control"
+            if type(visible.field) is forms.DateField:
+                visible.field.widget.attrs["class"] += " datepicker"
+                visible.field.widget.attrs["readonly"] = ""
+                visible.field.widget.attrs["style"] = "background-color:white;"
 
 
 class PickForm(forms.Form):

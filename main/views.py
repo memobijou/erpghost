@@ -8,6 +8,7 @@ from mission.models import Mission
 from product.models import Product
 from stock.models import Stock
 from django.db.models import Sum
+from django.db.models import F, Func
 
 
 @login_required
@@ -17,6 +18,13 @@ def main_view(request):
     today = datetime.datetime.today()
     context["products"] = Product.objects.all()
     context["whole_stocking"] = Stock.objects.all().aggregate(Sum('bestand'))
-    context["orders"] = Order.objects.filter(delivery_date__lte=today).order_by('-delivery_date')[:5]
-    context["missions"] = Mission.objects.filter(delivery_date__lte=today).order_by('-delivery_date')[:5]
+
+    orders = Order.objects.all().annotate(
+        delta=Func((F('delivery_date') - datetime.date.today()), function='ABS')).order_by("delta").distinct()[:10]
+
+    missions = Mission.objects.all().annotate(
+        delta=Func((F('delivery_date') - datetime.date.today()), function='ABS')).order_by("delta").distinct()[:10]
+
+    context["orders"] = orders
+    context["missions"] = missions
     return render(request, "main/main.html", context)

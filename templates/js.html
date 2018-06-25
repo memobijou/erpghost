@@ -12,13 +12,20 @@
 <script src="{% static "js/vendor/bootstrap.min.js" %}"></script>
 
 
-<link rel="stylesheet" href="{% static "css/jquery-ui.css" %}">
+<link rel="stylesheet" href="{% static "css/custom_jquery-ui.css" %}">
+<link rel="stylesheet" href="{% static "css/jquery-ui.theme.min.css" %}">
+
 <script src="{% static "js/vendor/jquery-ui.js" %}"></script>
+<script src="{% static "js/vendor/jquery-regional-de.js" %}"></script>
+
 <script>
     $(function () {
-        $(".datepicker").datepicker({
-            dateFormat: 'dd/mm/yy',
-        });
+        $(".datepicker").datepicker($.extend({}, $.datepicker.regional["de"], {
+            numberOfMonths : 1,
+            showButtonPanel : true,
+            dateFormat : "dd/mm/yy"
+        }));
+
     });
 
     $(document).ready(function(){

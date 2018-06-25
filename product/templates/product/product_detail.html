@@ -43,7 +43,6 @@
                 {% endif %}
 
                 <div class="col-md-7">
-                    <br/><br/><br/>
                     {% if object.ean %}
                     <p>
                         <b>EAN: </b> {{ object.ean }}
@@ -115,7 +114,11 @@
                                         <tr>
                                             <td>{{ sku.sku }}</td>
                                             <td>{{ sku.state }}</td>
-                                            <td>{{ sku.purchasing_price|default:"" }}</td>
+                                            <td>
+                                                {% if sku.purchasing_price %}
+                                                {{ sku.purchasing_price|default:""|format_number_thousand_decimal_points }}
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 </table>

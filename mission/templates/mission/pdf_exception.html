@@ -5,7 +5,8 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <a href="{% url 'mission:detail' pk=object.pk %}" class="pull-right">Zurück zur Ansicht</a><br/>
-            <h3 style="color:red;" class="text-center">{{ message }}</h3>
+            <h3 style="color:red;">Es kann keine Auftragsbestätigung erstellt werden</h3>
+            <h4 style="color:red;" class="">{{ message }}</h4>
         </div>
     </div>
 {% endblock %}

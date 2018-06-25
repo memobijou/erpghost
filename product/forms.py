@@ -75,19 +75,26 @@ class SingleProductForm(forms.ModelForm):
         fields = ["title", "main_image",  "short_description", "description", ]
 
     state = forms.ChoiceField(choices=((None, "----"), ("Neu", "Neu"), ("B", "B"),
-                                       ("C", "C"), ("D", "D"), ("D", "D")), required=True, label="Zustand")
-
+                                       ("C", "C"), ("D", "D"), ("G", "G")), required=True, label="Zustand")
+    purchasing_price = forms.FloatField(label="Einkaufspreis", required=False)
     more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
                                   required=False)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.fields['purchasing_price'].widget.attrs['min'] = 0.01
+
         for visible in self.visible_fields():
             print(type(visible.field))
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
 
+    def clean_purchasing_price(self):
+        purchasing_price = self.cleaned_data['purchasing_price']
+        if purchasing_price is not None and purchasing_price < 0.01:
+            raise forms.ValidationError("Die Zahl muss größer als 0 sein")
+        return purchasing_price
 
 class SingleProductUpdateForm(SingleProductForm):
     state = None

@@ -10,6 +10,7 @@ from datetime import date
 from order.models import terms_of_delivery_choices, terms_of_payment_choices, shipping_choices
 from django.db.models import Max
 from django.core.exceptions import ValidationError
+from mission.managers import MissionObjectManager
 
 CHOICES = (
     (None, "----"),
@@ -46,6 +47,8 @@ class Mission(models.Model):
     shipping_costs = models.FloatField(blank=True, null=True, max_length=200, verbose_name="Transportkosten")
     confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
 
+    objects = MissionObjectManager()
+
     @property
     def difference_delivery_date_today(self):
         today = datetime.date.today()
@@ -62,6 +65,7 @@ class Mission(models.Model):
         super().save()
         if self.mission_number is None or self.mission_number == "":
             self.mission_number = f"A{self.pk+1}"
+        self.status = get_status(self)
         super().save()
 
     # def save(self, *args, **kwargs):
@@ -122,8 +126,6 @@ class ProductMission(models.Model):
 class RealAmountModelManager(models.Manager):
     def bulk_create(self, objs, batch_size=None):
         super().bulk_create(objs)
-        for obj in objs:
-            obj.save()
 
 
 class Delivery(models.Model):
@@ -296,6 +298,8 @@ class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
+    delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
+
     transport_service = models.CharField(choices=shipping_choices, blank=False, null=True, max_length=200,
                                          verbose_name="Transportdienstleister")
     shipping_number_of_pieces = models.IntegerField(blank=False, null=True, verbose_name="Stückzahl Transport")
@@ -316,6 +320,8 @@ class DeliveryNote(models.Model):
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
+    delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
+
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
         super().save()
@@ -324,8 +330,47 @@ class DeliveryNote(models.Model):
         super().save()
 
 
+class DeliveryNoteProductMissionManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        super().bulk_create(objs)
+        obj = objs[len(objs)-1]
+        obj.product_mission.mission.status = get_status(obj.product_mission.mission)
+        obj.product_mission.mission.save()
+
+
 class DeliveryNoteProductMission(models.Model):
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     amount = models.IntegerField(blank=True, null=True)
     delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
     billing = models.ForeignKey("mission.Billing", blank=True, null=True)
+
+    objects = DeliveryNoteProductMissionManager()
+
+
+def get_status(mission):
+    mission_products = mission.productmission_set.all()
+    products_count = mission_products.count()
+
+    if products_count == 0:
+        return "OFFEN"
+    else:
+        deliveries = mission.delivery_set.all()
+
+        if deliveries.count() > 0:
+            finished = True
+            for mission_product in mission_products:
+                sent_amount_sum = 0
+
+                for delivery_product in DeliveryMissionProduct.objects.filter(product_mission=mission_product):
+                    sent_amount_sum += delivery_product.real_amount()
+                print(f"LIMIT: {mission_product.amount} - {sent_amount_sum}")
+                if int(sent_amount_sum) != int(mission_product.amount):
+                    finished = False
+                    break
+            if finished is True:
+                return "BEENDET"
+            else:
+                return "IN BEARBEITUNG"
+        else:
+            # HIER WEITER MACHEN
+            return "OFFEN"

@@ -124,11 +124,18 @@ class ProductListView(ListView):
             stock = None
             if q.ean is not None and q.ean != "":
                 stock = Stock.objects.filter(ean_vollstaendig=q.ean).first()  # wenn kein ean dann nach sku !
+                print(stock)
+                if stock is None or stock == "":
+                    for sku in q.sku_set.all():
+                        stock = Stock.objects.filter(sku=sku.sku).first()
+                        if stock is not None:
+                            break
             else:
                 for sku in q.sku_set.all():
                     stock = Stock.objects.filter(sku=sku.sku).first()
                     if stock is not None:
                         break
+                print(stock)
             stock_dict = {}
             if stock is not None:
                 total = stock.get_available_stocks_of_total_stocks(product=q)
@@ -142,6 +149,7 @@ class ProductListView(ListView):
             else:
                 stock_dict["total"] = None
                 total_stocks.append(stock_dict)
+            print(f"bandi: {stock_dict} - {q.ean}")
         return total_stocks
 
     def build_fields(self):
@@ -417,8 +425,14 @@ class ProductSingleCreateView(CreateView):
         self.object.save()
         state = data.get("state")
         if state == "Neu":
-            state = ""
-        sku_instance = Sku(product_id=self.object.pk, sku=f"{state}{self.object.main_sku}", state=state)
+            prefix = "N"
+        else:
+            prefix = state
+
+        purchasing_price = data.get("purchasing_price")
+
+        sku_instance = Sku(product_id=self.object.pk, sku=f"{prefix}{self.object.main_sku}", state=state,
+                           purchasing_price=purchasing_price)
         sku_instance.save()
         self.object.sku_set.add(sku_instance)
         self.object.save()
@@ -448,16 +462,23 @@ class ProductSingleUpdateView(UpdateView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.sku = None
 
     def get_object(self, queryset=None):
         self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        self.sku = self.object.sku_set.first()
         return self.object
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["object"] = self.object
-        context["title"] = f"Einzelartikel {self.object.sku_set.first().sku} bearbeiten"
+        context["title"] = f"Einzelartikel {self.sku.sku} bearbeiten"
         return context
+
+    def get_form(self, form_class=None):
+        form = super().get_form()
+        form.initial["purchasing_price"] = self.sku.purchasing_price
+        return form
 
     def form_valid(self, form, **kwargs):
         more_images = self.request.FILES.getlist("more_images")
@@ -466,6 +487,17 @@ class ProductSingleUpdateView(UpdateView):
         if validation_msg is True:
             self.delete_checked_images(self.request.POST.getlist("to_delete_more_images"))
             self.object = form.save(commit=True)
+
+            purchasing_price = self.request.POST.get("purchasing_price")
+
+            if purchasing_price is not None and purchasing_price != "":
+                self.sku.purchasing_price = float(purchasing_price)
+            else:
+                print(self.sku.purchasing_price)
+                self.sku.purchasing_price = None
+
+            self.sku.save()
+
             self.upload_more_images(more_images)
         else:
             if validation_msg is not True:

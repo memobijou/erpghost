@@ -13,6 +13,7 @@
             <p style="font-size:15px;"><b>Lieferdatum: </b>{{ object.delivery_date }}</p>
             <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
         </div>
+            {% if object.customer %}
             <div class="col-md-6">
                 <div class="panel panel-default">
                     <div class="panel-heading">
@@ -63,7 +64,8 @@
                     </div>
                 </div>
             </div>
-        <br/>
+            <br/>
+            {% endif %}
 
         <div class="col-md-12">
             {% if object.productmission_set.all %}
@@ -71,21 +73,28 @@
                     <table class="table table-bordered">
                         <thead>
                             <tr>
+                                <th>Bild</th>
                                 <th>EAN / SKU</th>
                                 <th>Zustand</th>
                                 <th>Artikelname</th>
                                 <th>Auftragsmenge</th>
                                 <th>Offene Menge</th>
                                 <th>Liefermenge</th>
+                                <th>Versendete Menge</th>
                                 <th>Lagerbestand</th>
                                 <th>Einzelpreis (Netto)</th>
                                 <th>Gesamtpreis (Netto)</th>
                             </tr>
                         </thead>
                         <tbody>
-                                {% for productmission, missing_amount, stock, real_amount in products_from_stock %}
+                                {% for productmission, missing_amount, stock, delivery_amount, sent_amount in products_from_stock %}
                                     {% if object.id == productmission.mission.id %}
                                     <tr>
+                                        <td>
+                                            {% if productmission.product.main_image %}
+                                                <img src="{{ productmission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {{productmission.get_ean_or_sku}}
                                         </td>
@@ -95,8 +104,11 @@
                                         <td style="color:red;">
                                             {{ missing_amount }}
                                         </td>
+                                        <td style="color:#ffb800;">
+                                            {{ delivery_amount|default:'0' }}
+                                        </td>
                                         <td style="color:green;">
-                                            {{ real_amount|default:'0' }}
+                                            {{ sent_amount }}
                                         </td>
                                         <td>
                                             {{ stock|default:'0' }}

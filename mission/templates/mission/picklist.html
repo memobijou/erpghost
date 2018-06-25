@@ -62,6 +62,10 @@
 
                                 </div>
                             </div>
+                        {% else %}
+                            <div class="text-center">
+                                <a href="{% url 'mission:scan' delivery_pk=delivery.pk pk=delivery.mission.pk%}" class="btn-lg btn btn-info">Zur Verpackerliste</a>
+                            </div>
                         {% endif %}
                     {% endwith %}
                 {% endwith %}

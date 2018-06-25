@@ -558,10 +558,55 @@ class OrderDetailView(DetailView):
 
 class OrderListView(ListView):
     def get_queryset(self):
-        queryset = filter_queryset_from_request(self.request, Order)
+        queryset = self.filter_queryset_from_request()
         queryset = filter_complete_and_uncomplete_order_or_mission(self.request, queryset, Order)
-        queryset = queryset.order_by("-id")
         return queryset
+
+    def filter_queryset_from_request(self):
+        fields = self.get_fields(exclude=["id", "products", "verified", "supplier_id", "invoice", "created_date",
+                                          "modified_date"])
+        q_filter = Q()
+        for field in fields:
+            get_value = self.request.GET.get(field)
+
+            if get_value is not None and get_value != "":
+                q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
+
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+        print(f"bananas: {search_value}")
+        # return f"{self.contact.billing_address.firma}"
+
+        if search_value is not None and search_value != "":
+            search_filter |= Q(**{f"ordernumber__icontains": search_value.strip()})
+            search_filter |= Q(supplier__contact__billing_address__firma__icontains=search_value.strip())
+            search_filter |= Q(shipping__icontains=search_value.strip())
+
+        q_filter &= search_filter
+
+        from django.db.models import F, Func
+        import datetime
+
+        queryset = Order.objects.filter(q_filter).annotate(
+             delta=Func((F('delivery_date')-datetime.date.today()), function='ABS')).order_by("delta").distinct()
+
+        return queryset
+
+    def get_fields(self, exclude=None):
+        from django.db import models
+        fields = []
+        for field in Order._meta.get_fields():
+            if exclude is not None and len(exclude) > 0:
+                if field.name in exclude:
+                    continue
+            if isinstance(field, models.ManyToManyField):
+                continue
+
+            if isinstance(field, models.ManyToOneRel):
+                continue
+
+            fields.append(field.name)
+        return fields
 
     def get_context_data(self, *args, **kwargs):
         context = super().get_context_data(**kwargs)

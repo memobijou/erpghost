@@ -43,6 +43,7 @@ urlpatterns = [
     url(r'^supplier/', include("supplier.urls", namespace="supplier")),
     url(r'^customer/', include("customer.urls", namespace="customer")),
     url(r'^client/', include("client.urls", namespace="client")),
+    url(r'^disposition/', include("disposition.urls", namespace="disposition")),
 ]
 
 if settings.DEBUG is True:

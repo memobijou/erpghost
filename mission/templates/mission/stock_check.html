@@ -66,6 +66,7 @@
                     <table class="table table-bordered">
                         <div class="thead">
                             <tr>
+                                <th>Bild</th>
                                 <th>EAN / SKU</th>
                                 <th>Artikelname</th>
                                 <th>Zustand</th>
@@ -78,6 +79,11 @@
                         <div class="tbody">
                             {% for product_mission, amount, product_stock in delivery_products %}
                                 <tr>
+                                    <td>
+                                        {% if product_mission.product.main_image %}
+                                            <img src="{{ product_mission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ product_mission.get_ean_or_sku }}</td>
                                     <td>{{ product_mission.product.title |default:"" }}</td>
                                     <td>{{ product_mission.state }}</td>

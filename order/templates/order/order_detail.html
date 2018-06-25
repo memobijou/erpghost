@@ -22,6 +22,7 @@
             <table class="table table-bordered">
                 <thead>
                     <tr>
+                        <th>Bild</th>
                         {% for field in fields %}
                             <th>{{field}}</th>
                         {% endfor %}
@@ -37,6 +38,11 @@
                                 class="danger"
                             {% endif %}
                         >
+                            <td>
+                                {% if productorder.product.main_image %}
+                                    <img src="{{ productorder.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                {% endif %}
+                            </td>
                             <td>{{productorder.get_ean_or_sku|default:""}}</td>
                             <td>{{productorder.product.title|default:""}}</td>
                             <td>{{productorder.state|default:""}}</td>

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+    <link rel="stylesheet" href="{% static "css/fullcalendar.min.css" %}">
+    <link href='{% static "css/scheduler.css" %}' rel='stylesheet' />
+    <script type="text/javascript" src="{% static 'js/vendor/moment.js' %}"></script>
+
+    <script type="text/javascript" src="{% static 'js/vendor/fullcalendar.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'js/vendor/locale-all.js' %}"></script>
+
+    <script>
+    $(function() {
+
+      // page is now ready, initialize the calendar...
+
+
+      $('#calendar').fullCalendar({
+        // put your options and callbacks here
+          locale: 'de',
+          weekNumbers: true,
+          header: {
+            left: 'prev, next today',
+            center: 'title',
+            right: 'month, basicWeek, basicDay'
+          },
+            events: [
+                {% for mission in missions %}
+                    {
+                    {% if mission.customer %}
+                          title: '{{ mission.mission_number }} \n Kunde: {{ mission.customer|default:'' }}',
+                    {% else %}
+                          title: '{{ mission.mission_number }}',
+                    {% endif %}
+                      start: '{{ mission.delivery_date|date:"Y-m-d" }}'
+                    },
+                {% endfor %}
+            // other events here
+          ],
+      })
+
+    });
+
+    </script>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+                <h3>Kalendaransicht</h3>
+                <div id='calendar'></div>
+
+        </div>
+    </div>
+{% endblock %}

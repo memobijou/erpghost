@@ -1,23 +1,10 @@
-from django.db.models import F
 from django.db.models import Q
-from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, HttpResponseRedirect
-from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView, DeleteView, View
-from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import PageTemplate
-from reportlab.platypus import SimpleDocTemplate
-from reportlab.platypus import XPreformatted
-
 from product.models import Product
-from product.order_mission import validate_product_order_or_mission_from_post, \
-    create_product_order_or_mission_forms_from_post, update_product_order_or_mission_forms_from_post, \
-    validate_products_are_unique_in_form
 from stock.models import Stock
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
-    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview, \
+    filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview,\
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
     Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct, PickList, PickListProducts, \
@@ -27,20 +14,13 @@ from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissi
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import inlineformset_factory, modelform_factory
 from django.urls import reverse_lazy
-from django.template.loader import get_template
-from reportlab.pdfgen import canvas
-from reportlab.platypus import Paragraph
-from reportlab.graphics.shapes import Drawing, Line
-from reportlab.platypus.tables import Table, TableStyle
-from reportlab.lib.units import cm, mm
-from reportlab.platypus import Frame, NextPageTemplate, PageBreak
-from django.forms.models import model_to_dict
 from django.views import View
 from django.forms import ValidationError
 from django.core.paginator import Paginator
 from django.contrib import messages
 from django.db.models import Sum
-from django.db.models import F
+from django.db.models import F, Func
+import datetime
 
 
 class MissionDetailView(DetailView):
@@ -48,9 +28,11 @@ class MissionDetailView(DetailView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.mission_products = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
+        self.mission_products = self.object.productmission_set.all()
         return super().dispatch(request, *args, **kwargs)
 
     def get_object(self):
@@ -93,28 +75,35 @@ class MissionDetailView(DetailView):
     def get_products_from_stock(self):
         products = []
         print(products)
-        for product_mission in self.object.productmission_set.all():
+        for product_mission in self.mission_products:
             product_stock = self.get_product_stock(product_mission)
 
             amount = product_mission.amount
 
             missing_amount = product_mission.amount
 
-            all_amounts_sum = 0
+            delivery_amount_sum = 0
 
-            for real_amount_row in DeliveryMissionProduct.objects.filter(product_mission=product_mission):
-                all_amounts_sum += real_amount_row.amount
+            sent_amount_sum = 0
 
-            missing_amount -= all_amounts_sum
+            delivery_products = DeliveryMissionProduct.objects.filter(product_mission=product_mission)
 
-            real_amount = amount-missing_amount
+            for delivery_product in delivery_products:
+                delivery_amount_sum += delivery_product.amount
+                sent_amount_sum += delivery_product.real_amount()
+
+            sent_amount = sent_amount_sum
+
+            missing_amount -= delivery_amount_sum
+
+            delivery_amount = amount-missing_amount
 
             if missing_amount == 0:
                 missing_amount = ""
 
-            print(f"ABI: {real_amount}")
+            print(f"ABI: {delivery_amount}")
 
-            products.append((product_mission,  missing_amount,  product_stock, real_amount))
+            products.append((product_mission,  missing_amount,  product_stock, delivery_amount, sent_amount))
             print(products)
         return products
 
@@ -181,8 +170,8 @@ class MissionListView(ListView):
         context["object_list_zip"] = self.add_billing_numbers_and_delivery_note_numbers_to_list(context["object_list"])
 
         context["option_fields"] = [
-            {"status": ["WARENAUSGANG", "PICKBEREIT", "AUSSTEHEND", "OFFEN", "LIEFERUNG"]}]
-        context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
+            {"status": ["OFFEN", "IN BEARBEITUNG", "BEENDET"]}]
+
         return context
 
     def add_billing_numbers_and_delivery_note_numbers_to_list(self, object_list):
@@ -210,14 +199,16 @@ class MissionListView(ListView):
     def build_fields(self):
         fields = get_verbose_names(Mission, exclude=["id", "supplier_id", "products", "modified_date", "created_date",
                                                      "terms_of_payment", "terms_of_delivery", "delivery_note_number",
-                                                     "billing_number"])
-        fields.insert(len(fields) - 1, "Fälligkeit")
+                                                     "billing_number", "shipping", "delivery_address_id",
+                                                     "shipping_costs", "shipping_number_of_pieces"])
 
         fields.insert(3, "Rechnugsnummern")
         fields.insert(4, "Lieferscheinnummern")
+        fields.insert(5, "Fälligkeit")
 
         fields.insert(len(fields) - 1, "Gesamt (Netto)")
         fields.insert(len(fields) - 1, "Gesamt (Brutto)")
+
         return fields
 
     def set_pagination(self, queryset):
@@ -229,7 +220,7 @@ class MissionListView(ListView):
         return current_page_object
 
     def filter_queryset_from_request(self):
-        fields = self.get_fields(exclude=["billing_number", "delivery_note_number", "id"])
+        fields = self.get_fields(exclude=["billing_number", "delivery_note_number", "id", "status"])
         q_filter = Q()
         for field in fields:
             get_value = self.request.GET.get(field)
@@ -237,9 +228,16 @@ class MissionListView(ListView):
             if get_value is not None and get_value != "":
                 q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
 
+        status_filter = Q()
+
+        for status in self.request.GET.getlist("status"):
+            status_filter |= Q(status=status)
+
+        q_filter &= status_filter
+
         search_filter = Q()
         search_value = self.request.GET.get("q")
-        print(f"{search_value}")
+
         if search_value is not None and search_value != "":
             search_filter |= Q(**{f"mission_number__icontains": search_value.strip()})
             search_filter |= Q(delivery__billing__billing_number__icontains=search_value.strip())
@@ -247,7 +245,7 @@ class MissionListView(ListView):
             search_filter |= Q(customer__contact__billing_address__firma__icontains=search_value.strip())
             search_filter |= Q(delivery__billing__transport_service__icontains=search_value.strip())
             search_filter |= Q(customer_order_number__icontains=search_value.strip())
-        print(f"s: {search_filter}")
+
         q_filter &= search_filter
 
         billing_number = self.request.GET.get("billing_number")
@@ -259,7 +257,9 @@ class MissionListView(ListView):
         if delivery_note_number is not None and delivery_note_number != "":
             q_filter &= Q(delivery__deliverynote__delivery_note_number__icontains=delivery_note_number)
 
-        queryset = Mission.objects.filter(q_filter).order_by("-id").distinct()
+        queryset = Mission.objects.filter(q_filter).annotate(
+             delta=Func((F('delivery_date')-datetime.date.today()), function='ABS')).order_by("delta").distinct()
+
         return queryset
 
     def get_fields(self, exclude=None):
@@ -518,6 +518,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
     def form_valid(self, form, **kwargs):
         context = self.get_context_data(**kwargs)
+
         self.object = form.save(commit=False)
         if self.validate_product_forms_are_valid() is True:
             self.create_mission_products()
@@ -995,8 +996,19 @@ class CreatePartialDeliveryNote(View):
 
     def post(self, request, **kwargs):
         if len(self.packinglist_products) > 0:
-
-            if BillingForm(data=request.POST).is_valid() is True:
+            print(request.POST.get("delivery_date"))
+            delivery_date = self.request.POST.get("delivery_date")
+            if delivery_date is not None and delivery_date != "":
+                delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
+                delivery_date = delivery_date.strftime('%Y-%m-%d')
+                print(f"barcelano: {delivery_date}")
+            data = {"delivery_date": delivery_date,
+                    "transport_service": self.request.POST.get("transport_service"),
+                    "shipping_costs": self.request.POST.get("shipping_costs"),
+                    "shipping_number_of_pieces": self.request.POST.get("shipping_number_of_pieces"),
+                    }
+            print(data)
+            if BillingForm(data=data).is_valid() is True:
                 self.create_partial_delivery()
             else:
                 self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
@@ -1075,12 +1087,21 @@ class CreatePartialDeliveryNote(View):
     def create_partial_delivery(self):
         bulk_instances = []
 
-        delivery_note = DeliveryNote(delivery=self.delivery)
+        delivery_date = self.request.POST.get("delivery_date")
+        print(delivery_date)
+        if delivery_date is not None and delivery_date != "":
+            print("wieso")
+            delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
+            delivery_date = delivery_date.strftime('%Y-%m-%d')
+        else:
+            delivery_date = None
+        delivery_note = DeliveryNote(delivery=self.delivery, delivery_date=delivery_date)
         delivery_note.save()
 
         billing = Billing(delivery=self.delivery, transport_service=self.request.POST.get("transport_service"),
                           shipping_number_of_pieces=self.request.POST.get("shipping_number_of_pieces"),
-                          shipping_costs=self.request.POST.get("shipping_costs"))
+                          shipping_costs=self.request.POST.get("shipping_costs"),
+                          delivery_date=delivery_date)
         billing.save()
 
         for packinglist_product in self.packinglist_products:

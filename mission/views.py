@@ -1272,28 +1272,51 @@ class CreatePickListView(View):
         ).exclude(bestand__lt=1).distinct("lagerplatz").order_by("lagerplatz")
         to_pick_stocks = []
 
-        for single_stock in product_stock:
-            current_bestand_minus_missing_amount = single_stock.bestand - (single_stock.missing_amount or 0)
+        picklist_products = PickListProducts.objects.filter(product_mission=product_mission)
 
-            if int(current_bestand_minus_missing_amount) == 0:
+        for single_stock in product_stock:
+            current_bestand = single_stock.bestand - (single_stock.missing_amount or 0)
+
+            for picklist_product in picklist_products:
+                if picklist_product.position == single_stock.lagerplatz:
+                    current_bestand -= picklist_product.amount
+
+            if int(current_bestand) <= 0:
                 continue
 
-            if int(current_bestand_minus_missing_amount) >= int(delivery_product.missing_amount()):
+            if int(current_bestand) >= int(delivery_product.missing_amount()):
                 to_pick_stocks = [(single_stock, int(delivery_product.missing_amount()))]
                 break
         print(f"bandage: {to_pick_stocks}")
+        print(f"Karaten: {product_stock}")
         if len(to_pick_stocks) == 0:
             sum_to_pick_stock = 0
             for single_stock in product_stock:
-                current_bestand_minus_missing_amount = single_stock.bestand - (single_stock.missing_amount or 0)
+                current_bestand = single_stock.bestand - (single_stock.missing_amount or 0)
 
-                if int(current_bestand_minus_missing_amount) == 0:
+                for picklist_product in picklist_products:
+                    if picklist_product.position == single_stock.lagerplatz:
+                        current_bestand -= picklist_product.amount
+                print(f"wie: {current_bestand} - {single_stock.lagerplatz}")
+
+                if int(current_bestand) <= 0:
                     continue
-
-                sum_to_pick_stock += int(current_bestand_minus_missing_amount)
+                sum_to_pick_stock += int(current_bestand)
 
                 if int(sum_to_pick_stock) <= int(delivery_product.missing_amount()):
-                    to_pick_stocks.append((single_stock, current_bestand_minus_missing_amount))
+                    to_pick_stocks.append((single_stock, current_bestand))
+                else:
+                    sum_current_picklist = 0
+                    for _, amount in to_pick_stocks:
+                        sum_current_picklist += amount
+                    missing_amount = delivery_product.missing_amount()-sum_current_picklist
+
+                    if current_bestand >= missing_amount:
+                        to_pick_stocks.append((single_stock, missing_amount))
+                        break
+                    else:
+                        to_pick_stocks.append((single_stock, current_bestand))
+
         print(f"bandage 2: {to_pick_stocks}")
 
         return to_pick_stocks

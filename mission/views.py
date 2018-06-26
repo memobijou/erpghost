@@ -1312,10 +1312,12 @@ class CreatePickListView(View):
                     missing_amount = delivery_product.missing_amount()-sum_current_picklist
 
                     if current_bestand >= missing_amount:
-                        to_pick_stocks.append((single_stock, missing_amount))
-                        break
+                        if missing_amount >= 0:
+                            to_pick_stocks.append((single_stock, missing_amount))
+                            break
                     else:
-                        to_pick_stocks.append((single_stock, current_bestand))
+                        if current_bestand >= 0:
+                            to_pick_stocks.append((single_stock, current_bestand))
 
         print(f"bandage 2: {to_pick_stocks}")
 

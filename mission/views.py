@@ -458,6 +458,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         for product_mission in product_missions:
             if self.request.POST:
                 data = self.get_data_from_post_on_index_x_to_form(count)
+                state = data.get("state")
                 product_mission_form = ProductMissionUpdateForm(
                     data=data, product_mission=product_mission)
             else:
@@ -467,6 +468,13 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                 data = {"ean": ean_or_sku, "amount": product_mission.amount,
                         "state": state, "netto_price": product_mission.netto_price}
                 product_mission_form = ProductMissionUpdateForm(data=data, product_mission=product_mission)
+
+            if (state, state) not in product_mission_form.fields["state"].choices:
+                choices_with_object_zustand_value = product_mission_form.fields["state"].choices
+                product_mission_form.fields["state"].choices.append((state, state))
+                product_mission_form.fields["state"]._set_choices(choices_with_object_zustand_value)
+                product_mission_form.fields["state"].initial = {"state": state}
+
             product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
             self.product_forms.append((product_mission_form, product))
             count += 1
@@ -929,13 +937,16 @@ class MissionStockCheckForm(View):
 
         available_stock = product_stock.get_available_total_stocks().get(state)
 
-        if int(available_stock) >= amount:
-            return amount
-        else:
-            if int(available_stock) > 0:
-                return available_stock
+        if available_stock is not None and available_stock != "":
+            if int(available_stock) >= amount:
+                return amount
             else:
-                return 0
+                if int(available_stock) > 0:
+                    return available_stock
+                else:
+                    return 0
+        else:
+            return 0
 
     def get_current_amount(self, product_mission):
         current_amount = product_mission.amount

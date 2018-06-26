@@ -12,6 +12,10 @@ from sku.models import Sku
 
 
 class Stock(models.Model):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.states = ["Neu", "B", "C", "D", "G"]
+
     IGNORE_CHOICES = (
         ('IGNORE', 'Ja'),
         ('NOT_IGNORE', 'Nein'),
@@ -156,6 +160,8 @@ class Stock(models.Model):
             raise ValidationError(Template(stock_html).render(c))
 
     def get_total_stocks(self, product=None):
+
+
         if self.product is not None:
             product = self.product
 
@@ -192,14 +198,23 @@ class Stock(models.Model):
     def get_total_from_all_products(self, product):
         all_products = self.get_all_products(product)
         total = self.get_total(product=product)
+        print(f"Syrien: {product.ean} - {total}")
         total = self.get_available_total_from_all_products(all_products, total)
+        print(f"Marokko: {product.ean} - {total}")
+
         return total
 
     def get_total(self, product=None):
+
         if product is None:
             product = self.get_product()
 
-        total = {"Neu": 0, "B": 0, "C": 0, "D": 0, "G": 0}
+        total = {}
+
+        for state in self.states:
+            total[state] = 0
+        print(f"babfadbdfbd: {self.states}")
+
         all_products = self.get_all_products(product)
 
         if all_products is not None:
@@ -207,13 +222,20 @@ class Stock(models.Model):
                 for sku in p.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
+
+                    if sku_state not in self.states:
+                        self.states.append(sku_state)
+                        total[sku_state] = 0
+
                     state_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).\
                         get("bestand__sum")
+
                     if state_total is not None:
                         if sku_state in total:
                             total[sku_state] += int(state_total)
 
         ean_stocks = None
+
         if product is not None:
             if product.ean is not None and product.ean != "":
                 ean_stocks = Stock.objects.filter(ean_vollstaendig=product.ean)
@@ -223,11 +245,15 @@ class Stock(models.Model):
                 if ean_stock.zustand in total:
                     total[ean_stock.zustand] += int(ean_stock.bestand)
 
-        total["Gesamt"] = total["Neu"] + total["G"] + total["B"] + total["C"] + total["D"]
+        total["Gesamt"] = 0
+
+        for state in self.states:
+            total["Gesamt"] += total[state]
 
         return total
 
     def get_available_total_from_all_products(self, products, total):
+
         available_total = total.copy()
 
         if products is not None:
@@ -236,6 +262,10 @@ class Stock(models.Model):
                 for sku in product.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
+
+                    if sku_state not in self.states:
+                        self.states.append(sku_state)
+                        total[sku_state] = 0
 
                     real_amount_total = DeliveryMissionProduct.objects\
                         .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
@@ -256,23 +286,14 @@ class Stock(models.Model):
 
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
-                        if sku_state not in ["Neu", "B", "C", "D", "G"]:
-                            total[sku_state] = 0
-
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
                         available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
-        total["Neu"] = f"{available_total.get('Neu')}/{total.get('Neu')}"
-        total["B"] = f"{available_total.get('B')}/{total.get('B')}"
-        total["C"] = f"{available_total.get('C')}/{total.get('C')}"
-        total["D"] = f"{available_total.get('D')}/{total.get('D')}"
-        total["G"] = f"{available_total.get('G')}/{total.get('G')}"
         available_total_gesamt = 0
-        available_total_gesamt += int(available_total.get("Neu"))
-        available_total_gesamt += int(available_total.get("B"))
-        available_total_gesamt += int(available_total.get("C"))
-        available_total_gesamt += int(available_total.get("D"))
-        available_total_gesamt += int(available_total.get("G"))
+        print(f"bandi: {self.states}")
+        for state in self.states:
+            total[state] = f"{available_total.get(state)}/{total.get(state)}"
+            available_total_gesamt += int(available_total.get(state))
 
         total["Gesamt"] = f"{available_total_gesamt}/{total['Gesamt']}"
 
@@ -338,13 +359,18 @@ class Stock(models.Model):
             return total
 
     def get_total_from_product(self, product):
+
         result = {}
         all_skus = {}
+
         if product is not None:
             for sku in product.sku_set.all():
                 all_skus[sku.sku] = sku
 
         for sku_string, sku_instance in all_skus.items():
+            if sku_instance.state not in self.states:
+                self.states.append(sku_instance.state)
+
             sku_total = Stock.objects.filter(sku=sku_string).aggregate(Sum("bestand")).get("bestand__sum")
 
             if sku_total is not None:
@@ -356,19 +382,19 @@ class Stock(models.Model):
             def add_ean_of_state_x_to_result(state, result):
                 total_of_state = Stock.objects.filter(ean_vollstaendig=product.ean, zustand__iexact=state)\
                     .aggregate(Sum("bestand")).get("bestand__sum")
+
                 if total_of_state is None:
                     total_of_state = 0
+
                 if state in result:
                     result[state] = f'{int(result[state]) + int(total_of_state)}'
                 else:
                     result[state] = total_of_state
                 return result
+
             if product.ean is not None and product.ean != "":
-                result = add_ean_of_state_x_to_result("Neu", result)
-                result = add_ean_of_state_x_to_result("B", result)
-                result = add_ean_of_state_x_to_result("C", result)
-                result = add_ean_of_state_x_to_result("D", result)
-                result = add_ean_of_state_x_to_result("G", result)
+                for state in self.states:
+                    result = add_ean_of_state_x_to_result(state, result)
 
         total = 0
         for k, v in result.items():
@@ -378,6 +404,7 @@ class Stock(models.Model):
         return result
 
     def get_available_total_stocks(self, product=None):
+
         if self.product is not None:
             product = self.product
 
@@ -395,6 +422,10 @@ class Stock(models.Model):
                 for sku in product.sku_set.all():
                     sku_string = sku.sku
                     sku_state = sku.state
+
+                    if sku_state not in self.states:
+                        self.states.append(sku_state)
+                        total[sku_state] = 0
 
                     real_amount_total = DeliveryMissionProduct.objects.\
                         filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
@@ -415,7 +446,7 @@ class Stock(models.Model):
 
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
-                        if sku_state not in ["Neu", "B", "C", "D", "G"]:
+                        if sku_state not in self.states:
                             total[sku_state] = 0
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
                         available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
@@ -423,26 +454,27 @@ class Stock(models.Model):
                         # total["Gesamt"] -= f"{int(total['Gesamt'])}"
 
         available_total_gesamt = 0
-        available_total_gesamt += int(available_total.get("Neu"))
-        available_total_gesamt += int(available_total.get("B"))
-        available_total_gesamt += int(available_total.get("C"))
-        available_total_gesamt += int(available_total.get("D"))
-        available_total_gesamt += int(available_total.get("G"))
+
+        for state in self.states:
+            available_total_gesamt += int(available_total.get(state))
 
         available_total["Gesamt"] = f"{available_total_gesamt}"
 
         return available_total
 
     def get_reserved_stocks(self):
+
         available_stocks = self.get_available_total_stocks()
         total_stocks = self.get_total()
-        reserved_stocks = {"G": int(total_stocks.get("G"))-int(available_stocks.get("G")),
-                           "B": int(total_stocks.get("B")) - int(available_stocks.get("B")),
-                           "C": int(total_stocks.get("C")) - int(available_stocks.get("C")),
-                           "D": int(total_stocks.get("D")) - int(available_stocks.get("D")),
-                           "Neu": int(total_stocks.get("Neu")) - int(available_stocks.get("Neu")),
-                           "Gesamt": int(total_stocks.get("Gesamt")) - int(available_stocks.get("Gesamt")),
-                           }
+
+        print(f"bababa: {available_stocks}")
+        print(f"rafael: {total_stocks}")
+        reserved_stocks = {}
+
+        for state in self.states:
+            reserved_stocks[state] = int(total_stocks.get(state))-int(available_stocks.get(state))
+        reserved_stocks["Gesamt"] = int(total_stocks.get("Gesamt")) - int(available_stocks.get("Gesamt"))
+
         return reserved_stocks
 
     def get_available_stocks_of_total_stocks(self, product=None):

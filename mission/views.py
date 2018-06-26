@@ -166,7 +166,7 @@ class MissionListView(ListView):
         context["fields"] = self.build_fields()
         context["filter_fields"] = get_filter_fields(Mission, exclude=["id", "products", "supplier_id",
                                                                        "invoice", "pickable", "modified_date",
-                                                                       "created_date"])
+                                                                       "created_date", "confirmed"])
         context["object_list_zip"] = self.add_billing_numbers_and_delivery_note_numbers_to_list(context["object_list"])
 
         context["option_fields"] = [
@@ -200,7 +200,7 @@ class MissionListView(ListView):
         fields = get_verbose_names(Mission, exclude=["id", "supplier_id", "products", "modified_date", "created_date",
                                                      "terms_of_payment", "terms_of_delivery", "delivery_note_number",
                                                      "billing_number", "shipping", "delivery_address_id",
-                                                     "shipping_costs", "shipping_number_of_pieces"])
+                                                     "shipping_costs", "shipping_number_of_pieces", "confirmed"])
 
         fields.insert(3, "Rechnugsnummern")
         fields.insert(4, "Lieferscheinnummern")

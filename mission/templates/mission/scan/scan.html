@@ -38,7 +38,7 @@
                         <div class="col-md-12" style="padding: 0 0 0 25px;" >
                             <h3>Ware kann nicht gescannt werden</h3>
                             <p>Sie müssen erst die Pickliste vollständig abarbeiten. Sie können die Pickliste
-                                <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=object.delivery_set.first.pk %}">hier</a> weiter bearbeiten.</p>
+                                <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=delivery.pk %}">hier</a> weiter bearbeiten.</p>
                         </div>
                     {% else %}
                         {% if picklist_has_goods == False %}

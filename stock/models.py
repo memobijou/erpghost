@@ -161,7 +161,6 @@ class Stock(models.Model):
 
     def get_total_stocks(self, product=None):
 
-
         if self.product is not None:
             product = self.product
 
@@ -283,7 +282,7 @@ class Stock(models.Model):
                     for delivery_note_product in DeliveryNoteProductMission.objects\
                             .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
                         delivery_note_total += delivery_note_product.amount
-
+                    print(f"blade {real_amount_total}")
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
                         available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"

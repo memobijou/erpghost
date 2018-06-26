@@ -949,7 +949,7 @@ class MissionStockCheckForm(View):
         stock_dict = None
 
         if product_stock is not None and product_stock != "":
-            stock_dict = product.stock_set.first().get_total_stocks()
+            stock_dict = product_stock.get_total_stocks()
 
         stock = 0
 

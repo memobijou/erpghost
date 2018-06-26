@@ -256,9 +256,11 @@ class Stock(models.Model):
 
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
-                        if sku_state in ["Neu", "B", "C", "D", "G"]:
-                            available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
-                            available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
+                        if sku_state not in ["Neu", "B", "C", "D", "G"]:
+                            total[sku_state] = 0
+
+                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
+                        available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
         total["Neu"] = f"{available_total.get('Neu')}/{total.get('Neu')}"
         total["B"] = f"{available_total.get('B')}/{total.get('B')}"
@@ -413,9 +415,10 @@ class Stock(models.Model):
 
                     if real_amount_total is not None and real_amount_total != "":
                         real_amount_total -= pick_list_total
-                        if sku_state in ["Neu", "B", "C", "D", "G"]:
-                            available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
-                            available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
+                        if sku_state not in ["Neu", "B", "C", "D", "G"]:
+                            total[sku_state] = 0
+                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
+                        available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
 
                         # total["Gesamt"] -= f"{int(total['Gesamt'])}"
 

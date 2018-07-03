@@ -28,6 +28,10 @@
                         {% include "stock/table/object_list.html" %}
                     {% elif app == "stock_position" %}
                         {% include "stock/position/table/object_list.html" %}
+                    {% elif app == "disposition" %}
+                        {% include "disposition/table/object_list.html" %}
+                    {% elif app == "employee" %}
+                        {% include "disposition/employee/object_list.html" %}
                     {% endif %}
             </tbody>
 

@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="col-md-12">
+        <div class="col-md-6" style="padding:0px;">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <div style="text-align: center;font-size:25px;padding-top:15px;">
+                        <p><b>Lieferschein: </b> {{ delivery_note.delivery_note_number }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6" style="padding: 0px;">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    <div style="text-align: center;font-size:25px;padding-top:15px;">
+                        <p><b>Lieferdatum: </b> {{ delivery_note.delivery_date }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <form method="POST">{% csrf_token %}
+                    <div class="col-md-6">
+                        <p>
+                            {{ form.errors }}
+                        </p>
+                        <p>
+                            {{ form.arrival_date.label_tag }}{{ form.arrival_date }}
+                        </p>
+                        <p>
+                            <div class="col-md-5" style="padding-left: 0px;padding-right:0px;">
+                               {{ form.hour.label_tag }}{{ form.hour }}
+                            </div>
+                            <div class="col-md-2"></div>
+                            <div class="col-md-5" style="padding-left: 0px;padding-right: 0px;">
+                                {{ form.minute.label_tag }}{{ form.minute }}
+                            </div>
+                        </p>
+                        <p>
+                            <div class="col-md-12" style="padding:25px 0 0 0;">
+                            {% for checkbox in form.employees %}
+                                {{ checkbox }}
+                            {% endfor %}
+                            </div>
+                        </p>
+                        <div class="col-md-12" style="padding:15px 0 0 0;">
+                            <input type="submit" value="Speichern" class="btn btn-primary btn-lg">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

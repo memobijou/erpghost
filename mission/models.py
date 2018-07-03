@@ -319,7 +319,7 @@ class DeliveryNote(models.Model):
 
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
-
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -328,6 +328,18 @@ class DeliveryNote(models.Model):
         if self.delivery_note_number is None or self.delivery_note_number == "":
             self.delivery_note_number = f"LS{self.pk+1}"
         super().save()
+
+
+class Truck(models.Model):
+    class Meta:
+        ordering = ["pk"]
+
+    arrival_date = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum LKW")
+    arrival_time = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit")
+
+    delivery_note = models.ForeignKey(DeliveryNote, null=True, blank=True)
+
+    employees = models.ManyToManyField("disposition.Employee", blank=True)
 
 
 class DeliveryNoteProductMissionManager(models.Manager):

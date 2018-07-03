@@ -106,6 +106,8 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
             self.data["amount"] = self.product_mission.amount
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")
 
+DATE_INPUT_FORMATS = ['%d/%m/%Y', "%d.%m.%Y"]
+
 
 class BillingForm(forms.ModelForm):
 
@@ -121,6 +123,7 @@ class BillingForm(forms.ModelForm):
                 visible.field.widget.attrs["class"] += " datepicker"
                 visible.field.widget.attrs["readonly"] = ""
                 visible.field.widget.attrs["style"] = "background-color:white;"
+                visible.field.input_formats = DATE_INPUT_FORMATS
 
 
 class PickForm(forms.Form):

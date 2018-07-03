@@ -1007,19 +1007,7 @@ class CreatePartialDeliveryNote(View):
 
     def post(self, request, **kwargs):
         if len(self.packinglist_products) > 0:
-            print(request.POST.get("delivery_date"))
-            delivery_date = self.request.POST.get("delivery_date")
-            if delivery_date is not None and delivery_date != "":
-                delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
-                delivery_date = delivery_date.strftime('%Y-%m-%d')
-                print(f"barcelano: {delivery_date}")
-            data = {"delivery_date": delivery_date,
-                    "transport_service": self.request.POST.get("transport_service"),
-                    "shipping_costs": self.request.POST.get("shipping_costs"),
-                    "shipping_number_of_pieces": self.request.POST.get("shipping_number_of_pieces"),
-                    }
-            print(data)
-            if BillingForm(data=data).is_valid() is True:
+            if BillingForm(data=self.request.POST).is_valid() is True:
                 self.create_partial_delivery()
             else:
                 self.delivery = Delivery.objects.get(pk=self.kwargs.get("delivery_pk"))
@@ -1099,21 +1087,21 @@ class CreatePartialDeliveryNote(View):
         bulk_instances = []
 
         delivery_date = self.request.POST.get("delivery_date")
-        print(delivery_date)
+
         if delivery_date is not None and delivery_date != "":
-            print("wieso")
             delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
             delivery_date = delivery_date.strftime('%Y-%m-%d')
         else:
             delivery_date = None
-        delivery_note = DeliveryNote(delivery=self.delivery, delivery_date=delivery_date)
-        delivery_note.save()
 
         billing = Billing(delivery=self.delivery, transport_service=self.request.POST.get("transport_service"),
                           shipping_number_of_pieces=self.request.POST.get("shipping_number_of_pieces"),
                           shipping_costs=self.request.POST.get("shipping_costs"),
                           delivery_date=delivery_date)
         billing.save()
+
+        delivery_note = DeliveryNote(delivery=self.delivery, delivery_date=delivery_date, billing=billing)
+        delivery_note.save()
 
         for packinglist_product in self.packinglist_products:
             print(packinglist_product)

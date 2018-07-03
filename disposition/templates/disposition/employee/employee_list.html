@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+    <div>
+            <div class="col-md-12">
+                <div class="form-inline pull-right" style="padding-right: 0px;">
+                    <a href="{% url 'disposition:employee_create' %}" class="btn btn-info">Mitarbeiter anlegen</a>
+                </div>
+            </div>
+            <br/><br/><br/>
+        {% include "snippets/filter.html" with app="disposition" %}
+        {% include "snippets/pagination.html" %}
+
+
+        {% include "snippets/table.html" with app="employee" %}
+
+
+    </div>
+
+{% endblock %}

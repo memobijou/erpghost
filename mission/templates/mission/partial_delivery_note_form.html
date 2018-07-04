@@ -5,7 +5,7 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="pull-right">
-                <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
+                <p><a href="{% url 'mission:detail' pk=partial.mission.pk %}">Zur Ansicht</a></p>
             </div>
             <br/><br/>
             {% if error %}
@@ -71,7 +71,7 @@
                             <p>Sie müssen erst den Pickauftrag beenden um einen Lieferschein und eine Rechnung zu erstellen.
                             </p>
                             <p>
-                                <a href="{% url 'mission:picklist' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Hier</a> geht es zum Pickauftrag.
+                                <a href="{% url 'mission:picklist' pk=partial.mission.pk delivery_pk=partial.pk %}">Hier</a> geht es zum Pickauftrag.
                             </p>
                         </div>
                     {% endif %}
@@ -89,13 +89,13 @@
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnung können nicht erstellt werden</h3>
                                 <p>Sie müssen erst die Ware am Warenausgang bestätigen um einen Lieferschein
-                                    und eine Rechnung zu erstellen. <a href="{% url 'mission:scan' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Hier</a> kommen Sie zum Warenausgang.</p>
+                                    und eine Rechnung zu erstellen. <a href="{% url 'mission:scan' pk=partial.mission.pk delivery_pk=partial.pk %}">Hier</a> kommen Sie zum Warenausgang.</p>
                             </div>
                         {% else %}
                             <div class="col-md-12">
                                 <h3>Lieferschein und Rechnnung können nicht erstellt werden</h3>
                                 <p>Um einen Lieferschein und eine Rechnung erstellen zu können muss Ware am Warenausgang vorhanden sein.</p>
-                                <p>Prüfen Sie am <a href="{% url 'mission:scan' pk=delivery.mission.pk delivery_pk=delivery.pk %}">Warenausgang</a>, ob tatsächlich kein Artikel vorhanden ist, andernfalls können Sie den Lieferschein und die Rechnung stornieren.</p>
+                                <p>Prüfen Sie am <a href="{% url 'mission:scan' pk=partial.mission.pk delivery_pk=partial.pk %}">Warenausgang</a>, ob tatsächlich kein Artikel vorhanden ist, andernfalls können Sie den Lieferschein und die Rechnung stornieren.</p>
                             </div>
 
                             <form method="POST">{% csrf_token %}

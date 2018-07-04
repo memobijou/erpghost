@@ -2,7 +2,7 @@ from django import forms
 from django.db.models import Q
 
 from product.models import Product
-from .models import Mission, ProductMission, GoodsIssueDeliveryMissionProduct, DeliveryNoteProductMission, Billing, \
+from .models import Mission, ProductMission, DeliveryNoteProductMission, Billing, \
     DeliveryMissionProduct
 from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
     IntegerField
@@ -106,6 +106,8 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
             self.data["amount"] = self.product_mission.amount
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")
 
+DATE_INPUT_FORMATS = ['%d/%m/%Y', "%d.%m.%Y"]
+
 
 class BillingForm(forms.ModelForm):
 
@@ -121,6 +123,7 @@ class BillingForm(forms.ModelForm):
                 visible.field.widget.attrs["class"] += " datepicker"
                 visible.field.widget.attrs["readonly"] = ""
                 visible.field.widget.attrs["style"] = "background-color:white;"
+                visible.field.input_formats = DATE_INPUT_FORMATS
 
 
 class PickForm(forms.Form):

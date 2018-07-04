@@ -1,0 +1,22 @@
+{% load utils %}
+{% load static %}
+
+<form method="GET" action="">
+    <div class="col pull-right" style="padding-bottom: 10px;">
+        <button type="submit" class="btn btn-default">Löschen</button>
+    </div>
+    {% for object in object_list %}
+        <tr>
+            <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
+                <a href="{% url 'disposition:employee_edit' employee_id=object.pk %}">Bearbeiten</a>
+                <input type="checkbox" name="item" value="{{object.pk}}">
+            </td>
+            <td>
+                {% if object.user.profile and object.user.profile.profile_image %}
+                    <img src="{{ object.user.profile.profile_image.url }}" class="img-responsive" style="max-height:80px;"/>
+                {% endif %}
+            </td>
+            <td> {{ object }} </td>
+        </tr>
+    {% endfor %}
+</form>

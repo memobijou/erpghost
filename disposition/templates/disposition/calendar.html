@@ -14,30 +14,97 @@
     $(function() {
 
       // page is now ready, initialize the calendar...
-
-
       $('#calendar').fullCalendar({
         // put your options and callbacks here
           locale: 'de',
           weekNumbers: true,
+          eventLimit: true,
+          displayEventEnd: true,
+          businessHours: {
+              // days of week. an array of zero-based day of week integers (0=Sunday)
+              dow: [ 1, 2, 3, 4, 5], // Monday - Thursday
+              start: '10:00', // a start time (10am in this example)
+              end: '18:00' // an end time (6pm in this example)
+            },
+          nowIndicator: true,
           header: {
             left: 'prev, next today',
             center: 'title',
-            right: 'month, basicWeek, basicDay'
+            right: 'month, listMonth basicWeek listWeek, basicDay, listDay'
           },
+eventRender: function(event, element, view) {
+    var title = element.find('.fc-title, .fc-list-item-title');
+    var start = moment(event.start).format("YYYY-MM-DD");
+    var delivery_note_number = title.text();
+
+    var html = "";
+
+    if(view.type.includes("list")){
+        {% for delivery_note in delivery_notes %}
+            if('{{ delivery_note.delivery_note_number }}' == delivery_note_number) {
+                html = "<p>" + '{{ delivery_note.delivery_note_number }}' + "</p>";
+                html += '<i class="fa fa-truck" style="color:orange;"></i> {{ delivery_note.truck_set.all.count }}';
+                {% if delivery_note.truck_set.all.count > 0 %}
+                    html += "<br/><br/>";
+
+                    html += "<table class='table'><thead><tr>" +
+                        "<th style='text-align:left;'>Uhrzeit</th>" +
+                        "<th style='text-align:left;'>Transportdienstleister</th>" +
+                        "<th style='text-align:left;'>Stückzahl</th>" +
+                        "<th style='text-align:left;'>Mitarbeiter</th>" +
+                        "</tr></thead><tbody>";
+                    {% for truck in delivery_note.truck_set.all %}
+                        html += "<tr>" +
+                            "<td>{{ truck.arrival_time|date:'H:i' }} Uhr</td>"  +
+                            "<td>{{ delivery_note.billing.transport_service }}</td>" +
+                            "<td>{{ delivery_note.billing.shipping_number_of_pieces }}</td>" +
+                            "<td>" +
+                            "{% for employee in truck.employees.all %}" +
+                            "{% if employee.user.profile  %}" +
+                            "<img src='{{  employee.user.profile.profile_image.url }}' class='img-responsive img-circle' style='max-height:80px;'/>" +
+                            "{% endif %}" +
+                            "{% endfor %}" +
+                            "</td>" +
+                            "</tr>";
+                    {% endfor %}
+                    html += "</tbody></table>";
+                {% endif %}
+                title.html(html);
+                element.find('.fc-list-item-time').empty()
+
+
+            }
+        {% endfor %}
+    }else{
+        // keine Terminübersicht
+        {% for delivery_note in delivery_notes %}
+            if('{{ delivery_note.delivery_note_number }}' == delivery_note_number) {
+                html = "{{ delivery_note.delivery_note_number }}";
+                html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:yellow;"></i> {{ delivery_note.truck_set.all.count }}';
+                title.html(html);
+                element.find('.fc-time').hide();
+
+
+            }
+        {% endfor %}
+    }
+},
             events: [
-                {% for mission in missions %}
+                {% for delivery_note in delivery_notes %}
                     {
-                    {% if mission.customer %}
-                          title: '{{ mission.mission_number }} \n Kunde: {{ mission.customer|default:'' }}',
+                    {% if delivery_note.delivery.mission.customer %}
+                          title: '{{ delivery_note.delivery_note_number }}',
                     {% else %}
-                          title: '{{ mission.mission_number }}',
+                          title: '{{ delivery_note.delivery.mission.mission_number }}',
                     {% endif %}
-                      start: '{{ mission.delivery_date|date:"Y-m-d" }}'
+                      start: '{{ delivery_note.delivery_date|date:"Y-m-d" }}T11:30:00',
+                      end : '{{ delivery_note.delivery_date|date:"Y-m-d" }}T13:30:00',
+                      allDay : false // will make the time show,
                     },
                 {% endfor %}
             // other events here
           ],
+        eventColor: '#2aabd2'
       })
 
     });

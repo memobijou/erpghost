@@ -1,6 +1,6 @@
 from mission.billing_pdf import BillingPdfView
 from mission.billing_pdf import *
-from mission.models import DeliveryMissionProduct, Billing
+from mission.models import Billing
 
 
 class PartialPdfView(BillingPdfView):

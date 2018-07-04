@@ -128,12 +128,12 @@ class RealAmountModelManager(models.Manager):
         super().bulk_create(objs)
 
 
-class Delivery(models.Model):
+class Partial(models.Model):
     mission = models.ForeignKey(Mission, null=True, blank=True)
 
 
 class PickList(models.Model):
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
     pick_id = models.CharField(max_length=200, blank=True, null=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -145,7 +145,8 @@ class PickList(models.Model):
 
 
 class PackingList(models.Model):
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
+
     packing_id = models.CharField(max_length=200, blank=True, null=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -170,7 +171,7 @@ class PackingListProduct(models.Model):
 
     def scan_amount(self):
         amount = 0
-        picklist = self.packing_list.delivery.picklist_set.first()
+        picklist = self.packing_list.partial.picklist_set.first()
 
         if picklist is not None and picklist != "":
             for pick_row in picklist.picklistproducts_set.filter(Q(Q(confirmed=True) | Q(confirmed=False))
@@ -180,7 +181,8 @@ class PackingListProduct(models.Model):
 
 
 class IgnoreStocksPickList(models.Model):
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
+
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
 
@@ -199,15 +201,16 @@ class PickListProducts(models.Model):
         return self.amount
 
 
-class DeliveryMissionProduct(models.Model):
-    delivery = models.ForeignKey(Delivery, null=True, blank=True)
+class PartialMissionProduct(models.Model):
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
+
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     amount = models.IntegerField(blank=True, null=True)
 
     def real_amount(self):
         amount = 0
         delivery_notes_products = DeliveryNoteProductMission.objects.\
-            filter(product_mission=self.product_mission, delivery_note__delivery=self.delivery)
+            filter(product_mission=self.product_mission, delivery_note__partial=self.partial)
 
         if delivery_notes_products.count() > 0:
             for row in delivery_notes_products:
@@ -242,7 +245,7 @@ class RealAmount(models.Model):
 
 class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
 
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
@@ -264,7 +267,8 @@ class DeliveryNote(models.Model):
         ordering = ['pk']
 
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
+
     billing = models.ForeignKey("mission.Billing", null=True, blank=True)
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
@@ -312,15 +316,15 @@ def get_status(mission):
     if products_count == 0:
         return "OFFEN"
     else:
-        deliveries = mission.delivery_set.all()
+        partials = mission.partial_set.all()
 
-        if deliveries.count() > 0:
+        if partials.count() > 0:
             finished = True
             for mission_product in mission_products:
                 sent_amount_sum = 0
 
-                for delivery_product in DeliveryMissionProduct.objects.filter(product_mission=mission_product):
-                    sent_amount_sum += delivery_product.real_amount()
+                for partial_product in PartialMissionProduct.objects.filter(product_mission=mission_product):
+                    sent_amount_sum += partial_product.real_amount()
                 print(f"LIMIT: {mission_product.amount} - {sent_amount_sum}")
                 if int(sent_amount_sum) != int(mission_product.amount):
                     finished = False

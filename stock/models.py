@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
-from mission.models import RealAmount, DeliveryMissionProduct, DeliveryNoteProductMission, PickListProducts
+from mission.models import RealAmount, PartialMissionProduct, DeliveryNoteProductMission, PickListProducts
 from product.models import Product
 from sku.models import Sku
 
@@ -266,7 +266,7 @@ class Stock(models.Model):
                         self.states.append(sku_state)
                         total[sku_state] = 0
 
-                    real_amount_total = DeliveryMissionProduct.objects\
+                    real_amount_total = PartialMissionProduct.objects\
                         .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
                         .aggregate(Sum("amount")).get("amount__sum")
 
@@ -426,7 +426,7 @@ class Stock(models.Model):
                         self.states.append(sku_state)
                         total[sku_state] = 0
 
-                    real_amount_total = DeliveryMissionProduct.objects.\
+                    real_amount_total = PartialMissionProduct.objects.\
                         filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
                         .aggregate(Sum("amount")).get("amount__sum")
 
@@ -488,7 +488,7 @@ class Stock(models.Model):
             else:
                 total = Stock.objects.filter(ean_vollstaendig=str(self.ean_vollstaendig)).aggregate(Sum('bestand'))
 
-            real_amounts = DeliveryMissionProduct.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
+            real_amounts = PartialMissionProduct.objects.filter(product_mission__product__ean=self.ean_vollstaendig)
             total_reserved = 0
             for real_amount in real_amounts:
                 total_reserved += real_amount.real_amount
@@ -505,7 +505,7 @@ class Stock(models.Model):
                 total = Stock.objects.filter(title=str(self.title), zustand__iexact=state).aggregate(Sum('bestand'))
             else:
                 total = Stock.objects.filter(title=str(self.title)).aggregate(Sum('bestand'))
-            real_amounts = DeliveryMissionProduct.objects.filter(product_mission__product__title=self.title)
+            real_amounts = PartialMissionProduct.objects.filter(product_mission__product__title=self.title)
             total_reserved = 0
             for real_amount in real_amounts:
                 total_reserved += real_amount.real_amount

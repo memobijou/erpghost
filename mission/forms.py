@@ -2,13 +2,8 @@ from django import forms
 from django.db.models import Q
 
 from product.models import Product
-from .models import Mission, ProductMission, DeliveryNoteProductMission, Billing, \
-    DeliveryMissionProduct
-from django.forms import modelform_factory, inlineformset_factory, BaseInlineFormSet, CharField, FloatField, \
-    IntegerField
-from client.models import Client
-from adress.models import Adress
-from django.core.validators import MinValueValidator
+from .models import Mission, ProductMission, Billing, PartialMissionProduct
+from django.forms import inlineformset_factory, BaseInlineFormSet, CharField, FloatField, IntegerField
 
 
 class MissionForm(forms.ModelForm):
@@ -97,7 +92,7 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
         if self.product_mission is None:
             return
 
-        for goods_issue_delivery_mission_product in DeliveryMissionProduct.objects.\
+        for goods_issue_delivery_mission_product in PartialMissionProduct.objects.\
                 filter(product_mission=self.product_mission):
 
             sum_all_amounts += goods_issue_delivery_mission_product.amount

@@ -5,12 +5,12 @@
     <div class="panel panel-default">
         <div class="panel-body">
                     <div class="pull-right">
-                        <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
+                        <p><a href="{% url 'mission:detail' pk=partial.mission.pk %}">Zur Ansicht</a></p>
                     </div>
         <br/><br/>
                     {% if created_picklist %}
                         <h3>Pickliste schon vorhanden</h3>
-                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=delivery.pk %}">hier</a> zur Pickliste.</p>
+                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=partial.pk %}">hier</a> zur Pickliste.</p>
                     {% endif %}
 
                     {% if not created_picklist %}
@@ -34,23 +34,23 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for delivery_product, stock, position in pickinglist %}
+                                        {% for partial_product, stock, position in pickinglist %}
                                             <tr>
                                                 <td>
-                                                    {% if delivery_product.product_mission.product.main_image %}
+                                                    {% if partial_product.product_mission.product.main_image %}
                                                         <img
-                                                            src="{{ delivery_product.product_mission.product.main_image.url }}"
+                                                            src="{{ partial_product.product_mission.product.main_image.url }}"
                                                             class="img-responsive" style="max-height:80px;">
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {{ delivery_product.product_mission.get_ean_or_sku }}
+                                                    {{ partial_product.product_mission.get_ean_or_sku }}
                                                 </td>
                                                 <td>
-                                                    {{  delivery_product.product_mission.state }}
+                                                    {{  partial_product.product_mission.state }}
                                                 </td>
                                                 <td>
-                                                    {{  delivery_product.product_mission.product.title|default:"" }}
+                                                    {{  partial_product.product_mission.product.title|default:"" }}
                                                 </td>
                                                 <td>
                                                     {{ position.0.lagerplatz }}

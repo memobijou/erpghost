@@ -7,7 +7,7 @@ from utils.utils import get_field_names, get_queries_as_json, set_field_names_on
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview,\
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
-    Delivery, DeliveryMissionProduct, GoodsIssue, GoodsIssueDeliveryMissionProduct, PickList, PickListProducts, \
+    Delivery, DeliveryMissionProduct, PickList, PickListProducts, \
     PackingList, PackingListProduct
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm, BillingForm, PickForm
@@ -1229,15 +1229,6 @@ class CreatePickListView(View):
                                                    product_mission=delivery_product.product_mission,
                                                    position=position[0].lagerplatz, amount=position[1]))
         PickListProducts.objects.bulk_create(bulk_instances)
-
-    def get_to_scan_products(self):
-        goodsissue_products = self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all()
-        exclude_amount_zero_ids = []
-        for goodsissue_product in goodsissue_products:
-            if goodsissue_product.scan_amount() is None or goodsissue_product.scan_amount() == 0:
-                exclude_amount_zero_ids.append(goodsissue_product.pk)
-        return self.delivery.goodsissue_set.first().goodsissuedeliverymissionproduct_set.all().\
-            exclude(pk__in=exclude_amount_zero_ids)
 
     def get_picking_list(self):
         picking_list = []

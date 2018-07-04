@@ -132,19 +132,6 @@ class Delivery(models.Model):
     mission = models.ForeignKey(Mission, null=True, blank=True)
 
 
-class GoodsIssue(models.Model):
-    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
-
-    scan_id = models.CharField(max_length=200, blank=True, null=True)
-
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
-        super().save()
-        if self.scan_id is None or self.scan_id == "":
-            self.scan_id = f"PK{self.pk+1}"
-        super().save()
-
-
 class PickList(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
     pick_id = models.CharField(max_length=200, blank=True, null=True)
@@ -181,15 +168,6 @@ class PackingListProduct(models.Model):
             return self.scan_amount()
         return self.scan_amount()-self.missing_amount
 
-    def real_amount(self):
-        amount = self.amount
-        if self.goods_issue is not None and self.goods_issue != "":
-            for delivery_note in self.goods_issue.deliverynote_set.all():
-                for delivery_note_product in delivery_note.deliverynoteproductmission_set\
-                        .filter(product_mission__exact=self.delivery_mission_product.product_mission):
-                    amount -= delivery_note_product.amount
-        return amount
-
     def scan_amount(self):
         amount = 0
         picklist = self.packing_list.delivery.picklist_set.first()
@@ -219,38 +197,6 @@ class PickListProducts(models.Model):
         if self.missing_amount is not None and self.missing_amount != "":
             return int(self.amount) - int(self.missing_amount)
         return self.amount
-
-
-class GoodsIssueDeliveryMissionProduct(models.Model):
-    goods_issue = models.ForeignKey("mission.GoodsIssue", null=True, blank=True)
-    delivery_mission_product = models.ForeignKey("mission.DeliveryMissionProduct", null=True, blank=True)
-    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge", default=0)
-    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge", default=0)
-    confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
-
-    def amount_minus_missing_amount(self):
-        if self.missing_amount is None:
-            return self.scan_amount()
-        return self.scan_amount()-self.missing_amount
-
-    def real_amount(self):
-        amount = self.amount
-        if self.goods_issue is not None and self.goods_issue != "":
-            for delivery_note in self.goods_issue.deliverynote_set.all():
-                for delivery_note_product in delivery_note.deliverynoteproductmission_set\
-                        .filter(product_mission__exact=self.delivery_mission_product.product_mission):
-                    amount -= delivery_note_product.amount
-        return amount
-
-    def scan_amount(self):
-        amount = 0
-        picklist = self.goods_issue.delivery.picklist_set.first()
-        if picklist is not None and picklist != "":
-            for pick_row in picklist.picklistproducts_set.filter(Q(Q(confirmed=True) | Q(confirmed=False))
-                                                                 & Q(product_mission=
-                                                                     self.delivery_mission_product.product_mission)):
-                amount += pick_row.amount_minus_missing_amount()
-        return amount
 
 
 class DeliveryMissionProduct(models.Model):

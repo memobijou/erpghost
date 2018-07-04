@@ -6,7 +6,7 @@ from stock.models import Stock
 from utils.utils import get_field_names, get_queries_as_json, set_field_names_onview, set_paginated_queryset_onview, \
     filter_queryset_from_request, get_query_as_json, get_related_as_json, get_relation_fields, set_object_ondetailview,\
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
-from mission.models import Mission, ProductMission, RealAmount, Billing, DeliveryNote, DeliveryNoteProductMission, \
+from mission.models import Mission, ProductMission, Billing, DeliveryNote, DeliveryNoteProductMission, \
     Partial, PartialMissionProduct, PickList, PickListProducts, \
     PackingList, PackingListProduct
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \

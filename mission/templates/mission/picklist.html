@@ -6,18 +6,18 @@
         <div class="panel-body">
             <div class="col-md-12">
                 <div class="pull-right">
-                    <p><a href="{% url 'mission:detail' pk=delivery.mission.pk %}">Zur Ansicht</a></p>
+                    <p><a href="{% url 'mission:detail' pk=partial.mission.pk %}">Zur Ansicht</a></p>
                 </div>
             </div>
             {% if picklist|length == 0 %}
                     <div class="col-md-12">
                         <h3>Keine Pickliste vorhanden</h3>
-                        <p>Sie können <a href="{% url 'mission:create_picklist' pk=delivery.mission.pk delivery_pk=delivery.pk%}">hier</a> eine Pickliste erstellen</p>
+                        <p>Sie können <a href="{% url 'mission:create_picklist' pk=partial.mission.pk delivery_pk=partial.pk%}">hier</a> eine Pickliste erstellen</p>
                     </div>
 
             {% else %}
                 <div class="col-md-12">
-                    <h3>Pick ID: {{ delivery.picklist_set.first.pick_id }}</h3>
+                    <h3>Pick ID: {{ partial.picklist_set.first.pick_id }}</h3>
                 </div>
                 {% with pick_row=picklist.0.0 %}
                     {% with pick_form=picklist.0.1  %}
@@ -64,7 +64,7 @@
                             </div>
                         {% else %}
                             <div class="text-center">
-                                <a href="{% url 'mission:scan' delivery_pk=delivery.pk pk=delivery.mission.pk%}" class="btn-lg btn btn-info">Zur Verpackerliste</a>
+                                <a href="{% url 'mission:scan' delivery_pk=partial.pk pk=partial.mission.pk%}" class="btn-lg btn btn-info">Zur Verpackerliste</a>
                             </div>
                         {% endif %}
                     {% endwith %}

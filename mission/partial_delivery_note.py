@@ -1,4 +1,3 @@
-from mission.delivery_note_pdf import DeliveryNoteView
 from mission.delivery_note_pdf import *
 from mission.models import DeliveryNote
 

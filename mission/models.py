@@ -221,28 +221,6 @@ class PartialMissionProduct(models.Model):
         return self.amount-self.real_amount()
 
 
-class RealAmount(models.Model):
-    product_mission = models.ForeignKey(ProductMission)
-    real_amount = models.IntegerField(blank=True, null=True)
-    missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
-    billing = models.ForeignKey("mission.Billing", blank=True, null=True)
-    delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
-    confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
-
-    @property
-    def real_amount_minus_missing_amount(self):
-        if self.missing_amount is None:
-            return self.real_amount
-        return self.real_amount-self.missing_amount
-
-    def get_delivery_note_amount(self):
-        amount = self.real_amount-self.missing_amount
-        for delivery_note in self.billing.deliverynote_set.all():
-            for product in delivery_note.deliverynoteproductmission_set.all():
-                if product.product_mission.pk == self.product_mission.pk:
-                    amount -= product.amount
-
-
 class Billing(models.Model):
     billing_number = models.CharField(max_length=200, null=True, blank=True)
     partial = models.ForeignKey("mission.Partial", null=True, blank=True)

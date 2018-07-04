@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
-from mission.models import RealAmount, PartialMissionProduct, DeliveryNoteProductMission, PickListProducts
+from mission.models import PartialMissionProduct, DeliveryNoteProductMission, PickListProducts
 from product.models import Product
 from sku.models import Sku
 

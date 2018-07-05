@@ -108,7 +108,16 @@ class BillingForm(forms.ModelForm):
 
     class Meta:
         model = Billing
-        fields = ("transport_service", "shipping_number_of_pieces", "shipping_costs", "delivery_date")
+        fields = ("transport_service", "shipping_number_of_pieces", "shipping_costs")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            visible.field.widget.attrs["class"] = "form-control"
+
+
+class DeliveryForm(forms.Form):
+    delivery_date = forms.DateField(required=False, label="Lieferdatum", input_formats=DATE_INPUT_FORMATS)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -118,7 +127,8 @@ class BillingForm(forms.ModelForm):
                 visible.field.widget.attrs["class"] += " datepicker"
                 visible.field.widget.attrs["readonly"] = ""
                 visible.field.widget.attrs["style"] = "background-color:white;"
-                visible.field.input_formats = DATE_INPUT_FORMATS
+                visible.field.widget.attrs["placeholder"] = "Falls abweichend von Auftragslieferdatum"
+
 
 
 class PickForm(forms.Form):

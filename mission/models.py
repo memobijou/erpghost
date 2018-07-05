@@ -210,7 +210,7 @@ class PartialMissionProduct(models.Model):
     def real_amount(self):
         amount = 0
         delivery_notes_products = DeliveryNoteProductMission.objects.\
-            filter(product_mission=self.product_mission, delivery_note__partial=self.partial)
+            filter(product_mission=self.product_mission, delivery_note__delivery__partial=self.partial)
 
         if delivery_notes_products.count() > 0:
             for row in delivery_notes_products:
@@ -221,9 +221,25 @@ class PartialMissionProduct(models.Model):
         return self.amount-self.real_amount()
 
 
-class Billing(models.Model):
-    billing_number = models.CharField(max_length=200, null=True, blank=True)
+class Delivery(models.Model):
+    delivery_id = models.CharField(max_length=200, blank=True, null=True)
     partial = models.ForeignKey("mission.Partial", null=True, blank=True)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+    delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True)
+    delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        super().save()
+        if self.delivery_id is None or self.delivery_id == "":
+            self.delivery_id = f"LG{self.pk+1}"
+        super().save()
+
+
+class Billing(models.Model):
+    class Meta:
+        ordering = ['pk']
+
+    billing_number = models.CharField(max_length=200, null=True, blank=True)
 
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
@@ -245,9 +261,6 @@ class DeliveryNote(models.Model):
         ordering = ['pk']
 
     delivery_note_number = models.CharField(max_length=200, null=True, blank=True)
-    partial = models.ForeignKey("mission.Partial", null=True, blank=True)
-
-    billing = models.ForeignKey("mission.Billing", null=True, blank=True)
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
     def save(self, force_insert=False, force_update=False, using=None,
@@ -280,6 +293,7 @@ class DeliveryNoteProductMissionManager(models.Manager):
 
 class DeliveryNoteProductMission(models.Model):
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+
     amount = models.IntegerField(blank=True, null=True)
     delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
     billing = models.ForeignKey("mission.Billing", blank=True, null=True)

@@ -38,7 +38,7 @@
                         <div class="col-md-12" style="padding: 0 0 0 25px;" >
                             <h3>Ware kann nicht gescannt werden</h3>
                             <p>Sie müssen erst die Pickliste vollständig abarbeiten. Sie können die Pickliste
-                                <a href="{% url 'mission:picklist' pk=object.pk delivery_pk=partial.pk %}">hier</a> weiter bearbeiten.</p>
+                                <a href="{% url 'mission:picklist' pk=object.pk partial_pk=partial.pk %}">hier</a> weiter bearbeiten.</p>
                         </div>
                     {% else %}
                         {% if picklist_has_goods == False %}
@@ -46,7 +46,7 @@
                                 <h3>Keine Ware für Lieferung gepickt
                                 </h3>
                                 <p>Sie können
-                                    <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk delivery_pk=partial.pk %}">
+                                    <a href="{% url 'mission:partial_delivery_note_form' pk=object.pk partial_pk=partial.pk %}">
                                         hier</a> den Vorgang stornieren und anschließend eine neue Pickliste erstellen.
                                 </p>
                             </div>
@@ -57,7 +57,7 @@
             {% if is_packing_list_all_scanned == True %}
                 <div class="col-md-12" style="padding-left: 25px;padding-top:25px;">
                 <div class="text-center">
-                    <a class="btn btn-info btn-lg" href="{% url 'mission:partial_delivery_note_form' pk=object.pk delivery_pk=partial.pk %}"
+                    <a class="btn btn-info btn-lg" href="{% url 'mission:partial_delivery_note_form' pk=object.pk partial_pk=partial.pk %}"
                        style="white-space: normal;">Zu Lieferschein und Rechnung</a>
                 </div>
                 </div>

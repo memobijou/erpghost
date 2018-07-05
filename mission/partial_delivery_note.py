@@ -19,8 +19,10 @@ class PartialDeliveryNoteView(DeliveryNoteView):
 
         terms_of_delivery = self.mission.terms_of_delivery
 
-        if self.partial_delivery_note.delivery_date is not None:
-            delivery_date = self.partial_delivery_note.delivery_date
+        delivery = self.partial_delivery_note.delivery_set.first()
+
+        if delivery is not None and delivery.delivery_date is not None and delivery.delivery_note != "":
+            delivery_date = delivery.delivery_date
         else:
             delivery_date = self.mission.delivery_date
 

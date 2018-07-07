@@ -7,23 +7,18 @@
     </div>
     {% for object in object_list %}
         <tr>
-            <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
-                <a href="{{ object.id }}/edit">Bearbeiten</a>
-                <input type="checkbox" name="item" value="{{object.pk}}">
-            </td>
-            <td> {{ object.delivery_note_number }} </td>
-            <td> {{ object.delivery_date }}</td>
+            <td></td>
+            <td>LKW{{ object.pk }}</td>
             <td>
-                <i class="fa fa-truck"></i> {{ object.truck_set.all.count }}
-                <br/>
-                {% for truck in  object.truck_set.all %}
-                    <p>LKW -  {{ truck.arrival_date }}
-                        <a class="glyphicon glyphicon-pencil"
-                           href="{% url 'disposition:truck_edit' truck_id=truck.pk %}">
-                        </a></p>
+                {% for appointment in object.truckappointment_set.all %}
+                    <p>Datum <b>{{ appointment.arrival_date|default:"" }}</b>&nbsp;
+                       Uhrzeit <b>{{ appointment.arrival_time_start|default:"" }} - {{ appointment.arrival_time_end|default:"" }}</b>
+                       &nbsp;<a href="{% url 'disposition:appointment_edit' appointment_id=appointment.pk %}"><span class="glyphicon glyphicon-pencil"></span></a>
+                    </p>
                 {% endfor %}
-                <br/>
-                <a href="{% url 'disposition:truck_create' delivery_note_number=object.delivery_note_number %}" class="btn btn-info">Neuen LKW buchen</a>
+                <p>
+                    <a href="{% url 'disposition:appointment_to_truck' truck_id=object.pk %}" class="btn btn-info">Termin hinzufügen</a>
+                </p>
             </td>
         </tr>
     {% endfor %}

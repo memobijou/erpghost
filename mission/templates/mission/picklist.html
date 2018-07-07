@@ -12,7 +12,7 @@
             {% if picklist|length == 0 %}
                     <div class="col-md-12">
                         <h3>Keine Pickliste vorhanden</h3>
-                        <p>Sie können <a href="{% url 'mission:create_picklist' pk=partial.mission.pk delivery_pk=partial.pk%}">hier</a> eine Pickliste erstellen</p>
+                        <p>Sie können <a href="{% url 'mission:create_delivery' pk=partial.mission.pk partial_pk=partial.pk%}">hier</a> eine neue Lieferung erstellen</p>
                     </div>
 
             {% else %}
@@ -64,7 +64,7 @@
                             </div>
                         {% else %}
                             <div class="text-center">
-                                <a href="{% url 'mission:scan' delivery_pk=partial.pk pk=partial.mission.pk%}" class="btn-lg btn btn-info">Zur Verpackerliste</a>
+                                <a href="{% url 'mission:scan' partial_pk=partial.pk pk=partial.mission.pk%}" class="btn-lg btn btn-info">Zur Verpackerliste</a>
                             </div>
                         {% endif %}
                     {% endwith %}

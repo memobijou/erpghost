@@ -3,11 +3,12 @@
 
 {% block content %}
     <div>
-            <div class="col-md-12">
-                <div class="form-inline pull-right" style="padding-right: 0px;">
-                </div>
+        <div class="col-md-12">
+            <div class="form-inline pull-right" style="padding-right: 0px;">
+                <a href="{% url 'disposition:truck_create' %}" class="btn btn-info">Neuen LKW buchen</a>
             </div>
-            <br/><br/><br/>
+        </div>
+        <br/><br/><br/>
         {% include "snippets/filter.html" with app="disposition" %}
         {% include "snippets/pagination.html" %}
 

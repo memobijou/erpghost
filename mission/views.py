@@ -8,9 +8,9 @@ from utils.utils import get_field_names, get_queries_as_json, set_field_names_on
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, Billing, DeliveryNote, DeliveryNoteProductMission, \
     Partial, PartialMissionProduct, PickList, PickListProducts, \
-    PackingList, PackingListProduct
+    PackingList, PackingListProduct, Delivery
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
-    ProductMissionUpdateForm, BillingForm, PickForm
+    ProductMissionUpdateForm, BillingForm, PickForm, DeliveryForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.forms import inlineformset_factory, modelform_factory
 from django.urls import reverse_lazy
@@ -45,16 +45,7 @@ class MissionDetailView(DetailView):
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_detail_products()
-        context["partials"] = self.get_partials()
         return context
-
-    def get_partials(self):
-        partials = []
-
-        for partial in self.object.partial_set.all():
-            partials.append((partial, list(zip(partial.billing_set.all(),
-                             partial.deliverynote_set.all()))))
-        return partials
 
     def build_fields(self):
         fields = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
@@ -170,16 +161,18 @@ class MissionListView(ListView):
         for mission in object_list:
             billing_numbers = []
             for partial in mission.partial_set.all():
-                for billing in partial.billing_set.all():
-                    billing_numbers.append(billing.billing_number)
+                for delivery in partial.delivery_set.all():
+                    if delivery.billing is not None:
+                        billing_numbers.append(delivery.billing.billing_number)
 
             billing_numbers_list.append(billing_numbers)
 
         for mission in object_list:
             delivery_notes = []
             for partial in mission.partial_set.all():
-                for delivery_note in partial.deliverynote_set.all():
-                    delivery_notes.append(delivery_note.delivery_note_number)
+                for delivery in partial.delivery_set.all():
+                    if delivery.delivery_note is not None:
+                        delivery_notes.append(delivery.delivery_note.delivery_note_number)
 
             delivery_note_numbers_list.append(delivery_notes)
 
@@ -229,10 +222,10 @@ class MissionListView(ListView):
 
         if search_value is not None and search_value != "":
             search_filter |= Q(**{f"mission_number__icontains": search_value.strip()})
-            search_filter |= Q(partial__billing__billing_number__icontains=search_value.strip())
-            search_filter |= Q(partial__deliverynote__delivery_note_number__icontains=search_value.strip())
+            search_filter |= Q(partial__delivery__billing__billing_number__icontains=search_value.strip())
+            search_filter |= Q(partial__delivery__deliverynote__delivery_note_number__icontains=search_value.strip())
             search_filter |= Q(customer__contact__billing_address__firma__icontains=search_value.strip())
-            search_filter |= Q(partial__billing__transport_service__icontains=search_value.strip())
+            search_filter |= Q(partial__delivery__billing__transport_service__icontains=search_value.strip())
             search_filter |= Q(customer_order_number__icontains=search_value.strip())
 
         q_filter &= search_filter
@@ -241,10 +234,10 @@ class MissionListView(ListView):
         delivery_note_number = self.request.GET.get("delivery_note_number")
 
         if billing_number is not None and billing_number != "":
-            q_filter &= Q(partial__billing__billing_number__icontains=billing_number)
+            q_filter &= Q(partial__delivery__billing__billing_number__icontains=billing_number)
 
         if delivery_note_number is not None and delivery_note_number != "":
-            q_filter &= Q(partial__deliverynote__delivery_note_number__icontains=delivery_note_number)
+            q_filter &= Q(partial__delivery__deliverynote__delivery_note_number__icontains=delivery_note_number)
 
         queryset = Mission.objects.filter(q_filter).annotate(
              delta=Func((F('delivery_date')-datetime.date.today()), function='ABS')).order_by("delta").distinct()
@@ -727,7 +720,7 @@ class ScanMissionUpdateView(UpdateView):
         self.picklist = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.partial = Partial.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.partial = Partial.objects.get(pk=self.kwargs.get("partial_pk"))
         self.packinglist = self.partial.packinglist_set.first()
         self.packinglist_products = self.get_packinglist_products()
         self.picklist = self.partial.picklist_set.first()
@@ -894,7 +887,7 @@ class MissionStockCheckForm(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
-        self.context["title"] = "Lieferung erstellen"
+        self.context["title"] = "Bestand reservieren"
         self.context["object"] = self.object
         self.context["new_partial_products"] = self.new_partial_products
         return render(request, self.template_name, self.context)
@@ -983,7 +976,7 @@ class CreatePartialDeliveryNote(View):
         self.context = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.partial = Partial.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.partial = Partial.objects.get(pk=self.kwargs.get("partial_pk"))
         self.packinglist_products = self.get_packing_list_products()
         self.picklist = self.partial.picklist_set.first()
         return super().dispatch(request, *args, **kwargs)
@@ -1073,25 +1066,22 @@ class CreatePartialDeliveryNote(View):
     def create_partial_delivery(self):
         bulk_instances = []
 
-        delivery_date = self.request.POST.get("delivery_date")
-
-        if delivery_date is not None and delivery_date != "":
-            delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
-            delivery_date = delivery_date.strftime('%Y-%m-%d')
-        else:
-            delivery_date = None
-
-        billing = Billing(partial=self.partial, transport_service=self.request.POST.get("transport_service"),
+        billing = Billing(transport_service=self.request.POST.get("transport_service"),
                           shipping_number_of_pieces=self.request.POST.get("shipping_number_of_pieces"),
-                          shipping_costs=self.request.POST.get("shipping_costs"),
-                          delivery_date=delivery_date)
+                          shipping_costs=self.request.POST.get("shipping_costs"))
         billing.save()
 
-        delivery_note = DeliveryNote(partial=self.partial, delivery_date=delivery_date, billing=billing)
+        delivery_note = DeliveryNote()
         delivery_note.save()
 
+        delivery = self.partial.delivery_set.last()
+
+        delivery.billing, delivery.delivery_note = billing, delivery_note
+
+        delivery.save()
+
         for packinglist_product in self.packinglist_products:
-            print(packinglist_product)
+
             instance = DeliveryNoteProductMission(delivery_note=delivery_note, billing=billing,
                                                   amount=packinglist_product.amount_minus_missing_amount(),
                                                   product_mission=packinglist_product.product_mission)
@@ -1145,34 +1135,70 @@ class CreatePartialDeliveryNote(View):
             return stock.get_available_total_stocks().get(state)
 
 
-class CreatePickListView(View):
-    template_name = "mission/create_picklist.html"
+class CreateDeliveryView(View):
+    template_name = "mission/create_delivery.html"
 
     def __init__(self):
         super().__init__()
         self.object = None
         self.partial = None
+        self.form = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Mission.objects.get(pk=self.kwargs.get("pk"))
-        self.partial = Partial.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.partial = Partial.objects.get(pk=self.kwargs.get("partial_pk"))
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
+        self.form = self.get_form()
+        context = self.get_context()
+        context["form"] = self.form
+        return render(request, self.template_name, context)
+
+    def get_form(self):
+        if self.request.method == "POST":
+            return DeliveryForm(data=self.request.POST)
+        else:
+            return DeliveryForm()
+
+    def get_created_picklist(self):
+        return self.partial.picklist_set.first()
+
+    def post(self, request, *args, **kwargs):
+        self.form = self.get_form()
+
+        if self.form.is_valid() is True:
+            self.create_delivery()
+            self.create_picking_list()
+            return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": self.kwargs.get("pk"),
+                                                                                 "partial_pk":
+                                                                                 self.kwargs.get("partial_pk")}))
+        else:
+            context = self.get_context()
+            context["form"] = self.form
+            return render(request, self.template_name, context)
+
+    def get_context(self):
         context = {
-            "title": "Pickliste erstellen",
+            "title": "Lieferung erstellen",
             "object": self.object,
             "partial": self.partial,
             "pickinglist": self.get_picking_list(),
-            "created_picklist": self.partial.picklist_set.all()
+            "created_picklist": self.get_created_picklist(),
         }
-        return render(request, self.template_name, context)
+        return context
 
-    def post(self, request, *args, **kwargs):
-        self.create_picking_list()
-        return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": self.kwargs.get("pk"),
-                                                                             "delivery_pk":
-                                                                                 self.kwargs.get("delivery_pk")}))
+    def create_delivery(self):
+        delivery_date = self.form.data.get("delivery_date")
+        if delivery_date is None or delivery_date == "":
+            delivery_date = self.partial.mission.delivery_date
+        else:
+            if delivery_date is not None and delivery_date != "":
+                delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
+                delivery_date = delivery_date.strftime('%Y-%m-%d')
+
+        delivery = Delivery(partial=self.partial, delivery_date=delivery_date)
+        delivery.save()
 
     def create_picking_list(self):
         picking_list = self.get_picking_list()
@@ -1224,7 +1250,6 @@ class CreatePickListView(View):
                 to_pick_stocks = [(single_stock, int(partial_product.missing_amount()))]
                 break
 
-
         if len(to_pick_stocks) == 0:
             sum_to_pick_stock = 0
             for single_stock in product_stock:
@@ -1262,7 +1287,7 @@ class CreatePickListView(View):
         smaller_or_equal_than_zero_ids = []
 
         for partial_product in partial_products:
-            print(f"{partial_product.amount}")
+
             if partial_product.missing_amount() <= 0:
                 smaller_or_equal_than_zero_ids.append(partial_product.pk)
 
@@ -1302,19 +1327,21 @@ class PickListView(View):
         super().__init__(**kwargs)
 
     def dispatch(self, request, *args, **kwargs):
-        self.partial = Partial.objects.get(pk=self.kwargs.get("delivery_pk"))
+        self.partial = Partial.objects.get(pk=self.kwargs.get("partial_pk"))
         self.picklist = self.get_picklist()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):
-        context = {"title": "Pickliste", "partial": self.partial, "picklist": self.picklist}
+        context = self.get_context()
         return render(request, self.template_name, context)
 
     def get_picklist(self):
-        if self.partial.picklist_set.first() is None:
+
+        if self.partial is None or self.partial.picklist_set.first() is None:
             return []  # Keine Pickliste erstellt
 
-        picklist = self.partial.picklist_set.first().picklistproducts_set.all().order_by("-confirmed", "position")
+        picklist = self.partial.picklist_set.first().picklistproducts_set.all()\
+            .order_by("-confirmed", "position")
         pickforms = []
 
         for _ in picklist:
@@ -1391,7 +1418,7 @@ class PickListView(View):
         self.create_packing_list_if_all_picked()
         return HttpResponseRedirect(
             reverse_lazy("mission:picklist",
-                         kwargs={"pk": self.kwargs.get("pk"), "delivery_pk": self.kwargs.get("delivery_pk")}))
+                         kwargs={"pk": self.kwargs.get("pk"), "partial_pk": self.kwargs.get("partial_pk")}))
 
     def create_packing_list_if_all_picked(self):
         picklist_all_picked = self.picklist_is_all_picked()
@@ -1439,7 +1466,7 @@ class PickListView(View):
             return False
 
     def get_context(self):
-        context = {"title": "Pickliste", "partial": self.partial}
+        context = {"title": "Pickliste", "partial": self.partial, "picklist": self.picklist}
         return context
 
 
@@ -1466,7 +1493,7 @@ class GoToPickListView(View):
         if picklist is not None:
             mission = picklist.partial.mission
             return HttpResponseRedirect(reverse_lazy("mission:picklist", kwargs={"pk": mission.pk,
-                                                                                 "delivery_pk": picklist.partial.pk}))
+                                                                                 "partial_pk": picklist.partial.pk}))
         else:
             messages.add_message(self.request, messages.INFO, "Pickauftrag konnte nicht gefunden werden")
             return HttpResponseRedirect(reverse_lazy("mission:list"))
@@ -1480,7 +1507,7 @@ class GoToScanView(View):
         if packlist is not None:
             mission = packlist.partial.mission
             return HttpResponseRedirect(reverse_lazy("mission:scan", kwargs={"pk": mission.pk,
-                                                                             "delivery_pk": packlist.partial.pk}))
+                                                                             "partial_pk": packlist.partial.pk}))
         else:
             messages.add_message(self.request, messages.INFO, "Verpackerliste konnte nicht gefunden werden")
             return HttpResponseRedirect(reverse_lazy("mission:list"))

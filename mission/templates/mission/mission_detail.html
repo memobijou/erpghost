@@ -4,15 +4,15 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
-        <div class="col-md-12">
-            <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
-            <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Lieferung erstellen</a>
-        </div>
-        <div class="col-md-12">
-            <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
-            <p style="font-size:15px;"><b>Lieferdatum: </b>{{ object.delivery_date }}</p>
-            <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
-        </div>
+            <div class="col-md-12">
+                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
+                <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:stock_check_form' pk=object.id %}">Bestand reservieren</a>
+            </div>
+            <div class="col-md-12">
+                <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
+                <p style="font-size:15px;"><b>Liefertermin: </b>{{ object.delivery_date }}</p>
+                <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
+            </div>
             {% if object.customer %}
             <div class="col-md-6">
                 <div class="panel panel-default">
@@ -67,67 +67,68 @@
             <br/>
             {% endif %}
 
-        <div class="col-md-12">
-            {% if object.productmission_set.all %}
-                <div class="table-responsive">
-                    <table class="table table-bordered">
-                        <thead>
-                            <tr>
-                                <th>Bild</th>
-                                <th>EAN / SKU</th>
-                                <th>Zustand</th>
-                                <th>Artikelname</th>
-                                <th>Auftragsmenge</th>
-                                <th>Offene Menge</th>
-                                <th>Reservierte Menge</th>
-                                <th>Versendete Menge</th>
-                                <th>Lagerbestand</th>
-                                <th>Einzelpreis (Netto)</th>
-                                <th>Gesamtpreis (Netto)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                                {% for productmission, missing_amount, stock, delivery_amount, sent_amount in products_from_stock %}
-                                    {% if object.id == productmission.mission.id %}
-                                    <tr>
-                                        <td>
-                                            {% if productmission.product.main_image %}
-                                                <img src="{{ productmission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {{productmission.get_ean_or_sku}}
-                                        </td>
-                                        <td>{{productmission.state}}</td>
-                                        <td>{{productmission.product.title|default:""}}</td>
-                                        <td>{{productmission.amount}}</td>
-                                        <td style="color:red;">
-                                            {{ missing_amount }}
-                                        </td>
-                                        <td style="color:#ffb800;">
-                                            {{ delivery_amount|default:'0' }}
-                                        </td>
-                                        <td style="color:green;">
-                                            {{ sent_amount }}
-                                        </td>
-                                        <td>
-                                            {{ stock|default:'0' }}
-                                        </td>
-                                        <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
-                                        <td>
-                                            {% if productmission.netto_price %}
-                                                {{ productmission.netto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}
-                                            {% else %}
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endif %}
-                                {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </div>
+            <div class="col-md-12">
+                {% if object.productmission_set.all %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Bild</th>
+                                    <th>EAN / SKU</th>
+                                    <th>Zustand</th>
+                                    <th>Artikelname</th>
+                                    <th>Auftragsmenge</th>
+                                    <th>Offene Menge</th>
+                                    <th>Reservierte Menge</th>
+                                    <th>Versendete Menge</th>
+                                    <th>Lagerbestand</th>
+                                    <th>Einzelpreis (Netto)</th>
+                                    <th>Gesamtpreis (Netto)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                    {% for productmission, missing_amount, stock, delivery_amount, sent_amount in products_from_stock %}
+                                        {% if object.id == productmission.mission.id %}
+                                        <tr>
+                                            <td>
+                                                {% if productmission.product.main_image %}
+                                                    <img src="{{ productmission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{productmission.get_ean_or_sku}}
+                                            </td>
+                                            <td>{{productmission.state}}</td>
+                                            <td>{{productmission.product.title|default:""}}</td>
+                                            <td>{{productmission.amount}}</td>
+                                            <td style="color:red;">
+                                                {{ missing_amount }}
+                                            </td>
+                                            <td style="color:#ffb800;">
+                                                {{ delivery_amount|default:'0' }}
+                                            </td>
+                                            <td style="color:green;">
+                                                {{ sent_amount }}
+                                            </td>
+                                            <td>
+                                                {{ stock|default:'0' }}
+                                            </td>
+                                            <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
+                                            <td>
+                                                {% if productmission.netto_price %}
+                                                    {{ productmission.netto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}
+                                                {% else %}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+
             <div class="col-md-12" style="padding-right: 0">
                 <a href="{% url 'mission:mission_confirmation_pdf' pk=object.id %}" class="btn btn-info pull-right" style="margin-right:15px;">
                 Auftragsbestätigung</a>
@@ -135,114 +136,131 @@
             </div>
 
             <div class="col-md-12">
-                {% for partial, billings_and_delivery_notes in partials %}
+                {% for partial in object.partial_set.all %}
                     <div class="panel panel-default">
                         <div class="panel-heading">
                             Abschnitt {{ forloop.counter }}
                         </div>
                         <div class="panel-body">
                         <div class="col-md-12" style="padding-left:0px;">
-                                <table class="table table-condensed">
+                            <table class="table table-condensed">
 
-                                    <tbody>
-                                        {% for partial_product in partial.partialmissionproduct_set.all %}
+                                <tbody>
+                                    {% for partial_product in partial.partialmissionproduct_set.all %}
 
-                                            <table class="table table-condensed">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Bild</th>
-                                                        <th>EAN / SKU</th>
-                                                        <th>Zustand</th>
-                                                    </tr>
-                                                </thead>
-                                                        <tr>
-                                                        <td>
-                                                            {% if partial_product.product_mission.product.main_image %}
-                                                                <img src="{{ partial_product.product_mission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
-                                                            {% endif %}
-                                                        </td>
-                                                            <td>{{ partial_product.product_mission.get_ean_or_sku }}</td>
-                                                            <td>{{ partial_product.product_mission.state|default:"" }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td colspan="3">
-                                                               <p><b>Artikelname:</b> {{ partial_product.product_mission.product.title|default:"" }}</p>
-                                                               <p><b>Liefermenge:</b> {{ partial_product.amount }}</p>
-                                                               <p style="color:red;"><b>Offene Menge:</b> {{ partial_product.missing_amount }}</p>
-                                                               <p style="color:green;"><b>Versendete Menge:</b> {{ partial_product.real_amount }}</p>
-                                                               <p><b>Einzelpreis (Netto):</b> {{partial_product.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</p>
-                                                               <p><b>Gesamtpreis (Netto):</b>
-                                                               {% if partial_product.product_mission.netto_price %}
-                                                                     {{ partial_product.product_mission.netto_price|multiply:partial_product.amount|format_number_thousand_decimal_points }}
-                                                                {% else %}
-                                                                {% endif %}
+                                        <table class="table table-condensed">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bild</th>
+                                                    <th>EAN / SKU</th>
+                                                    <th>Zustand</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                <td>
+                                                    {% if partial_product.product_mission.product.main_image %}
+                                                        <img src="{{ partial_product.product_mission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                                    {% endif %}
+                                                </td>
+                                                    <td>{{ partial_product.product_mission.get_ean_or_sku }}</td>
+                                                    <td>{{ partial_product.product_mission.state|default:"" }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td colspan="3">
+                                                       <p><b>Artikelname:</b> {{ partial_product.product_mission.product.title|default:"" }}</p>
+                                                       <p><b>Liefermenge:</b> {{ partial_product.amount }}</p>
+                                                       <p style="color:red;"><b>Offene Menge:</b> {{ partial_product.missing_amount }}</p>
+                                                       <p style="color:green;"><b>Versendete Menge:</b> {{ partial_product.real_amount }}</p>
+                                                       <p><b>Einzelpreis (Netto):</b> {{partial_product.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</p>
+                                                       <p><b>Gesamtpreis (Netto):</b>
+                                                       {% if partial_product.product_mission.netto_price %}
+                                                             {{ partial_product.product_mission.netto_price|multiply:partial_product.amount|format_number_thousand_decimal_points }}
+                                                        {% else %}
+                                                        {% endif %}
 
-                                                               </p>
+                                                       </p>
 
-                                                            </td>
-                                                        </tr>
-                                                        </table>
-                                                    {% endfor %}
-                                                </tbody>
-                                            </table>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
-                            <div class="col-md-12" style="padding-left:0px;">
-                                <div class="panel panel-default">
-                                    <div class="panel-heading">
-                                        Rechnungen und Lieferscheine
-                                    </div>
-                                    <div class="panel-body">
-                                        {% if partial.billing_set.all %}
-                                                    {% for b, d in billings_and_delivery_notes %}
-                                                                <div class="col-md-6">
-                                                                <div class="panel panel-default">
-                                                                    <div class="panel-heading">
-                                                                        Rechnung <b>{{ b.billing_number }}</b>
-                                                                    </div>
-                                                                    <div class="panel-body">
-                                                                        <div class="text-center">
-                                                                             <a href="{% url 'mission:partial_billing_pdf' pk=object.pk partial_billing_pk=b.pk %}"
-                                                                                       class="btn btn-info" style="white-space: normal;">Rechnung ansehen</a>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-md-6">
-                                                                <div class="panel panel-default">
-                                                                    <div class="panel-heading">
-                                                                        Lieferschein  <b>{{ d.delivery_note_number }}</b>
-                                                                    </div>
-                                                                    <div class="panel-body">
-                                                                        <div class="text-center">
-                                                                           <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=d.pk %}"
-                                                                           class="btn btn-info" style="white-space: normal;">Lieferschein ansehen</a>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                    {% endfor %}
 
-                                        {% else %}
-                                            Keine Rechnungen und Lieferscheine vorhanden
-                                        {% endif %}
+                        {% if partial.delivery_set.all %}
+                            {% for delivery in partial.delivery_set.all %}
+                                <div class="col-md-12" style="padding-left:0px;">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
+                                            Lieferung <b>{{ delivery.delivery_id }}</b>
+                                            &nbsp;<a href=""><span class="glyphicon glyphicon-pencil"></span></a>
+                                        </div>
+                                        <div class="panel-body">
+                                            <div class="col-md-12">
+                                                <p>Liefertermin: <b>{{ delivery.delivery_date }}</b></p>
+                                            </div>
+                                            {% if delivery.billing and delivery.delivery_note %}
+                                                <div class="col-md-6">
+                                                    <div class="panel panel-default">
+                                                        <div class="panel-heading">
+                                                            Rechnung <b>{{ delivery.billing.billing_number }}</b>
+                                                            &nbsp;<a href=""><span class="glyphicon glyphicon-pencil"></span></a>
+                                                        </div>
+                                                        <div class="panel-body">
+                                                            <div class="text-center">
+                                                                 <a href="{% url 'mission:partial_billing_pdf' pk=object.pk partial_billing_pk=delivery.billing.pk %}"
+                                                                           class="btn btn-info" style="white-space: normal;">Rechnung ansehen</a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="panel panel-default">
+                                                        <div class="panel-heading">
+                                                            Lieferschein  <b>{{ delivery.delivery_note.delivery_note_number }}</b>
+                                                        </div>
+                                                        <div class="panel-body">
+                                                            <div class="text-center">
+                                                               <a href="{% url 'mission:partial_delivery_note' pk=object.pk delivery_note_pk=delivery.delivery_note.pk %}"
+                                                               class="btn btn-info" style="white-space: normal;">Lieferschein ansehen</a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                        {% else %}
+                            <div class="col-md-12" style="padding-left:0px;font-size:16px;">
+                                <div class="panel panel-default">
+                                    <div class="panel-body text-center">
+                                        <b>Keine Lieferungen vorhanden</b>
                                     </div>
                                 </div>
                             </div>
+                        {% endif %}
 
 
                             <div class="col-md-12" style="padding-left:0px;">
                                 <div class="panel panel-default">
-                                <div class="panel-body">
-                                    <a class="btn btn-info" style="white-space: normal;"  href="{% url 'mission:picklist' pk=object.pk delivery_pk=partial.pk %}">Pickliste</a>
-                                    <a class="btn btn-success" style="white-space: normal;" href="{% url 'mission:scan' pk=object.pk delivery_pk=partial.pk %}">Verpackerliste</a>
-                                </div>
+                                    <div class="panel-body">
+                                        <div class="col-md-12">
+                                              <a class="btn btn-info" style="white-space: normal;"  href="{% url 'mission:picklist' pk=object.pk partial_pk=partial.pk %}">Pickliste</a>
+                                              <a class="btn btn-info" style="white-space: normal;" href="{% url 'mission:scan' pk=object.pk partial_pk=partial.pk %}">Verpackerliste</a>
+                                              <a class="btn btn-info pull-right" style="white-space: normal;"  href="{% url 'mission:create_delivery' pk=object.pk partial_pk=partial.pk %}">Lieferung erstellen</a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 {% endfor %}
-
-
             </div>
         </div>
     </div>

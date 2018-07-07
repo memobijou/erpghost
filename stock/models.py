@@ -266,9 +266,13 @@ class Stock(models.Model):
                         self.states.append(sku_state)
                         total[sku_state] = 0
 
-                    real_amount_total = PartialMissionProduct.objects\
-                        .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
-                        .aggregate(Sum("amount")).get("amount__sum")
+                    total_amount = 0
+
+                    partial_products = PartialMissionProduct.objects\
+                        .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)
+
+                    for partial_product in partial_products:
+                        total_amount += partial_product.missing_amount()
 
                     pick_list_total = 0
 
@@ -277,16 +281,9 @@ class Stock(models.Model):
                         if pick_row.confirmed is not None and pick_row.confirmed != "":
                             pick_list_total += pick_row.amount_minus_missing_amount()
 
-                    delivery_note_total = 0
-
-                    for delivery_note_product in DeliveryNoteProductMission.objects\
-                            .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state):
-                        delivery_note_total += delivery_note_product.amount
-                    print(f"blade {real_amount_total}")
-                    if real_amount_total is not None and real_amount_total != "":
-                        real_amount_total -= pick_list_total
-                        available_total[sku_state] = f"{int(total[sku_state])-int(real_amount_total)}"
-                        available_total[sku_state] = f"{int(available_total[sku_state])+int(delivery_note_total)}"
+                    if total_amount is not None:
+                        total_amount -= pick_list_total
+                        available_total[sku_state] = f"{int(total[sku_state])-int(total_amount)}"
 
         available_total_gesamt = 0
         print(f"bandi: {self.states}")

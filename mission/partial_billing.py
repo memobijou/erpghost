@@ -26,8 +26,10 @@ class PartialPdfView(BillingPdfView):
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
 
-        if self.partial_billing.delivery_date is not None:
-            delivery_date = self.partial_billing.delivery_date
+        delivery = self.partial_billing.delivery_set.first()
+
+        if delivery is not None and delivery.delivery_date is not None and delivery.delivery_note != "":
+            delivery_date = delivery.delivery_date
         else:
             delivery_date = self.mission.delivery_date
 

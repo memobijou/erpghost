@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+                    <div class="pull-right">
+                        <p><a href="{% url 'mission:detail' pk=object.pk %}">Zur Ansicht</a></p>
+                    </div>
+
+                    <br/><br/>
+
+                    {% if created_picklist %}
+                        <h3>Pickliste schon vorhanden</h3>
+                        <p>Sie kommen <a href="{% url 'mission:picklist' pk=object.pk partial_pk=partial.pk %}">hier</a> zur Pickliste.</p>
+                    {% endif %}
+
+                    {% if not created_picklist %}
+                        {% if pickinglist|length == 0 %}
+                            <h3>Für diese Lieferung kann kein Pickauftrag erstellt werden</h3>
+                            <p>Passen Sie gegebenfalls Lagerbestände an.</p>
+                        {% endif %}
+
+                        {% if pickinglist|length > 0 %}
+                            <form method="POST"> {% csrf_token %}
+                                <div class="col-md-4">
+                                    {{ form.as_p }}
+                                </div>
+                                <div class="col-md-12">
+                                    <h3>Pickliste</h3>
+
+                                    <div class="table-responsive">
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Bild</th>
+                                                    <th>EAN / SKU</th>
+                                                    <th>Zustand</th>
+                                                    <th>Artikelname</th>
+                                                    <th>Lagerplatz</th>
+                                                    <th>Menge</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for partial_product, stock, position in pickinglist %}
+                                                    <tr>
+                                                        <td>
+                                                            {% if partial_product.product_mission.product.main_image %}
+                                                                <img
+                                                                    src="{{ partial_product.product_mission.product.main_image.url }}"
+                                                                    class="img-responsive" style="max-height:80px;">
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {{ partial_product.product_mission.get_ean_or_sku }}
+                                                        </td>
+                                                        <td>
+                                                            {{  partial_product.product_mission.state }}
+                                                        </td>
+                                                        <td>
+                                                            {{  partial_product.product_mission.product.title|default:"" }}
+                                                        </td>
+                                                        <td>
+                                                            {{ position.0.lagerplatz }}
+                                                        </td>
+                                                        <td>
+                                                            {{ position.1 }}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div class="text-center">
+                                        <input type="submit" class="btn btn-primary btn-lg" value="Lieferung erstellen"/>
+                                    </div>
+                                </div>
+                            </form>
+
+                        {% endif %}
+                {% endif %}
+
+            </div>
+    </div>
+{% endblock %}

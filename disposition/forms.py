@@ -1,25 +1,29 @@
 from django.forms import ModelForm
-from mission.models import Truck
-from disposition.models import Employee, Profile
+from disposition.models import Employee, Profile, TruckAppointment
 from django.contrib.admin import widgets
 from django import forms
 from django.forms.widgets import CheckboxSelectMultiple
 from django.forms import inlineformset_factory
 from django.contrib.auth.models import User
 
+hours = [(None, "----")]
+hours += [("%02d" % (hour,), ("%02d" % (hour,))) for hour in range(0, 24)]
 
-hours = [(hour, hour) for hour in range(0, 24)]
-minutes = [(minute, minute) for minute in range(0, 60)]
+minutes = [(None, "----")]
+minutes += [("%02d" % (minute,), ("%02d" % (minute,))) for minute in range(0, 60)]
 DATE_INPUT_FORMATS = ['%d/%m/%Y', "%d.%m.%Y"]
 
 
 class TruckForm(ModelForm):
     class Meta:
-        model = Truck
+        model = TruckAppointment
         fields = ["arrival_date", "employees"]
 
-    hour = forms.ChoiceField(label="Stunde", choices=hours)
-    minute = forms.ChoiceField(label="Minute", choices=minutes)
+    hour_start = forms.ChoiceField(label="Stunde von", choices=hours, required=True)
+    minute_start = forms.ChoiceField(label="Minute von", choices=minutes, required=True)
+
+    hour_end = forms.ChoiceField(label="Stunde bis", choices=hours, required=True)
+    minute_end = forms.ChoiceField(label="Minute bis", choices=minutes, required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -4,8 +4,8 @@ from django.shortcuts import render
 from django.views import View, generic
 from django.core.paginator import Paginator
 from disposition.forms import TruckForm, EmployeeForm, ProfileForm
-from disposition.models import Employee, Profile
-from mission.models import DeliveryNote, Truck
+from disposition.models import Employee, Profile, TruckAppointment
+from mission.models import DeliveryNote, Truck, Delivery
 from django.urls import reverse_lazy
 
 
@@ -15,7 +15,8 @@ class CalendarView(LoginRequiredMixin, View):
 
     def build_context(self):
         context = {"title": "Disposition",
-                   "delivery_notes": DeliveryNote.objects.all()}
+                   "deliveries": Delivery.objects.all(),
+                   "truck_appointments": TruckAppointment.objects.all()}
         return context
 
 
@@ -23,13 +24,13 @@ class TruckListView(generic.ListView):
     template_name = "disposition/truck_list.html"
 
     def get_queryset(self):
-        queryset = DeliveryNote.objects.all()
+        queryset = Truck.objects.all()
         return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Disposition"
-        context["fields"] = ["Lieferscheinnummer", "Lieferdatum", "LKW buchen"]
+        context["title"] = "Disposition LKWs"
+        context["fields"] = ["LKW Nummer", "Ankunftstermine"]
         return context
 
     def set_pagination(self, queryset):
@@ -49,32 +50,35 @@ class TruckCreateView(LoginRequiredMixin, generic.CreateView):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.delivery_note = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.delivery_note = DeliveryNote.objects.\
-            filter(delivery_note_number=self.kwargs.get("delivery_note_number")).first()
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Disposition anlegen"
-        context["delivery_note"] = self.delivery_note
         return context
 
     def form_valid(self, form):
         instance = form.save(commit=False)
-        instance = self.save_time(instance)
-        instance.delivery_note = self.delivery_note
+        self.set_time(instance)
+        self.create_new_truck(instance)
         instance.save()
         return super().form_valid(form)
 
-    def save_time(self, instance):
-        hour = self.request.POST.get("hour")
-        minute = self.request.POST.get("minute")
-        time = datetime.time(hour=int(hour), minute=int(minute))
-        instance.arrival_time = time
-        return instance
+    def create_new_truck(self, instance):
+        new_truck = Truck.objects.create()
+        instance.truck = new_truck
+
+    def set_time(self, instance):
+        hour_start = self.request.POST.get("hour_start")
+        minute_start = self.request.POST.get("minute_start")
+        start_time = datetime.time(hour=int(hour_start), minute=int(minute_start))
+        hour_end = self.request.POST.get("hour_end")
+        minute_end = self.request.POST.get("minute_end")
+        end_time = datetime.time(hour=int(hour_end), minute=int(minute_end))
+        instance.arrival_time_start = start_time
+        instance.arrival_time_end = end_time
 
 
 class TruckUpdateView(LoginRequiredMixin, generic.UpdateView):
@@ -85,37 +89,65 @@ class TruckUpdateView(LoginRequiredMixin, generic.UpdateView):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.truck = None
-        self.delivery_note = None
+        self.appointment = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.truck = Truck.objects.filter(id=self.kwargs.get("truck_id")).first()
-        self.delivery_note = DeliveryNote.objects.\
-            filter(delivery_note_number=self.truck.delivery_note.delivery_note_number).first()
+        self.appointment = TruckAppointment.objects.filter(pk=self.kwargs.get("appointment_id")).first()
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Disposition bearbeiten"
-        context["delivery_note"] = self.delivery_note
+        context["truck_id"] = self.appointment.truck.pk
         return context
 
     def get_form(self, form_class=None):
         form = super().get_form()
-        form.initial["hour"] = (self.truck.arrival_time.hour, self.truck.arrival_time.hour)
-        form.initial["minute"] = (self.truck.arrival_time.minute, self.truck.arrival_time.minute)
+
+        if self.appointment.arrival_time_start is not None:
+            form.initial["hour_start"] = (self.appointment.arrival_time_start.hour, self.appointment.arrival_time_start.hour)
+            form.initial["minute_start"] = (self.appointment.arrival_time_start.minute, self.appointment.arrival_time_start.minute)
+
+        if self.appointment.arrival_time_end is not None:
+            form.initial["hour_end"] = (self.appointment.arrival_time_end.hour, self.appointment.arrival_time_end.hour)
+            form.initial["minute_end"] = (self.appointment.arrival_time_end.minute, self.appointment.arrival_time_end.minute)
         return form
 
     def get_object(self, queryset=None):
-        return self.truck
+        return self.appointment
 
     def form_valid(self, form):
+        instance = form.save(commit=False)
+        self.set_time(instance)
+        instance.save()
         return super().form_valid(form)
 
-    def save_time(self):
-        hour = self.request.POST.get("hour")
-        minute = self.request.POST.get("minute")
-        datetime.time(hour=hour, minute=minute)
+    def set_time(self, instance):
+        hour_start = int(self.request.POST.get("hour_start"))
+        minute_start = int(self.request.POST.get("minute_start"))
+        start_time = datetime.time(hour=hour_start, minute=minute_start)
+        instance.arrival_time_start = start_time
+
+        hour_end = int(self.request.POST.get("hour_end"))
+        minute_end = int(self.request.POST.get("minute_end"))
+        end_time = datetime.time(hour=hour_end, minute=minute_end)
+        instance.arrival_time_end = end_time
+
+
+class AppointmentToTruckView(TruckCreateView):
+    def create_new_truck(self, instance):
+        pass
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["truck_id"] = Truck.objects.get(id=self.kwargs.get("truck_id")).pk
+        return context
+
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+        instance.truck_id = self.kwargs.get("truck_id")
+        instance.save()
+        return super().form_valid(form)
 
 
 class EmployeeListView(generic.ListView):

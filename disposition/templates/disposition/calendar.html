@@ -17,6 +17,7 @@
       $('#calendar').fullCalendar({
         // put your options and callbacks here
           locale: 'de',
+          themeSystem: 'bootstrap3',
           weekNumbers: true,
           eventLimit: true,
           displayEventEnd: true,
@@ -30,76 +31,100 @@
           header: {
             left: 'prev, next today',
             center: 'title',
-            right: 'month, listMonth basicWeek listWeek, basicDay, listDay'
+            right: 'month, listMonth basicWeek listWeek, basicDay, listDay agendaWeek'
           },
 eventRender: function(event, element, view) {
     var title = element.find('.fc-title, .fc-list-item-title');
     var start = moment(event.start).format("YYYY-MM-DD");
-    var delivery_note_number = title.text();
+    var delivery_id = title.text();
 
     var html = "";
 
     if(view.type.includes("list")){
-        {% for delivery_note in delivery_notes %}
-            if('{{ delivery_note.delivery_note_number }}' == delivery_note_number) {
-                html = "<p>" + '{{ delivery_note.delivery_note_number }}' + "</p>";
-                html += '<i class="fa fa-truck" style="color:orange;"></i> {{ delivery_note.truck_set.all.count }}';
-                {% if delivery_note.truck_set.all.count > 0 %}
+        {% for delivery in deliveries %}
+            if('{{ delivery.delivery_id }}' == delivery_id) {
+                html = "<p>" + '{{ delivery.delivery_id }}' + "</p>";
+                title.html(html);
+                element.find('.fc-list-item-time').empty()
+            }
+        {% endfor %}
+
+        {% for truck in trucks %}
+                if(title.text().includes("LKW{{ truck.pk }}")){
+                    html += "LKW{{ truck.pk }}";
+                    html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:orange;"></i>';
                     html += "<br/><br/>";
 
                     html += "<table class='table'><thead><tr>" +
-                        "<th style='text-align:left;'>Uhrzeit</th>" +
                         "<th style='text-align:left;'>Transportdienstleister</th>" +
                         "<th style='text-align:left;'>Stückzahl</th>" +
                         "<th style='text-align:left;'>Mitarbeiter</th>" +
                         "</tr></thead><tbody>";
-                    {% for truck in delivery_note.truck_set.all %}
+                    {% for truck in trucks %}
                         html += "<tr>" +
-                            "<td>{{ truck.arrival_time|date:'H:i' }} Uhr</td>"  +
-                            "<td>{{ delivery_note.billing.transport_service }}</td>" +
-                            "<td>{{ delivery_note.billing.shipping_number_of_pieces }}</td>" +
+                            "<td>{{ truck.transport_service }}</td>" +
+                            "<td>{{ truck.shipping_number_of_pieces }}</td>" +
                             "<td>" +
                             "{% for employee in truck.employees.all %}" +
-                            "{% if employee.user.profile  %}" +
-                            "<img src='{{  employee.user.profile.profile_image.url }}' class='img-responsive img-circle' style='max-height:80px;'/>" +
-                            "{% endif %}" +
-                            "{% endfor %}" +
+                                "{% if employee.user.profile  %}" +
+                                    "<img src='{{  employee.user.profile.profile_image.url }}' class='img-responsive img-circle' style='max-height:80px;'/>"
+                                    +
+                                    "{% endif %}" +
+                                "{% endfor %}" +
                             "</td>" +
                             "</tr>";
                     {% endfor %}
                     html += "</tbody></table>";
-                {% endif %}
-                title.html(html);
-                element.find('.fc-list-item-time').empty()
-
-
-            }
+                    title.html(html);
+                }
         {% endfor %}
     }else{
         // keine Terminübersicht
-        {% for delivery_note in delivery_notes %}
-            if('{{ delivery_note.delivery_note_number }}' == delivery_note_number) {
-                html = "{{ delivery_note.delivery_note_number }}";
-                html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:yellow;"></i> {{ delivery_note.truck_set.all.count }}';
+        {% for delivery in deliveries %}
+            if('{{ delivery.delivery_id }}' == delivery_id) {
+                html = "{{ delivery.delivery_id }}";
                 title.html(html);
                 element.find('.fc-time').hide();
+            }
+        {% endfor %}
 
-
+        {% for truck_appointment in truck_appointments %}
+            if(title.text().includes("LKW{{ truck_appointment.truck.pk }}")){
+                html = "LKW{{ truck_appointment.truck.pk }}";
+                html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:yellow;"></i><br/>';
+                html += "<div class='col-md-12' style='padding-left:0px;'>"
+                html += "{% for employee in truck_appointment.employees.all %}" +
+                        "<div class='col-md-2' style='padding-left:0px;'>" +
+                        "<img class='img-responsive img-circle' src='{{ employee.user.profile.profile_image.url }}' style='max-height:100px;'/>" +
+                        "</div>" +
+                        "{% endfor %}";
+                html += "</div>";
+                title.html(html);
             }
         {% endfor %}
     }
 },
             events: [
-                {% for delivery_note in delivery_notes %}
+                {% for delivery in deliveries %}
                     {
-                    {% if delivery_note.delivery.mission.customer %}
-                          title: '{{ delivery_note.delivery_note_number }}',
+                    {% if delivery.partial.mission.customer %}
+                          title: '{{ delivery.delivery_id }}',
                     {% else %}
-                          title: '{{ delivery_note.delivery.mission.mission_number }}',
+                          title: '{{  delivery.partial.mission.mission_number }}',
                     {% endif %}
-                      start: '{{ delivery_note.delivery_date|date:"Y-m-d" }}T11:30:00',
-                      end : '{{ delivery_note.delivery_date|date:"Y-m-d" }}T13:30:00',
+                      start: '{{ delivery.delivery_date|date:"Y-m-d" }}T11:30:00',
+                      end : '{{ delivery.delivery_date|date:"Y-m-d" }}T13:30:00',
                       allDay : false // will make the time show,
+                    },
+                {% endfor %}
+
+                {% for truck_appointment in truck_appointments %}
+                    {
+                      title: 'LKW{{ truck_appointment.truck.pk }}',
+                      start: '{{ truck_appointment.arrival_date |date:"Y-m-d" }}T{{ truck_appointment.arrival_time_start }}',
+                      end : '{{ truck_appointment.arrival_date |date:"Y-m-d" }}T{{ truck_appointment.arrival_time_end }}',
+                      allDay : false, // will make the time show,
+                      color  : '#a12403',
                     },
                 {% endfor %}
             // other events here

@@ -275,10 +275,11 @@ class Truck(models.Model):
     class Meta:
         ordering = ["pk"]
 
-    arrival_date = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum LKW")
-    arrival_time = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit")
+    arrival_date_start = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum von")
+    arrival_date_end = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum bis")
 
-    delivery_note = models.ForeignKey(DeliveryNote, null=True, blank=True)
+    arrival_time_start = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit von")
+    arrival_time_end = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit bis")
 
     employees = models.ManyToManyField("disposition.Employee", blank=True)
 

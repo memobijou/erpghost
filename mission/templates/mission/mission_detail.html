@@ -169,7 +169,7 @@
                                                 <tr>
                                                     <td colspan="3">
                                                        <p><b>Artikelname:</b> {{ partial_product.product_mission.product.title|default:"" }}</p>
-                                                       <p><b>Liefermenge:</b> {{ partial_product.amount }}</p>
+                                                       <p><b>Reservierte Menge:</b> {{ partial_product.amount }}</p>
                                                        <p style="color:red;"><b>Offene Menge:</b> {{ partial_product.missing_amount }}</p>
                                                        <p style="color:green;"><b>Versendete Menge:</b> {{ partial_product.real_amount }}</p>
                                                        <p><b>Einzelpreis (Netto):</b> {{partial_product.product_mission.netto_price|format_number_thousand_decimal_points|default:"0"}}</p>

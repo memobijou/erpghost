@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'storages',
     'debug_toolbar',
     'disposition',
+    'online',
 ]
 
 

@@ -1,6 +1,7 @@
 amqp==2.2.2
 anyjson==0.3.3
 appnope==0.1.0
+APScheduler==3.5.1
 attrs==17.4.0
 billiard==3.5.0.3
 boto3==1.6.20
@@ -74,6 +75,7 @@ tablib==0.12.1
 text-unidecode==1.1
 texttable==1.2.1
 traitlets==4.3.2
+tzlocal==1.5.1
 unicodecsv==0.14.1
 urllib3==1.22
 vine==1.1.4

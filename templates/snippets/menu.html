@@ -27,6 +27,25 @@
                       <li><a href="{% url 'disposition:employee_list' %}">Mitarbeiter</a></li>
                     </ul>
                 </li>
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Warenausgang
+                    <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                      <li><a href="{% url 'mission:pickorder_list' %}">Pickaufträge</a></li>
+                      <li><a href="{% url 'mission:packingorder_list' %}">Verpackeraufträge</a></li>
+
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Wareneingang
+                    <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'order:goods_receipt_list' %}">Wareneingänge</a></li>
+                    </ul>
+                </li>
+
+                <li><a href="{% url 'online:list' %}" style="color:black;">Onlinehandel</a></li>
+
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}

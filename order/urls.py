@@ -2,10 +2,13 @@ from django.conf.urls import url
 
 from order.pdfs import OrderPdfView
 from .views import OrderListView, OrderListAPIView, OrderDetailView, OrderCreateView, OrderUpdateView, \
-    ScanOrderUpdateView, search_positions, PositionProductOrderListAPIView, search_after_product_on_we, OrderDeleteView
+    ScanOrderUpdateView, search_positions, PositionProductOrderListAPIView, search_after_product_on_we,\
+    OrderDeleteView, GoodsReceiptListView
 
 urlpatterns = [
     url(r'^$', OrderListView.as_view(), name="list"),
+    url(r'^goods_receipt/$', GoodsReceiptListView.as_view(), name="goods_receipt_list"),
+
     url(r'^api/$', OrderListAPIView.as_view(), name="apilist"),
     url(r'^(?P<pk>\d+)/$', OrderDetailView.as_view(), name="detail"),
     url(r'^create/$', OrderCreateView.as_view(), name="create"),

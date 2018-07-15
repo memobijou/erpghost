@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="text-center">
+                    <h3>LKW{{ object.pk}}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <form method="POST">{% csrf_token %}
+                    <div class="col-md-3"></div>
+                    <div class="col-md-6">
+                        <div class="col-md-12" style="padding-left:0px;padding-right:0px;">
+                            {{ form.as_p }}
+                        </div>
+                        <div class="text-center">
+                            <div class="col-md-12" style="padding:15px 0 0 0;">
+                                <input type="submit" value="Speichern" class="btn btn-primary btn-lg">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

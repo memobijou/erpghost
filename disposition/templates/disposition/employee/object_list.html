@@ -16,6 +16,8 @@
                     <img src="{{ object.user.profile.profile_image.url }}" class="img-responsive" style="max-height:80px;"/>
                 {% endif %}
             </td>
+            <td>{{ object.user.profile.first_name|default:"" }}</td>
+            <td>{{ object.user.profile.last_name|default:"" }}</td>
             <td> {{ object }} </td>
         </tr>
     {% endfor %}

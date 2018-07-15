@@ -17,6 +17,6 @@ class Command(BaseCommand):
             print('This job is run every 3 minutes.')
             mws_task.delay()
 
-        scheduler.start()
+        # scheduler.start() # Damit startet Cronjob
         self.stdout.write("Doing All The Things!")
 

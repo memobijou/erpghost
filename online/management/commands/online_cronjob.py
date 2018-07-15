@@ -12,11 +12,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         scheduler = BlockingScheduler()
 
-        @scheduler.scheduled_job('interval', minutes=3)
+        @scheduler.scheduled_job('interval', seconds=10)
         def timed_job():
             print('This job is run every 3 minutes.')
             mws_task.delay()
 
-        # scheduler.start() # Damit startet Cronjob
+        scheduler.start()
         self.stdout.write("Doing All The Things!")
-

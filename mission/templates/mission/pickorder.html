@@ -9,7 +9,7 @@
                     <p><a href="{% url 'mission:detail' pk=partial.mission.pk %}">Zur Ansicht</a></p>
                 </div>
             </div>
-            {% if picklist|length == 0 %}
+            {% if picklist_products|length == 0 %}
                     <div class="col-md-12">
                         <h3>Keine Pickliste vorhanden</h3>
                         <p>Sie können <a href="{% url 'mission:create_delivery' pk=partial.mission.pk partial_pk=partial.pk%}">hier</a> eine neue Lieferung erstellen</p>
@@ -19,8 +19,8 @@
                 <div class="col-md-12">
                     <h3>Pick ID: {{ partial.picklist_set.first.pick_id }}</h3>
                 </div>
-                {% with pick_row=picklist.0.0 %}
-                    {% with pick_form=picklist.0.1  %}
+                {% with pick_row=picklist_products.0.0 %}
+                    {% with pick_form=picklist_products.0.1  %}
                         {% if pick_row.confirmed == None %}
                             <div class="col-md-12" style="padding-left:0px;">
                                 <div class="col-md-12">
@@ -79,7 +79,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for picklist_row, pick_form in picklist %}
+                            {% for picklist_row, pick_form in picklist_products %}
                                 <tr
                                     {% if picklist_row.confirmed == True %}
                                         class="success"

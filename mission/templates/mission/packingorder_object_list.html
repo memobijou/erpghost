@@ -1,0 +1,26 @@
+{% load utils %}
+<form method="GET" action="{% url 'mission:delete' %}">
+    {% for object in object_list %}
+        <tr>
+            <td>
+                 <b>Verpacker ID: </b>{{ object.packing_id}}<br/>
+                 <b>Lieferung: </b>{{ object.picklist.delivery.delivery_id }}<br/>
+                 <p>
+                     <a href="{% url 'mission:scan' partial_pk=object.partial.pk pk=object.partial.mission.pk %}">Zum Verpackerauftrag</a>
+                 </p>
+            </td>
+            <td>
+                {% if object.picklist.delivery.difference_delivery_date_today > 0 %}
+                     <span class="label label-danger">
+                         {{ object.picklist.delivery.difference_delivery_date_today }} Tage
+                     </span>
+                {% elif object.picklist.delivery.difference_delivery_date_today <= 0 %}
+                     <span class="label label-success">
+                         {{ object.picklist.delivery.difference_delivery_date_today|cut:"-"  }} Tage
+                     </span>
+                {% endif %}
+            </td>
+            <td>{{ object.picklist.delivery.delivery_date }}</td>
+        </tr>
+    {% endfor %}
+</form>

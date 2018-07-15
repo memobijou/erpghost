@@ -2,15 +2,52 @@
 
 
 {% block content %}
-
-    <div class="col-md-12">
-        <div class="panel panel-default">
-            <div class="panel-body">
-                <div class="text-center">
-                    <h3>LKW{{ truck_id}}</h3>
+    <div class="col-md-12" style="padding:0px;">
+        {% if object.truck.pk %}
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <div class="text-center">
+                            <h3>ID: LKW{{ truck_id}}</h3>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+            <div class="col-md-6">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <div class="text-center">
+                            <h3>Typ:
+                                {% if object.truck.outgoing == False %}
+                                    Eingang
+                                {% else %}
+                                    Ausgang
+                                {% endif %}
+                            </h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                        <div class="panel-body">
+                            <div class="text-center">
+                                <h3>
+                                    {% if truck_id == None %}
+                                        Neuen LKW anlegen
+                                    {% else %}
+                                        Neuer Termin zu LKW{{ truck_id }}
+                                    {% endif %}
+                                </h3>
+                            </div>
+                        </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-12">
         <div class="panel panel-default">
             <div class="panel-body">
                 <form method="POST">{% csrf_token %}
@@ -19,6 +56,14 @@
                         <p>
                             {{ form.errors }}
                         </p>
+                        <div class="col-md-12" style="padding-left:0px;padding-right:0px;">
+                            {% if form.instance.truck.pk == None and truck_id == None %}
+                                <p>
+                                    {{ form.outgoing }}
+                                </p>
+                            {% endif %}
+
+                        </div>
                         <div class="col-md-12" style="padding-left:0px;padding-right:0px;">
                             <p>
                                 {{ form.arrival_date.label_tag }}{{ form.arrival_date }}
@@ -48,9 +93,11 @@
                         <div class="text-center">
                             <p>
                                 <div class="col-md-12" style="padding:25px 0 0 0;">
-                                {% for checkbox in form.employees %}
-                                    {{ checkbox }}
-                                {% endfor %}
+
+                                    {% for checkbox in form.employees %}
+                                        {{ checkbox }}
+                                    {% endfor %}
+
                                 </div>
                             </p>
                             <div class="col-md-12" style="padding:15px 0 0 0;">

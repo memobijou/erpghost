@@ -1,7 +1,7 @@
 from django.conf.urls import url
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
     MissionDeleteView, MissionStockCheckForm, CreatePartialDeliveryNote, CreateDeliveryView, \
-    PickListView, GoToPickListView, GoToScanView
+    PickOrderView, GoToPickListView, GoToScanView, PickOrderListView, PackingOrderListView
 from mission.delivery_note_pdf import DeliveryNoteView
 from mission.billing_pdf import BillingPdfView
 from mission.partial_billing import PartialPdfView
@@ -10,6 +10,8 @@ from mission.mission_confirmation import MissionConfirmationPdfView
 
 urlpatterns = [
     url(r'^$', MissionListView.as_view(), name="list"),
+    url(r'^pickorder/$', PickOrderListView.as_view(), name="pickorder_list"),
+    url(r'^packingorder/$', PackingOrderListView.as_view(), name="packingorder_list"),
     url(r'^create/$', MissionCreateView.as_view(), name="create"),
     url(r'^(?P<pk>\d+)/$', MissionDetailView.as_view(), name="detail"),
     url(r'^(?P<pk>\d+)/edit/$', MissionUpdateView.as_view(), name="update"),
@@ -27,7 +29,7 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/stock_check/$', MissionStockCheckForm.as_view(), name="stock_check_form"),
     url(r'^(?P<pk>\d+)/create_delivery/(?P<partial_pk>\d+)/$', CreateDeliveryView.as_view(),
         name="create_delivery"),
-    url(r'^(?P<pk>\d+)/picklist/(?P<partial_pk>\d+)/$', PickListView.as_view(),
+    url(r'^(?P<pk>\d+)/picklist/(?P<partial_pk>\d+)/$', PickOrderView.as_view(),
         name="picklist"),
     url(r'^gotopicklist/$', GoToPickListView.as_view(),
         name="goto_picklist"),

@@ -11,6 +11,7 @@ from order.models import terms_of_delivery_choices, terms_of_payment_choices, sh
 from django.db.models import Max
 from django.core.exceptions import ValidationError
 from mission.managers import MissionObjectManager
+from online.models import Channel
 
 CHOICES = (
     (None, "----"),
@@ -46,6 +47,8 @@ class Mission(models.Model):
     shipping_number_of_pieces = models.IntegerField(blank=True, null=True, verbose_name="Stückzahl Transport")
     shipping_costs = models.FloatField(blank=True, null=True, max_length=200, verbose_name="Transportkosten")
     confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
+
+    channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
 
     objects = MissionObjectManager()
 
@@ -107,7 +110,6 @@ class ProductMission(models.Model):
 
     def get_ean_or_sku(self):
         ean_or_sku = None
-        print(f"BUS: {ean_or_sku}")
 
         if self.product.ean is not None and self.product.ean != "":
             ean_or_sku = self.product.ean
@@ -115,7 +117,7 @@ class ProductMission(models.Model):
             sku_instance = self.product.sku_set.filter(state=self.state).first()
             if sku_instance is not None:
                 ean_or_sku = sku_instance.sku
-        print(f"BUS: {ean_or_sku}")
+
         return ean_or_sku
 
     # def save(self, *args, **kwargs):
@@ -129,12 +131,16 @@ class RealAmountModelManager(models.Manager):
 
 
 class Partial(models.Model):
+    class Meta:
+        ordering = ["-pk"]
+
     mission = models.ForeignKey(Mission, null=True, blank=True)
 
 
 class PickList(models.Model):
     partial = models.ForeignKey("mission.Partial", null=True, blank=True)
-    pick_id = models.CharField(max_length=200, blank=True, null=True)
+    pick_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Pick ID")
+    delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -146,8 +152,8 @@ class PickList(models.Model):
 
 class PackingList(models.Model):
     partial = models.ForeignKey("mission.Partial", null=True, blank=True)
-
-    packing_id = models.CharField(max_length=200, blank=True, null=True)
+    picklist = models.ForeignKey("mission.PickList", null=True, blank=True)
+    packing_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Verpacker ID")
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -234,6 +240,22 @@ class Delivery(models.Model):
             self.delivery_id = f"LG{self.pk+1}"
         super().save()
 
+    def get_delivery_date(self):
+        return self.delivery_date
+
+    @property
+    def difference_delivery_date_today(self):
+        today = datetime.date.today()
+        if self.delivery_date is not None:
+            difference_days = today-self.delivery_date
+            return difference_days.days
+
+
+class DeliveryProduct(models.Model):
+    delivery = models.ForeignKey(Delivery, null=True, blank=True)
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
+
 
 class Billing(models.Model):
     class Meta:
@@ -275,13 +297,15 @@ class Truck(models.Model):
     class Meta:
         ordering = ["pk"]
 
-    arrival_date_start = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum von")
-    arrival_date_end = models.DateField(null=True, blank=True, verbose_name="Ankunftsdatum bis")
+    truck_id = models.CharField(null=True, blank=True, max_length=200)
+    outgoing = models.NullBooleanField(blank=False)
 
-    arrival_time_start = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit von")
-    arrival_time_end = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit bis")
-
-    employees = models.ManyToManyField("disposition.Employee", blank=True)
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.truck_id is None or self.truck_id == "":
+            self.truck_id = f"LKW{self.pk}"
+        super().save()
 
 
 class DeliveryNoteProductMissionManager(models.Manager):

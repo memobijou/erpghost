@@ -556,6 +556,71 @@ class OrderDetailView(DetailView):
         return context
 
 
+class GoodsReceiptListView(ListView):
+    template_name = "order/goods_receipt_list.html"
+
+    def get_queryset(self):
+        queryset = self.filter_queryset_from_request()
+        return queryset
+
+    def filter_queryset_from_request(self):
+        fields = self.get_fields(exclude=["id", "products", "verified", "supplier_id", "invoice", "created_date",
+                                          "modified_date"])
+        q_filter = Q()
+        for field in fields:
+            get_value = self.request.GET.get(field)
+
+            if get_value is not None and get_value != "":
+                q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
+
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+        print(f"bananas: {search_value}")
+        # return f"{self.contact.billing_address.firma}"
+
+        ordernumber_exact = self.request.GET.get("ordernumber_exact")
+
+        if ordernumber_exact is not None and ordernumber_exact != "":
+            q_filter &= Q(ordernumber__iexact=ordernumber_exact)
+
+        if search_value is not None and search_value != "":
+            search_filter |= Q(**{f"ordernumber__icontains": search_value.strip()})
+            search_filter |= Q(supplier__contact__billing_address__firma__icontains=search_value.strip())
+            search_filter |= Q(shipping__icontains=search_value.strip())
+
+        q_filter &= search_filter
+
+        from django.db.models import F, Func
+        import datetime
+
+        queryset = Order.objects.filter(q_filter).annotate(
+             delta=Func((F('delivery_date')-datetime.date.today()), function='ABS')).order_by("delta").distinct()
+
+        return queryset
+
+    def get_fields(self, exclude=None):
+        fields = ["Fälligkeit", "Lieferdatum"]
+        return fields
+
+    def get_context_data(self, *args, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Wareneingänge"
+        set_field_names_onview(queryset=context["object_list"], context=context, ModelClass=Order,
+                               exclude_fields=["id", "products", "verified"],
+                               exclude_filter_fields=["id", "products", "verified"])
+        context["fields"] = self.get_fields()
+
+        set_paginated_queryset_onview(context["object_list"], self.request, 15, context)
+        context["filter_fields"] = self.get_filter_fields()
+        context["option_fields"] = [{"status": ["OFFEN", "AKZEPTIERT", "ABGELEHNT",
+                                                "WARENEINGANG", "POSITIONIEREN",] }]
+        context["extra_options"] = [("complete", ["UNVOLLSTÄNDIG", "VOLLSTÄNDIG"])]
+        return context
+
+    def get_filter_fields(self):
+        return [( "ordernumber", "Bestellungsnummer"), ("delivery_date", "Lieferdatum")]
+
+
 class OrderListView(ListView):
     def get_queryset(self):
         queryset = self.filter_queryset_from_request()
@@ -576,6 +641,11 @@ class OrderListView(ListView):
         search_value = self.request.GET.get("q")
         print(f"bananas: {search_value}")
         # return f"{self.contact.billing_address.firma}"
+
+        ordernumber_exact = self.request.GET.get("ordernumber_exact")
+
+        if ordernumber_exact is not None and ordernumber_exact != "":
+            q_filter &= Q(ordernumber__iexact=ordernumber_exact)
 
         if search_value is not None and search_value != "":
             search_filter |= Q(**{f"ordernumber__icontains": search_value.strip()})

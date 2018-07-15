@@ -10,11 +10,15 @@ class Employee(models.Model):
     user = models.OneToOneField(User, null=True, blank=True)
 
     def __str__(self):
+        if self.user.profile:
+            return f"{self.user.profile.first_name} {self.user.profile.last_name}"
         return self.user.username
 
 
 class Profile(models.Model):
-    profile_image = models.ImageField(verbose_name="Profilbild")
+    profile_image = models.ImageField(verbose_name="Profilbild", null=True, blank=True)
+    first_name = models.CharField(verbose_name="Vorname", null=True, blank=True, max_length=200)
+    last_name = models.CharField(verbose_name="Nachname", null=True, blank=True, max_length=200)
     user = models.OneToOneField(User, null=True, blank=True)
 
 

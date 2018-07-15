@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <div>
+        {% if messages %}
+            <div class="col-md-12">
+                <div class="alert alert-danger">
+                    {% for msg in messages %}
+                        {{ msg }}
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        {% include "snippets/filter.html" %}
+        {% include "snippets/pagination.html" %}
+        <div class="col-md-6" style="padding-bottom:25px;">
+            <form method="POST" action="{% url 'mission:goto_scan' %}">{% csrf_token %}
+                <div>
+                    <div class="input-group">
+                      <input class="form-control" placeholder="Verpacker ID" name="scan_id"/>
+                      <span class="input-group-btn">
+                        <input class="btn btn-info" type="submit" value="Verpacken">
+                      </span>
+                    </div><!-- /input-group -->
+                </div>
+            </form>
+        </div>
+        <div class="col-md-12">
+            <table class="table table-bordered" style="background-color:white;">
+                <thead>
+                    <tr>
+                        <th></th>
+                        {% for field in fields %}
+                            <th>{{field}}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                {% include "mission/packingorder_object_list.html" %}
+            </table>
+        </div>
+    </div>
+
+{% endblock %}

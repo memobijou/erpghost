@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div>
+        {% include "snippets/filter.html" %}
+        {% include "snippets/pagination.html" %}
+
+        <table class="table table-bordered" style="background-color:white;">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for field in fields %}
+                        <th>{{field}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            {% include "order/goods_receipt_object_list.html" %}
+        </table>
+    </div>
+{% endblock %}

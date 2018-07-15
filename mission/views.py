@@ -8,7 +8,7 @@ from utils.utils import get_field_names, get_queries_as_json, set_field_names_on
     get_verbose_names, get_filter_fields, filter_complete_and_uncomplete_order_or_mission
 from mission.models import Mission, ProductMission, Billing, DeliveryNote, DeliveryNoteProductMission, \
     Partial, PartialMissionProduct, PickList, PickListProducts, \
-    PackingList, PackingListProduct, Delivery
+    PackingList, PackingListProduct, Delivery, DeliveryProduct
 from mission.forms import MissionForm, ProductMissionFormsetUpdate, ProductMissionFormsetCreate, ProductMissionForm, \
     ProductMissionUpdateForm, BillingForm, PickForm, DeliveryForm
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -140,19 +140,22 @@ class MissionListView(ListView):
         queryset = self.filter_queryset_from_request()
         return self.set_pagination(queryset)
 
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag"
         context["fields"] = self.build_fields()
-        context["filter_fields"] = get_filter_fields(Mission, exclude=["id", "products", "supplier_id",
-                                                                       "invoice", "pickable", "modified_date",
-                                                                       "created_date", "confirmed"])
+        context["filter_fields"] = self.get_filter_fields()
         context["object_list_zip"] = self.add_billing_numbers_and_delivery_note_numbers_to_list(context["object_list"])
 
         context["option_fields"] = [
             {"status": ["OFFEN", "IN BEARBEITUNG", "BEENDET"]}]
-
         return context
+
+    def get_filter_fields(self):
+        filter_fields = get_filter_fields(Mission, exclude=["id", "products", "supplier_id", "channel_id",
+                                          "invoice", "pickable", "modified_date", "created_date", "confirmed"])
+        filter_fields.append(("delivery", "Lieferungsnummer"))
+        return filter_fields
 
     def add_billing_numbers_and_delivery_note_numbers_to_list(self, object_list):
         billing_numbers_list = []
@@ -182,11 +185,13 @@ class MissionListView(ListView):
         fields = get_verbose_names(Mission, exclude=["id", "supplier_id", "products", "modified_date", "created_date",
                                                      "terms_of_payment", "terms_of_delivery", "delivery_note_number",
                                                      "billing_number", "shipping", "delivery_address_id",
-                                                     "shipping_costs", "shipping_number_of_pieces", "confirmed"])
+                                                     "shipping_costs", "shipping_number_of_pieces", "confirmed",
+                                                     "channel_id"])
 
-        fields.insert(3, "Rechnugsnummern")
-        fields.insert(4, "Lieferscheinnummern")
-        fields.insert(5, "Fälligkeit")
+        fields.insert(3, "Lieferungen")
+        fields.insert(4, "Rechnugsnummern")
+        fields.insert(5, "Lieferscheinnummern")
+        fields.insert(6, "Fälligkeit")
 
         fields.insert(len(fields) - 1, "Gesamt (Netto)")
         fields.insert(len(fields) - 1, "Gesamt (Brutto)")
@@ -217,16 +222,28 @@ class MissionListView(ListView):
 
         q_filter &= status_filter
 
+        delivery = self.request.GET.get("delivery")
+
+        if delivery is not None and delivery != "":
+            q_filter &= Q(partial__delivery__delivery_id__icontains=delivery.strip())
+
+        delivery_exact = self.request.GET.get("delivery_exact")
+
+        if delivery_exact is not None and delivery_exact != "":
+            q_filter &= Q(partial__delivery__delivery_id__iexact=delivery_exact.strip())
+
         search_filter = Q()
         search_value = self.request.GET.get("q")
 
         if search_value is not None and search_value != "":
             search_filter |= Q(**{f"mission_number__icontains": search_value.strip()})
             search_filter |= Q(partial__delivery__billing__billing_number__icontains=search_value.strip())
-            search_filter |= Q(partial__delivery__deliverynote__delivery_note_number__icontains=search_value.strip())
+            search_filter |= Q(partial__delivery__delivery_note__delivery_note_number__icontains=search_value.strip())
             search_filter |= Q(customer__contact__billing_address__firma__icontains=search_value.strip())
             search_filter |= Q(partial__delivery__billing__transport_service__icontains=search_value.strip())
             search_filter |= Q(customer_order_number__icontains=search_value.strip())
+            search_filter |= Q(partial__delivery__delivery_id__icontains=search_value.strip())
+
 
         q_filter &= search_filter
 
@@ -654,7 +671,6 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
             if product_mission_instance is not None:
                 print(product_form.data)
-                print(f"WAAATT ???: {ean_or_sku} - {amount} - {netto_price} - {state}")
                 product_mission_instance.product_id = product.pk
                 product_mission_instance.amount = amount
                 product_mission_instance.netto_price = netto_price
@@ -1143,6 +1159,7 @@ class CreateDeliveryView(View):
         self.object = None
         self.partial = None
         self.form = None
+        self.delivery = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Mission.objects.get(pk=self.kwargs.get("pk"))
@@ -1193,16 +1210,16 @@ class CreateDeliveryView(View):
         if delivery_date is None or delivery_date == "":
             delivery_date = self.partial.mission.delivery_date
         else:
-            if delivery_date is not None and delivery_date != "":
-                delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
-                delivery_date = delivery_date.strftime('%Y-%m-%d')
+            delivery_date = datetime.datetime.strptime(delivery_date, '%d/%m/%Y')
+            delivery_date = delivery_date.strftime('%Y-%m-%d')
 
         delivery = Delivery(partial=self.partial, delivery_date=delivery_date)
         delivery.save()
+        self.delivery = delivery
 
     def create_picking_list(self):
         picking_list = self.get_picking_list()
-        pick_list_instance = PickList(partial=self.partial)
+        pick_list_instance = PickList(partial=self.partial, delivery=self.delivery)
         pick_list_instance.save()
 
         bulk_instances = []
@@ -1211,7 +1228,32 @@ class CreateDeliveryView(View):
             bulk_instances.append(PickListProducts(pick_list=pick_list_instance,
                                                    product_mission=partial_product.product_mission,
                                                    position=position[0].lagerplatz, amount=position[1]))
+        self.create_delivery_products(picking_list)
         PickListProducts.objects.bulk_create(bulk_instances)
+
+    def create_delivery_products(self, picking_list):
+        delivery_products = {}
+
+        for partial_product, stock, position in picking_list:
+            amount = int(position[1])
+
+            if partial_product.product_mission.pk not in delivery_products:
+                delivery_products[partial_product.product_mission.pk] = {}
+                delivery_products[partial_product.product_mission.pk]["amount"] = amount
+            else:
+                delivery_products[partial_product.product_mission.pk]["amount"] += amount
+
+            delivery_products[partial_product.product_mission.pk]["product_mission"] = partial_product.product_mission
+
+        delivery_products_bulk_instances = []
+
+        for k, dict_ in delivery_products.items():
+            amount = dict_.get("amount")
+            mission_product = dict_.get("product_mission")
+            delivery_products_bulk_instances.append(DeliveryProduct(amount=amount, product_mission=mission_product,
+                                                                    delivery=self.delivery))
+
+        DeliveryProduct.objects.bulk_create(delivery_products_bulk_instances)
 
     def get_picking_list(self):
         picking_list = []
@@ -1318,17 +1360,19 @@ class CreateDeliveryView(View):
             return stock.get_total_stocks().get(state)
 
 
-class PickListView(View):
-    template_name = "mission/picklist.html"
+class PickOrderView(View):
+    template_name = "mission/pickorder.html"
 
     def __init__(self, **kwargs):
         self.partial = None
         self.picklist = None
+        self.picklist_products = None
         super().__init__(**kwargs)
 
     def dispatch(self, request, *args, **kwargs):
         self.partial = Partial.objects.get(pk=self.kwargs.get("partial_pk"))
-        self.picklist = self.get_picklist()
+        self.picklist = self.partial.picklist_set.first()
+        self.picklist_products = self.get_picklist()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):
@@ -1337,11 +1381,10 @@ class PickListView(View):
 
     def get_picklist(self):
 
-        if self.partial is None or self.partial.picklist_set.first() is None:
+        if self.partial is None or self.picklist is None:
             return []  # Keine Pickliste erstellt
 
-        picklist = self.partial.picklist_set.first().picklistproducts_set.all()\
-            .order_by("-confirmed", "position")
+        picklist = self.picklist.picklistproducts_set.all().order_by("-confirmed", "position")
         pickforms = []
 
         for _ in picklist:
@@ -1350,7 +1393,7 @@ class PickListView(View):
         return list(zip(picklist, pickforms))
 
     def get_validated_picklist(self, pick_id):
-        picklist = self.partial.picklist_set.first().picklistproducts_set.all().order_by("-confirmed", "position")
+        picklist = self.picklist.picklistproducts_set.all().order_by("-confirmed", "position")
         pickforms = []
 
         for pick_row in picklist:
@@ -1381,7 +1424,7 @@ class PickListView(View):
             for row, pick_form in validated_picklist:
                 if int(row.pk) == int(pick_id):
                     if pick_form.is_valid() is False:
-                        return render(request, "mission/picklist.html", context)
+                        return render(request, "mission/pickorder.html", context)
 
             if int(missing_amount) > 0:
                 pick_row.confirmed = False
@@ -1425,7 +1468,7 @@ class PickListView(View):
 
         if picklist_all_picked is True:
             exclude_amount_zero_ids = []
-            for pick_row, pick_form in self.picklist:
+            for pick_row, pick_form in self.picklist_products:
                 if pick_row.amount_minus_missing_amount() is None or pick_row.amount_minus_missing_amount() == 0:
                     exclude_amount_zero_ids.append(pick_row.pk)
             picklist = self.partial.picklist_set.first().picklistproducts_set.all().\
@@ -1433,7 +1476,7 @@ class PickListView(View):
             self.create_packing_list_from_picklist(picklist)
 
     def create_packing_list_from_picklist(self, picklist):
-        packing_list_instance = PackingList(partial=self.partial)
+        packing_list_instance = PackingList(partial=self.partial, picklist=self.picklist)
         packing_list_instance.save()
 
         packing_list = {}
@@ -1460,14 +1503,160 @@ class PickListView(View):
             if pick_row.confirmed is None or pick_row.confirmed == "":
                 return False
 
-        if len(self.picklist) >= 1:
+        if len(self.picklist_products) >= 1:
             return True
         else:
             return False
 
     def get_context(self):
-        context = {"title": "Pickliste", "partial": self.partial, "picklist": self.picklist}
+        context = {"title": "Pickliste", "partial": self.partial, "picklist_products": self.picklist_products}
         return context
+
+
+class PickOrderListView(ListView):
+    template_name = "mission/pickorder_list.html"
+
+    def get_queryset(self):
+        queryset = self.filter_queryset_from_request()
+        return self.set_pagination(queryset)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Pickaufträge"
+        context["fields"] = self.build_fields()
+        context["filter_fields"] = self.get_filter_fields()
+        return context
+
+    def get_filter_fields(self):
+        filter_fields = get_filter_fields(PickList, exclude=["id", "partial_id", "delivery_id"])
+        return filter_fields
+
+    def build_fields(self):
+        fields = get_verbose_names(PickList, exclude=["id", "partial_id", "delivery_id", "pick_id"])
+        fields.extend(["Fälligkeit", "Lieferdatum"])
+        return fields
+
+    def set_pagination(self, queryset):
+        page = self.request.GET.get("page")
+        paginator = Paginator(queryset, 15)
+        if not page:
+            page = 1
+        current_page_object = paginator.page(int(page))
+        return current_page_object
+
+    def filter_queryset_from_request(self):
+        fields = self.get_fields(exclude=["id", ])
+        q_filter = Q()
+        for field in fields:
+            get_value = self.request.GET.get(field)
+
+            if get_value is not None and get_value != "":
+                q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
+
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+
+        if search_value is not None and search_value != "":
+            search_filter |= Q(pick_id=search_value.strip())
+
+        q_filter &= search_filter
+
+        queryset = PickList.objects.filter(q_filter).distinct()
+
+        queryset = PickList.objects.filter(q_filter).annotate(
+             delta=Func((F('delivery__delivery_date')-datetime.date.today()),
+                        function='ABS')).order_by("delta").distinct()
+
+        return queryset
+
+    def get_fields(self, exclude=None):
+        from django.db import models
+        fields = []
+        for field in PickList._meta.get_fields():
+            if exclude is not None and len(exclude) > 0:
+                if field.name in exclude:
+                    continue
+            if isinstance(field, models.ManyToManyField):
+                continue
+
+            if isinstance(field, models.ManyToOneRel):
+                continue
+
+            fields.append(field.name)
+        return fields
+
+
+class PackingOrderListView(ListView):
+    template_name = "mission/packingorder_list.html"
+
+    def get_queryset(self):
+        queryset = self.filter_queryset_from_request()
+        return self.set_pagination(queryset)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Verpackeraufträge"
+        context["fields"] = self.build_fields()
+        context["filter_fields"] = self.get_filter_fields()
+        return context
+
+    def get_filter_fields(self):
+        filter_fields = get_filter_fields(PackingList, exclude=["id", "partial_id", "delivery_id", "picklist_id",])
+        return filter_fields
+
+    def build_fields(self):
+        fields = get_verbose_names(PackingList, exclude=["id", "partial_id", "delivery_id", "picklist_id",
+                                                         "packing_id"])
+        fields.extend(["Fälligkeit", "Lieferdatum"])
+        return fields
+
+    def set_pagination(self, queryset):
+        page = self.request.GET.get("page")
+        paginator = Paginator(queryset, 15)
+        if not page:
+            page = 1
+        current_page_object = paginator.page(int(page))
+        return current_page_object
+
+    def filter_queryset_from_request(self):
+        fields = self.get_fields(exclude=["id", "picklist_id",])
+        q_filter = Q()
+
+        for field in fields:
+            get_value = self.request.GET.get(field)
+
+            if get_value is not None and get_value != "":
+                q_filter &= Q(**{f"{field}__icontains": get_value.strip()})
+
+        search_filter = Q()
+        search_value = self.request.GET.get("q")
+
+        if search_value is not None and search_value != "":
+            search_filter |= Q(packing_id__icontains=search_value.strip())
+
+        q_filter &= search_filter
+
+        queryset = PackingList.objects.filter(q_filter).annotate(
+            delta=Func((F('picklist__delivery__delivery_date')-datetime.date.today()),
+                       function='ABS')).order_by("delta").distinct()
+
+        return queryset
+
+    def get_fields(self, exclude=None):
+        from django.db import models
+        fields = []
+        for field in PackingList._meta.get_fields():
+            if exclude is not None and len(exclude) > 0:
+                if field.name in exclude:
+                    continue
+            if isinstance(field, models.ManyToManyField):
+                continue
+
+            if isinstance(field, models.ManyToOneRel):
+                continue
+
+            fields.append(field.name)
+        return fields
 
 
 class ConfirmView(View):
@@ -1496,7 +1685,7 @@ class GoToPickListView(View):
                                                                                  "partial_pk": picklist.partial.pk}))
         else:
             messages.add_message(self.request, messages.INFO, "Pickauftrag konnte nicht gefunden werden")
-            return HttpResponseRedirect(reverse_lazy("mission:list"))
+            return HttpResponseRedirect(reverse_lazy("mission:pickorder_list"))
 
 
 class GoToScanView(View):
@@ -1510,4 +1699,4 @@ class GoToScanView(View):
                                                                              "partial_pk": packlist.partial.pk}))
         else:
             messages.add_message(self.request, messages.INFO, "Verpackerliste konnte nicht gefunden werden")
-            return HttpResponseRedirect(reverse_lazy("mission:list"))
+            return HttpResponseRedirect(reverse_lazy("mission:packingorder_list"))

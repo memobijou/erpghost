@@ -31,90 +31,118 @@
           header: {
             left: 'prev, next today',
             center: 'title',
-            right: 'month, listMonth basicWeek listWeek, basicDay, listDay agendaWeek'
+            right: 'month, basicWeek , agendaWeek, basicDay, agendaDay'
           },
+          buttonText: {
+                agendaWeek: 'Stundenplan Woche',
+                agendaDay: 'Stundenplan Tag'
+            },
 eventRender: function(event, element, view) {
     var title = element.find('.fc-title, .fc-list-item-title');
     var start = moment(event.start).format("YYYY-MM-DD");
     var delivery_id = title.text();
-
+    var body_element = document.getElementsByTagName("body")[0];
     var html = "";
 
-    if(view.type.includes("list")){
-        {% for delivery in deliveries %}
-            if('{{ delivery.delivery_id }}' == delivery_id) {
-                html = "<p>" + '{{ delivery.delivery_id }}' + "</p>";
-                title.html(html);
-                element.find('.fc-list-item-time').empty()
-            }
-        {% endfor %}
+    {% for delivery in deliveries %}
+        if('{{ delivery.delivery_id }}' == delivery_id) {
+            html = "{{ delivery.delivery_id }}";
+            title.html(html);
+            element.find('.fc-time').hide();
 
-        {% for truck in trucks %}
-                if(title.text().includes("LKW{{ truck.pk }}")){
-                    html += "LKW{{ truck.pk }}";
-                    html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:orange;"></i>';
-                    html += "<br/><br/>";
+            var modal_div = document.createElement("div");
+            modal_div.className = "modal fade";
+            modal_div.id = "{{ delivery.delivery_id }}";
+            var modal_1 = document.createElement("div");
+            modal_1.className = "modal-dialog";
+            var modal_2 = document.createElement("div");
+            modal_2.className = "modal-content";
+            var modal_body = document.createElement("div");
+            modal_body.className = "modal-body";
+            modal_div.appendChild(modal_1);
+            modal_1.appendChild(modal_2);
+            modal_2.appendChild(modal_body);
+            modal_body.appendChild(document.createTextNode("{{ truck_appointment.pk }}"));
+            body_element.appendChild(modal_div);
+        }
+    {% endfor %}
 
-                    html += "<table class='table'><thead><tr>" +
-                        "<th style='text-align:left;'>Transportdienstleister</th>" +
-                        "<th style='text-align:left;'>Stückzahl</th>" +
-                        "<th style='text-align:left;'>Mitarbeiter</th>" +
-                        "</tr></thead><tbody>";
-                    {% for truck in trucks %}
-                        html += "<tr>" +
-                            "<td>{{ truck.transport_service }}</td>" +
-                            "<td>{{ truck.shipping_number_of_pieces }}</td>" +
-                            "<td>" +
-                            "{% for employee in truck.employees.all %}" +
-                                "{% if employee.user.profile  %}" +
-                                    "<img src='{{  employee.user.profile.profile_image.url }}' class='img-responsive img-circle' style='max-height:80px;'/>"
-                                    +
-                                    "{% endif %}" +
-                                "{% endfor %}" +
-                            "</td>" +
-                            "</tr>";
-                    {% endfor %}
-                    html += "</tbody></table>";
+    {% for order in orders %}
+
+        if('{{ order.ordernumber }}' == event.id) {
+            html = "{{ order.ordernumber }}";
+            title.html(html);
+            element.find('.fc-time').hide();
+
+            var modal_div = document.createElement("div");
+            modal_div.className = "modal fade";
+            modal_div.id = "{{ order.ordernumber }}";
+            var modal_1 = document.createElement("div");
+            modal_1.className = "modal-dialog";
+            var modal_2 = document.createElement("div");
+            modal_2.className = "modal-content";
+            var modal_body = document.createElement("div");
+            modal_body.className = "modal-body";
+            modal_div.appendChild(modal_1);
+            modal_1.appendChild(modal_2);
+            modal_2.appendChild(modal_body);
+            modal_body.appendChild(document.createTextNode("{{ order.ordernumber }}"));
+            body_element.appendChild(modal_div);
+        }
+    {% endfor %}
+
+    {% for truck_appointment in truck_appointments %}
+        if("appointment_{{ truck_appointment.pk }}_event" == event.id){
+            html = "LKW{{ truck_appointment.truck.pk }}";
+            html += '{% if truck_appointment.truck.outgoing == True %}';
+            html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:red;"></i><br/>';
+            html += '{% else %}';
+            html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:#00C853;"></i><br/>';
+            html += '{% endif %}';
                     title.html(html);
-                }
-        {% endfor %}
-    }else{
-        // keine Terminübersicht
-        {% for delivery in deliveries %}
-            if('{{ delivery.delivery_id }}' == delivery_id) {
-                html = "{{ delivery.delivery_id }}";
-                title.html(html);
-                element.find('.fc-time').hide();
-            }
-        {% endfor %}
+        }
 
-        {% for truck_appointment in truck_appointments %}
-            if(title.text().includes("LKW{{ truck_appointment.truck.pk }}")){
-                html = "LKW{{ truck_appointment.truck.pk }}";
-                html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:yellow;"></i><br/>';
-                html += "<div class='col-md-12' style='padding-left:0px;'>"
-                html += "{% for employee in truck_appointment.employees.all %}" +
-                        "<div class='col-md-2' style='padding-left:0px;'>" +
-                        "<img class='img-responsive img-circle' src='{{ employee.user.profile.profile_image.url }}' style='max-height:100px;'/>" +
-                        "</div>" +
-                        "{% endfor %}";
-                html += "</div>";
-                title.html(html);
+            if(document.getElementById("appointment_{{ truck_appointment.pk }}") == null) {
+                var modal_div = document.createElement("div");
+                modal_div.className = "modal fade";
+                modal_div.id = "appointment_{{ truck_appointment.pk }}";
+                var modal_1 = document.createElement("div");
+                modal_1.className = "modal-dialog";
+                var modal_2 = document.createElement("div");
+                modal_2.className = "modal-content";
+                var modal_body = document.createElement("div");
+                modal_body.className = "modal-body";
+                modal_div.appendChild(modal_1);
+                modal_1.appendChild(modal_2);
+                modal_2.appendChild(modal_body);
+                modal_body.appendChild(document.createTextNode("{{ truck_appointment.pk }}"));
+                body_element.appendChild(modal_div);
             }
-        {% endfor %}
-    }
+    {% endfor %}
+
 },
             events: [
                 {% for delivery in deliveries %}
                     {
-                    {% if delivery.partial.mission.customer %}
-                          title: '{{ delivery.delivery_id }}',
-                    {% else %}
-                          title: '{{  delivery.partial.mission.mission_number }}',
-                    {% endif %}
-                      start: '{{ delivery.delivery_date|date:"Y-m-d" }}T11:30:00',
-                      end : '{{ delivery.delivery_date|date:"Y-m-d" }}T13:30:00',
-                      allDay : false // will make the time show,
+                      title: '{{ delivery.delivery_id }}',
+                      start: '{{ delivery.delivery_date|date:"Y-m-d" }}',
+                      end : '{{ delivery.delivery_date|date:"Y-m-d" }}',
+                      allDay : false, // will make the time show,
+                      id: "{{ delivery.delivery_id }}",
+                      color  : '#a10c00'
+
+                    },
+                {% endfor %}
+
+                {% for order in orders %}
+                    {
+                      title: '{{ order.ordernumber }}',
+                      start: '{{ order.delivery_date|date:"Y-m-d" }}',
+                      end : '{{ order.delivery_date|date:"Y-m-d" }}',
+                      allDay : false, // will make the time show,
+                      id: "{{ order.ordernumber }}",
+                      color  : '#34a12c'
+
                     },
                 {% endfor %}
 
@@ -124,12 +152,155 @@ eventRender: function(event, element, view) {
                       start: '{{ truck_appointment.arrival_date |date:"Y-m-d" }}T{{ truck_appointment.arrival_time_start }}',
                       end : '{{ truck_appointment.arrival_date |date:"Y-m-d" }}T{{ truck_appointment.arrival_time_end }}',
                       allDay : false, // will make the time show,
-                      color  : '#a12403',
+                      color  : '#252e3c',
+                      id: "appointment_{{ truck_appointment.pk }}_event"
                     },
                 {% endfor %}
             // other events here
           ],
-        eventColor: '#2aabd2'
+        eventColor: '#ff842b',
+        eventClick: function(calEvent, jsEvent, view) {
+
+            var title = calEvent.title;
+            // change the border color just for fun
+
+
+            {% for truck_appointment in truck_appointments %}
+                var html = "";
+
+                if(title.includes("LKW{{ truck_appointment.truck.pk }}")){
+                    if(calEvent.id == "appointment_{{truck_appointment.pk }}_event") {
+
+                        html = "";
+                        html += '<div class="panel panel-default">';
+                        html += '<div class="panel panel-heading">';
+                        html += '<p>Datum: <b>{{ truck_appointment.arrival_date }}</b></p>';
+                        html += '<b>' + $(this).find('.fc-time').text() + "</b> ";
+                        html += 'LKW{{ truck_appointment.truck.pk }}';
+                        html += '{% if truck_appointment.truck.outgoing == True %}';
+                        html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:red;"></i><a href="{% url 'disposition:truck_list' %}?truck_id_exact={{ truck_appointment.truck.truck_id }}" class="pull-right">Zur Verwaltung</a><br/>';
+                        html += '{% else %}';
+                        html += '&nbsp;&nbsp;<i class="fa fa-truck" style="color:#00C853;"></i> <a href="{% url 'disposition:truck_list' %}?truck_id_exact={{ truck_appointment.truck.truck_id }}" class="pull-right">Zur Verwaltung</a><br/>';
+                        html += '{% endif %}';
+                        html += '</div>';
+                        html += '<div class="panel-body">';
+                        html += "{% for employee in truck_appointment.employees.all %}" +
+                                "<figure class='col-md-2'>" +
+                                "<img class='img-responsive img-circle' src='{{ employee.user.profile.profile_image.url }}' style='max-height:100px;'/>" +
+                                "<figcaption>{{ employee.user.profile.first_name|default:''}} {{ employee.user.profile.last_name|default:''}}</figcaption>" +
+                                "</figure>" +
+                                "{% endfor %}";
+                        html += "<br/><br/><br/><br/><br/><br/><br/>";
+                        html += "</div>";
+                        html += "</div>";
+                        var modal = document.getElementById("appointment_{{ truck_appointment.pk }}");
+                        modal.getElementsByClassName("modal-body")[0].innerHTML = html;
+
+                        if (modal != null) {
+                            $(modal).modal();
+
+                        }
+                    }
+                }
+
+            {% endfor %}
+
+            {% for delivery in deliveries %}
+                if(calEvent.id == "{{ delivery.delivery_id }}") {
+                    var modal = document.getElementById("{{ delivery.delivery_id }}");
+                    $(modal).modal();
+                    var modal_body = modal.getElementsByClassName("modal-body")[0];
+                    html = "";
+                    html += '<div class="panel panel-default">';
+                    html += '<div class="panel-heading">';
+                    html += '<p>Lieferdatum <b>{{ delivery.delivery_date }}</b></p>';
+                    html += '<p>Lieferungsnummer <b>{{ delivery.delivery_id }}</b><a href="{% url 'mission:list' %}?delivery_exact={{ delivery.delivery_id }}" class="pull-right">Zum Auftrag</a></p>';
+                    html += '</div>';
+                    html += '<div class="panel-body">';
+                    html += '<div class="table-responsive">';
+                    html += '<table class="table">';
+                    {% if delivery.deliveryproduct_set.all %}
+                        html += '<thead>';
+                        html += '<tr><th>Bild</th><th>EAN</th><th>Zustand</th><th>Menge</th></tr>';
+                        html += '</thead>';
+                    {% endif %}
+                    html += '<tbody>';
+                    {% for delivery_product in delivery.deliveryproduct_set.all %}
+                        html += '<tr>';
+                            {% if delivery_product.product_mission.product.main_image != None %}
+                                html += '<td><img class="img-responsive" style="max-height: 80px;" src="{{ delivery_product.product_mission.product.main_image.url }}"/></td>';
+                            {% else %}
+                                html += '<td></td>';
+                            {% endif %}
+                            html += '<td>{{ delivery_product.product_mission.get_ean_or_sku  }}</td>';
+                            html += '<td>{{ delivery_product.product_mission.state }}</td>';
+                            html += '<td>{{ delivery_product.amount }}</td>';
+
+                        html += '</tr>';
+                    {% endfor %}
+                    {% if not delivery.deliveryproduct_set.all %}
+                        html += '<div class="text-center"><h3>Lieferung wurden keine Artikel zugewiesen</h3></div>';
+                    {% endif %}
+                    html += '</tbody>';
+                    html += '</table>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                    modal_body.innerHTML = html;
+
+                }
+            {% endfor %}
+
+
+            {% for order in orders %}
+                if(calEvent.id == "{{ order.ordernumber }}") {
+                    var modal = document.getElementById("{{ order.ordernumber }}");
+                    $(modal).modal();
+                    var modal_body = modal.getElementsByClassName("modal-body")[0];
+                    html = "";
+                    html += '<div class="panel panel-default">';
+                    html += '<div class="panel-heading">';
+                    html += '<p>Lieferdatum <b>{{ order.delivery_date }}</b></p>';
+                    html += '<p>Bestellungsnummer: <b>{{ order.ordernumber }}</b><a class="pull-right" href="{% url 'order:list' %}?ordernumber_exact={{ order.ordernumber }}">Zur Bestellung</a></p>';
+                    html += '</div>';
+                    html += '<div class="panel-body">';
+                    html += '<div class="table-responsive">';
+                    html += '<table class="table">';
+                    {% if order.productorder_set.all %}
+                        html += '<thead>';
+                        html += '<tr><th>Bild</th><th>EAN</th><th>Zustand</th><th>Menge</th></tr>';
+                        html += '</thead>';
+                    {% endif %}
+                    html += '<tbody>';
+                    {% for order_product in order.productorder_set.all %}
+                        html += '<tr>';
+                            {% if order_product.product.main_image != None and order_product.product.main_image.url != None %}
+                                html += '<td><img class="img-responsive" style="max-height: 80px;" src="{{ order_product.product.main_image.url }}"/></td>';
+                            {% else %}
+                                html += '<td></td>';
+                            {% endif %}
+                            html += '<td>{{ order_product.get_ean_or_sku  }}</td>';
+                            html += '<td>{{ order_product.state|default:'' }}</td>';
+                            html += '<td>{{ order_product.amount }}</td>';
+
+                        html += '</tr>';
+                    {% endfor %}
+                    {% if not order.productorder_set.all %}
+                        html += '<div class="text-center"><h3>Bestellung wurden keine Artikel zugewiesen</h3></div>';
+                    {% endif %}
+                    html += '</tbody>';
+                    html += '</table>';
+                    html += '</div>';
+                    html += '</div>';
+                    html += '</div>';
+                    modal_body.innerHTML = html;
+
+                }
+            {% endfor %}
+
+
+
+          }
       })
 
     });
@@ -138,8 +309,20 @@ eventRender: function(event, element, view) {
 
     <div class="panel panel-default">
         <div class="panel-body">
-                <h3>Kalendaransicht</h3>
-                <div id='calendar'></div>
+                <div class="col-md-12" style="padding:0px;">
+                    <h3>Kalendaransicht</h3>
+                </div>
+                <div class="col-md-12" style="padding:0 0 25px 0;">
+                    <div class="col-md-10" style="padding:0px;">
+                    </div>
+                    <div class="col-md-2">
+                        <div>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Eingänge <i class="fa fa-truck pull-right" style="color:#00C853;"></i><br/>
+                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Ausgänge <i class="fa fa-truck pull-right" style="color:red;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div id='calendar' class="col-md-12" style="padding:0px;"></div>
 
         </div>
     </div>

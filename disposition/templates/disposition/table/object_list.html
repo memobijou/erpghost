@@ -7,7 +7,9 @@
     </div>
     {% for object in object_list %}
         <tr>
-            <td></td>
+            <td>
+                <a href="{% url 'disposition:truck_edit' truck_id=object.pk %}">Bearbeiten</a>
+            </td>
             <td>LKW{{ object.pk }}</td>
             <td>
                 {% for appointment in object.truckappointment_set.all %}

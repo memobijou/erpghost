@@ -45,6 +45,7 @@ urlpatterns = [
     url(r'^client/', include("client.urls", namespace="client")),
     url(r'^disposition/', include("disposition.urls", namespace="disposition")),
     url(r'^online/', include("online.urls", namespace="online")),
+    url(r'^configuration/', include("configuration.urls", namespace="config")),
 ]
 
 if settings.DEBUG is True:

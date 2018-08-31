@@ -227,26 +227,30 @@ def create_right_align_header(date, x_position=230, additional_data=None):
 
 
 def get_reciver_address_list_from_object(object_):
-    receiver_address = [object_.contact.billing_address.firma,
-                        f"{object_.contact.billing_address.strasse} "
-                        f"{object_.contact.billing_address.hausnummer}",
-                        f"{object_.contact.billing_address.place} "
-                        f"{object_.contact.billing_address.zip}"]
+    if object_.contact.billing_address is not None:
+        receiver_address = [object_.contact.billing_address.firma,
+                            f"{object_.contact.billing_address.strasse} "
+                            f"{object_.contact.billing_address.hausnummer}",
+                            f"{object_.contact.billing_address.place} "
+                            f"{object_.contact.billing_address.zip}"]
+    else:
+        receiver_address = ["", "", "", "", ""]
     return receiver_address
 
 
 def get_delivery_address_html_string_from_object(delivery_address):
+    delivery_address_string = ""
+    if delivery_address is not None:
+        delivery_address_string = f"{delivery_address.firma}<br/>"
 
-    delivery_address_string = f"{delivery_address.firma}<br/>"
+        if delivery_address.adresszusatz:
+            delivery_address_string += f"{delivery_address.adresszusatz}<br/>"
 
-    if delivery_address.adresszusatz:
-        delivery_address_string += f"{delivery_address.adresszusatz}<br/>"
+        if delivery_address.adresszusatz2:
+            delivery_address_string += f"{delivery_address.adresszusatz2}<br/>"
 
-    if delivery_address.adresszusatz2:
-        delivery_address_string += f"{delivery_address.adresszusatz2}<br/>"
-
-    delivery_address_string += f"{delivery_address.strasse} {delivery_address.hausnummer}<br/>" \
-                               f"{delivery_address.zip} {delivery_address.place}"
+        delivery_address_string += f"{delivery_address.strasse} {delivery_address.hausnummer}<br/>" \
+                                   f"{delivery_address.zip} {delivery_address.place}"
 
     return delivery_address_string
 

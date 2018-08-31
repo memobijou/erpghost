@@ -5,63 +5,103 @@
 {% block content %}
     <div class="panel panel-default">
         <div class="panel-body">
-            {% if new_partial_products %}
-
-            <p style="font-size:20px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
-            <p style="font-size:20px;"><b>Lieferdatum: </b>{{ object.delivery_date }}</p>
-            <div class="col-md-6" style="padding:0;">
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                        Rechnungsadresse
+        {% if new_partial_products %}
+            <div class="col-md-12">
+                    <div class="pull-right">
+                        <a href="{% url 'mission:detail' pk=object.pk %}">Zur Ansicht</a>
                     </div>
-                    <div class="panel-body">
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
-                            {{ object.customer.contact.billing_address.firma }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
-                            {{ object.customer.contact.billing_address.strasse }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
-                            {{ object.customer.contact.billing_address.place }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
-                            {{ object.customer.contact.billing_address.zip }}</p>
-                        {% if object.customer.contact.billing_address.adresszusatz %}
-                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
-                            {{ object.customer.contact.billing_address.adresszusatz }}</p>
-                        {% endif %}
-                        {% if object.customer.contact.billing_address.adresszusatz2 %}
-                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
-                            {{ object.customer.contact.billing_address.adresszusatz2 }}</p>
-                        {% endif %}
-                    </div>
-                </div>
+                    <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
+                    <p style="font-size:15px;"><b>Liefertermin: </b>{{ object.delivery_date }}</p>
+                    <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
+                    <hr/>
+                    {% if object.customer %}
+                        <p style="font-size:15px;"><b>Kunde: </b>
+                        {{ object.customer }}</p>
+                    {% endif %}
             </div>
-            <div class="col-md-6" style="pading:0">
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                        Lieferadresse
+            {% if object.customer %}
+                {% if object.customer.contact.billing_address %}
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Rechnungsadresse
+                            </div>
+                            <div class="panel-body">
+                                {% if object.customer.contact.billing_address.firma %}
+                                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
+                                    {{ object.customer.contact.billing_address.firma }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.billing_address.strasse %}
+                                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                                    {{ object.customer.contact.billing_address.strasse }}
+                                    {% if object.customer.contact.billing_address.hausnummer %}
+                                      {{ object.customer.contact.billing_address.hausnummer|default:"" }}
+                                    {% endif %}
+                                </p>
+                                {% endif %}
+                                {% if object.customer.contact.billing_address.place %}
+                                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                                    {{ object.customer.contact.billing_address.place }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.billing_address.zip %}
+                                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                                    {{ object.customer.contact.billing_address.zip }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.billing_address.adresszusatz %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                                    {{ object.customer.contact.billing_address.adresszusatz }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.billing_address.adresszusatz2 %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                                    {{ object.customer.contact.billing_address.adresszusatz2 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div class="panel-body">
+                {% endif %}
+                {% if object.customer.contact.delivery_address %}
+                    <div class="col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Lieferadresse
+                            </div>
+                            <div class="panel-body">
+                                {% if object.customer.contact.delivery_address.firma %}
                                     <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Firma: </b>
-                            {{ object.customer.contact.delivery_address.firma }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
-                            {{ object.customer.contact.delivery_address.strasse }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
-                            {{ object.customer.contact.delivery_address.place }}</p>
-                        <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
-                            {{ object.customer.contact.delivery_address.zip }}</p>
-                        {% if object.customer.contact.delivery_address.adresszusatz %}
-                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
-                            {{ object.customer.contact.delivery_address.adresszusatz }}</p>
-                        {% endif %}
-                        {% if object.customer.contact.delivery_address.adresszusatz2 %}
-                            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
-                            {{ object.customer.contact.delivery_address.adresszusatz2 }}</p>
-                        {% endif %}
+                                        {{ object.customer.contact.delivery_address.firma }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.delivery_address.strasse %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                                        {{ object.customer.contact.delivery_address.strasse }}
+                                        {% if object.customer.contact.delivery_address.hausnummer %}
+                                          {{ object.customer.contact.delivery_address.hausnummer|default:"" }}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                                {% if object.customer.contact.delivery_address.place %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                                        {{ object.customer.contact.delivery_address.place }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.delivery_address.zip %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                                        {{ object.customer.contact.delivery_address.zip }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.delivery_address.adresszusatz %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                                    {{ object.customer.contact.delivery_address.adresszusatz }}</p>
+                                {% endif %}
+                                {% if object.customer.contact.delivery_address.adresszusatz2 %}
+                                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                                    {{ object.customer.contact.delivery_address.adresszusatz2 }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        <br/>
+                    <br/>
+            {% endif %}
+        {% endif %}
 
-        <div class="col-md-12" style="padding-right:15px;padding-left: 0px;">
+        <div class="col-md-12">
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <div class="thead">

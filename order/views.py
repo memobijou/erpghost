@@ -120,7 +120,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def __init__(self):
         super().__init__()
         self.object = None
-        self.product_forms = []
+        self.product_forms = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Order.objects.get(id=self.kwargs.get("pk"))
@@ -129,14 +129,16 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def get_object(self, *args, **kwargs):
         return self.object
 
-    def get_context_data(self, *args, **kwargs):
+    def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = f"Bestellung {self.object.ordernumber} bearbeiten"
-        context["ManyToManyForms"] = self.build_product_order_forms()
+        context["ManyToManyForms"] = self.build_product_order_forms(context["form"])
         context["detail_url"] = reverse_lazy("order:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
-    def build_product_order_forms(self):
+    def build_product_order_forms(self, main_form):
+        self.product_forms = []
+
         count = 0
         product_orders = self.object.productorder_set.all()
 
@@ -146,22 +148,29 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
                 product_order_form = ProductOrderUpdateForm(data=data)
             else:
                 ean_or_sku, state = self.get_ean_or_sku_and_state(product_order)
+
                 if product_order.product.ean != ean_or_sku:
                     state = None
                 data = {"ean": ean_or_sku, "amount": product_order.amount,
                         "state": state, "netto_price": product_order.netto_price}
                 product_order_form = ProductOrderUpdateForm(data=data)
+
             product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
             self.product_forms.append((product_order_form, product))
             count += 1
 
         if self.request.method == "POST":
             amount_forms = self.get_amount_product_order_forms()
+
             for i in range(count, amount_forms):
                 data = self.get_data_from_post_on_index_x_to_form(i)
                 form = ProductOrderForm(data=data)
                 product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
                 self.product_forms.append((form, product))
+
+            if amount_forms == 0:
+                if main_form.is_valid() is False:
+                    self.product_forms.append((ProductOrderForm(), None))
         else:
             if product_orders.count() == 0:
                 self.product_forms.append((ProductOrderForm(), None))
@@ -222,6 +231,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         self.validate_product_forms_have_no_ean_without_states()
 
         product_forms_are_valid = True
+
         for product_form, product in self.product_forms:
             if product_form.is_valid() is False:
                 product_forms_are_valid = False

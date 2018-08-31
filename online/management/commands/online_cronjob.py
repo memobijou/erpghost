@@ -12,9 +12,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         scheduler = BlockingScheduler()
 
-        @scheduler.scheduled_job('interval', seconds=10)
+        @scheduler.scheduled_job('interval', minutes=1)
         def timed_job():
-            print('This job is run every 3 minutes.')
+            print('This job is run every 1 minutes.')
             mws_task.delay()
 
         scheduler.start()

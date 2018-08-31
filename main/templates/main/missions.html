@@ -3,44 +3,50 @@
         {{ heading_text }}
     </div>
     <div class="panel-body">
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>{{ table_header_text }}</th>
-                        <th>Lieferdatum</th>
-                        <th>Fälligkeit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for mission in missions %}
+        {% if missions.count > 0 %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
                         <tr>
-                            <td>
-                                {{ mission.mission_number }}
-                            </td>
-                            <td>
-                                {{ mission.delivery_date }}
-                            </td>
-                            <td>
-                                {% if mission.difference_delivery_date_today > 0 %}
-                                 <span class="label label-danger">
-                                     {{ mission.difference_delivery_date_today }} Tage
-                                 </span>
-
-                            {% elif mission.difference_delivery_date_today <= 0 %}
-                                 <span class="label label-success">
-                                     {{ mission.difference_delivery_date_today|cut:"-"  }} Tage
-                                 </span>
-                            {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'mission:detail' pk=mission.pk %}">Ansicht</a><br/>
-                                <a href="{% url 'mission:update' pk=mission.pk %}">Bearbeiten</a>
-                            </td>
+                            <th>{{ table_header_text }}</th>
+                            <th>Lieferdatum</th>
+                            <th>Fälligkeit</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for mission in missions %}
+                            <tr>
+                                <td>
+                                    {{ mission.mission_number }}
+                                </td>
+                                <td>
+                                    {{ mission.delivery_date }}
+                                </td>
+                                <td>
+                                    {% if mission.difference_delivery_date_today > 0 %}
+                                     <span class="label label-danger">
+                                         {{ mission.difference_delivery_date_today }} Tage
+                                     </span>
+
+                                {% elif mission.difference_delivery_date_today <= 0 %}
+                                     <span class="label label-success">
+                                         {{ mission.difference_delivery_date_today|cut:"-"  }} Tage
+                                     </span>
+                                {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'mission:detail' pk=mission.pk %}">Ansicht</a><br/>
+                                    <a href="{% url 'mission:update' pk=mission.pk %}">Bearbeiten</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+    {% else %}
+        <div class="text-center">
+            <h3>Keine Aufträge vorhanden</h3>
         </div>
+    {% endif %}
     </div>
 </div>

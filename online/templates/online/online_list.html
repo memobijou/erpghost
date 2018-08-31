@@ -32,28 +32,24 @@
                                 <tbody>
                                     {% for object, billings, delivery_notes in object_list_zip %}
                                         <tr>
-                                            <td class="col-md-1"><a href="{% url 'mission:detail' pk=object.id %}">Ansicht</a>
+                                            <td class="col-md-1"><a href="{% url 'online:detail' pk=object.id %}">Ansicht</a>
                                                 <a href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
                                                 <input type="checkbox" name="item" value="{{object.pk}}">
                                             </td>
                                             <td>{{ object.mission_number }}</td>
                                             <td>{{ object.delivery_date }}</td>
                                             <td>{{ object.status }}</td>
+                                            <td>{{ object.channel.name|default:"" }}
+                                                {% if object.is_amazon_fba == True %}
+                                                    <br/>
+                                                     <span class="label label-default">FBA</span>
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% for partial in object.partial_set.all %}
                                                     {% for delivery in partial.delivery_set.all %}
                                                         {{ delivery.delivery_id }}<br/>
                                                     {% endfor %}
-                                                {% endfor %}
-                                            </td>
-                                            <td>
-                                                {% for billing in billings %}
-                                                    {{ billing }}<br/>
-                                                {% endfor %}
-                                            </td>
-                                            <td>
-                                                {% for delivery_note in delivery_notes %}
-                                                    {{ delivery_note }}<br/>
                                                 {% endfor %}
                                             </td>
                                             <td>
@@ -69,14 +65,14 @@
                                             </td>
                                             <td> {{object.customer|default:""}} </td>
                                             <td> {{object.customer_order_number|default:""}} </td>
-
+                                            <td>{{ object.channel_order_id|default:"" }}</td>
+                                            <td>{{ object.tracking_number|default:"" }}</td>
                                             <td>
                                                 {{ object.productmission_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
                                             </td>
                                             <td>
                                                 {{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
                                             </td>
-                                            <td>{{ object.channel|default:"" }}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>

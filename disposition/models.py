@@ -30,3 +30,18 @@ class TruckAppointment(models.Model):
     arrival_time_end = models.TimeField(null=True, blank=True, verbose_name="Ankunftszeit bis")
 
     employees = models.ManyToManyField("disposition.Employee", blank=True)
+
+
+class TransportService(models.Model):
+    name = models.CharField(null=True, blank=False, max_length=200, verbose_name="Bezeichnung")
+
+
+type_choices = [("national", "Deutschland"), ("foreign_country", "Ausland")]
+
+
+class BusinessAccount(models.Model):
+    username = models.CharField(null=True, blank=True, max_length=200, verbose_name="Benutzername")
+    password_encrypted = models.CharField(null=True, blank=True, max_length=200)
+    transport_service = models.ForeignKey("disposition.TransportService", null=True, blank=True)
+    client = models.ForeignKey("client.Client", null=True, blank=True, verbose_name="Mandant")
+    type = models.CharField(null=True, blank=False, verbose_name="Art", choices=type_choices, max_length=200)

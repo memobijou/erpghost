@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-center">
+                <h2><span style="font-weight: normal;">Transportdienstleister:</span> {{ transport_service.name }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="POST">{% csrf_token %}
+                <div class="col-md-3"></div>
+                <div class="col-md-6">
+                {{ form.as_p }}
+                <div class="text-center">
+                    <input type="submit" value="Speichern" class="btn btn-primary btn-lg"/>
+                </div>
+                </div>
+                <div class="col-md-3"></div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

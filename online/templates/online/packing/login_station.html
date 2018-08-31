@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-md-12">
+                <div class="text-center">
+                    <div class="btn-toolbar" style="display:inline-block;">
+                        {% for packing_station in packing_stations %}
+                            <div class="col-md-4">
+                                <div class="panel panel-default" style="display: inline-block;">
+                                    <div class="panel-body" style="padding:0;">
+                                        <form method="POST" action="?station_pk={{ packing_station.pk }}">{% csrf_token %}
+                                            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;border-radius: 0; !important"
+                                            {% if packing_station.pickorder is None %}
+                                                disabled
+                                            {% endif %}
+                                            >
+                                                {{ packing_station.station_id }}
+                                            </button>
+                                        </form>
+                                    </div>
+                                    <div class="panel-footer">
+                                        {% if packing_station.user is None %}
+                                            <p style="color:green;">FREI</p>
+                                        {% else %}
+                                            <p style="color:red;">{{ packing_station.user }}</p>
+                                        {% endif %}
+
+                                        {% if packing_station.pickorder is None %}
+                                            <p style="color:red;">Kein Pickauftrag auf Station</p>
+                                        {% else %}
+                                            <p style="color:green;">Pickauftrag {{ packing_station.pickorder.pick_order_id }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                <a class="" href="{% url 'online:packing_overview' %}">Zur Übersicht</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if is_all_scanned != True %}
+                <form method="POST">{% csrf_token %}
+                    {{ form.as_p }}
+                </form>
+            {% endif  %}
+
+            {% for pick_row in picklist.picklistproducts_set.all %}
+                <table class="table table-bordered table-hover table-striped">
+                    <tbody>
+                        <tr
+                            {% if pick_row.confirmed == True %}
+                                class="success"
+                            {% elif pick_row.confirmed_amount != None %}
+                                class="warning"
+                            {% endif %}
+                        >
+                            <td>
+                                {% if pick_row.product_mission.product.main_image %}
+                                    <img class="img-responsive" style="max-height: 80px;"
+                                         src="{{ pick_row.product_mission.product.main_image.url }}"/>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <p><b>EAN: </b>{{ pick_row.product_mission.product.ean }}</p>
+                                <p><b>Menge: </b>{{ pick_row.confirmed_amount|default:'0' }}/{{ pick_row.amount }}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endfor %}
+
+            {% if is_all_scanned == True and picklist.completed == None %}
+                <div class="text-center">
+                <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk %}">{% csrf_token %}
+                    <input type="Submit" class="btn btn-primary btn-lg" value="Abschließen"/>
+                </form>
+                </div>
+            {% elif is_all_scanned == True and picklist.completed == True %}
+                <div class="col-md-12" style="padding: 0 0 25px 0;">
+                    <a class="btn btn-info"
+                       href="{% url 'online:delivery_note' pk=picklist.mission_set.first.pk delivery_note_pk=picklist.online_delivery_note.pk %}">
+                        Lieferschein ansehen
+                    </a>
+                    {% if mission.tracking_number is None %}
+                        <a class="btn btn-info" href="{{ label_form_link }}">Label erstellen</a>
+                    {% endif %}
+                </div>
+                {% if mission.tracking_number %}
+                    <div class="col-md-6" style="padding-left: 0px;">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Paketlabel
+                            </div>
+                            <div class="panel-body">
+
+                                    {% if is_delivery_address_national == True %}
+                                        <p>Transportdienstleister: <b>DPD</b></p>
+                                    {% else %}
+                                        <p>Transportdienstleister: <b>DHL</b></p>
+                                    {% endif %}
+
+                                    <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
+
+                                    <div class="text">
+                                        {% if is_delivery_address_national == False %}
+                                        <a class="btn btn-info"
+                                            href="{% url 'online:dhl_get_label' pk=mission.pk shipment_number=mission.tracking_number %}">
+                                            DHL Label ansehen
+                                        </a>
+                                        {% elif is_delivery_address_national == True %}
+                                        <a class="btn btn-info"
+                                            href="{% url 'online:dpd_get_label' pk=mission.pk %}">
+                                            DPD Label ansehen
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                            </div>
+                            {% if is_delivery_address_national == False %}
+                                <div class="panel-footer">
+                                    <div class="text-right">
+                                        <a class="btn btn-danger"
+                                            href="{% url 'online:dhl_delete_label' pk=mission.pk shipment_number=mission.tracking_number %}">
+                                            Label löschen
+                                        </a>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+            {% endif %}
+
+        </div>
+    </div>
+    <style>
+        .errorlist {
+            color:red;
+            padding:0;
+            list-style: none;
+        }
+    </style>
+{% endblock %}

@@ -294,6 +294,11 @@ class MissionConfirmationPdfView(View):
         if self.mission.customer is None or self.mission.customer.contact is None:
             context["message"] = "Sie müssen dem Auftrag einen Kunden zuweisen, um eine PDF zu generieren."
             return render(self.request, template_name, context)
+        if self.mission.customer.contact.delivery_address is None \
+                or self.mission.customer.contact.billing_address is None:
+            context["message"] = "Der Kunde muss eine Lieferadresse und Rechnungsadresse haben," \
+                                 " um eine PDF zu generieren."
+            return render(self.request, template_name, context)
         if self.mission.terms_of_delivery is None or self.mission.terms_of_delivery == "":
             context["message"] = "Sie müssen eine Lieferkondition angeben, um eine PDF zu generieren."
             return render(self.request, template_name, context)

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="POST">{% csrf_token %}
+                <div class="col-md-4"></div>
+                <div class="col-md-4">
+                    {{ form.as_p }}
+                    <div class="text-center">
+                        <input type="Submit" value="Speichern" class="btn btn-lg btn-primary"/>
+                    </div>
+                </div>
+                <div class="col-md-4"></div>
+            </form>
+        </div>
+    </div>
+    <style>
+        .errorlist {
+            color:red;
+            list-style-type: none;
+            padding: 0;
+        }
+    </style>
+{% endblock %}

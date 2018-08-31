@@ -268,22 +268,41 @@ class Stock(models.Model):
 
                     total_amount = 0
 
-                    partial_products = PartialMissionProduct.objects\
-                        .filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)
+                    partial_products = PartialMissionProduct.objects.filter(
+                        product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)
 
                     for partial_product in partial_products:
                         total_amount += partial_product.missing_amount()
 
                     pick_list_total = 0
+                    print(f"sa {sku_string} {sku_state}")
+                    pick_rows = PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                product_mission__state=sku_state).exclude(
+                        pick_list__pick_order__isnull=False)
 
-                    for pick_row in PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
-                                                                    product_mission__state=sku_state):
+                    for pick_row in pick_rows:
                         if pick_row.confirmed is not None and pick_row.confirmed != "":
                             pick_list_total += pick_row.amount_minus_missing_amount()
+                    print(f"?? {pick_list_total}")
+                    print(f"subh assr: {pick_rows} - {pick_list_total}")
+
+                    online_pick_rows = PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
+                                                                       product_mission__state=sku_state,
+                                                                       pick_list__pick_order__isnull=False,
+                                                                       pick_list__completed=None)
+
+                    for online_pick_row in online_pick_rows:
+                        pick_list_total += online_pick_row.amount
+
+                    print(f"!! {total_amount}")
 
                     if total_amount is not None:
                         total_amount -= pick_list_total
-                        available_total[sku_state] = f"{int(total[sku_state])-int(total_amount)}"
+                        if int(total_amount) > 0:
+                            available_total[sku_state] = f"{int(total[sku_state])-int(total_amount)}"
+                        else:
+                            available_total[sku_state] = f"{int(total[sku_state])+int(total_amount)}"
+
 
         available_total_gesamt = 0
         print(f"bandi: {self.states}")
@@ -531,7 +550,7 @@ class Stockdocument(models.Model):
 
 
 class Position(models.Model):
-
+    name = models.CharField(blank=True, null=False, max_length=250, verbose_name="Position")
     prefix = models.CharField(blank=True, null=False, max_length=250, verbose_name="Prefix")
     shelf = models.IntegerField(blank=True, null=False, verbose_name="Regal")
     level = models.IntegerField(blank=True, null=False, verbose_name="Ebene")
@@ -539,6 +558,13 @@ class Position(models.Model):
 
     def __str__(self):
         return self.position
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.name is None or self.name == "":
+            self.name = self.position
+        super().save()
 
     @property
     def position(self):

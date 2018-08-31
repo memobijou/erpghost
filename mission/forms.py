@@ -86,11 +86,11 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
         super().__init__(**kwargs)
 
     def clean_amount(self):
-
+        data = self.cleaned_data.get("amount")
         sum_all_amounts = 0
 
         if self.product_mission is None:
-            return
+            return data
 
         for goods_issue_delivery_mission_product in PartialMissionProduct.objects.\
                 filter(product_mission=self.product_mission):
@@ -100,6 +100,7 @@ class ProductMissionUpdateForm(CommonProductMissionForm):
         if self.cleaned_data.get('amount') < sum_all_amounts:
             self.data["amount"] = self.product_mission.amount
             raise forms.ValidationError(f"Die Menge darf nicht kleiner als {sum_all_amounts} sein.")
+        return data
 
 DATE_INPUT_FORMATS = ['%d/%m/%Y', "%d.%m.%Y"]
 
@@ -128,7 +129,6 @@ class DeliveryForm(forms.Form):
                 visible.field.widget.attrs["readonly"] = ""
                 visible.field.widget.attrs["style"] = "background-color:white;"
                 visible.field.widget.attrs["placeholder"] = "Falls abweichend von Auftragslieferdatum"
-
 
 
 class PickForm(forms.Form):

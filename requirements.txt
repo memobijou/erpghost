@@ -51,6 +51,7 @@ prompt-toolkit==1.0.15
 psycopg2==2.7.3.2
 ptyprocess==0.5.2
 py==1.5.2
+pycountry==18.5.26
 pyexcel==0.5.7
 pyexcel-io==0.5.6
 pyexcel-xls==0.5.5

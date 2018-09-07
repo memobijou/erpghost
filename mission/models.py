@@ -32,6 +32,8 @@ online_shipping_choices = (
 class Mission(models.Model):
     mission_number = models.CharField(max_length=200, blank=True, verbose_name="Auftragsnummer")
     delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
+    delivery_date_from = models.DateField(null=True, blank=True, verbose_name="Lieferdatum von")
+    delivery_date_to = models.DateField(null=True, blank=True, verbose_name="Lieferdatum bis")
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
     channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
     products = models.ManyToManyField(Product, through="ProductMission")

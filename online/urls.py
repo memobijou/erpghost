@@ -1,7 +1,7 @@
 from django.conf.urls import url
 
 from online.delivery_note import OnlineDeliveryNoteView
-from online.ebay_test import EbayTestView
+from online.ebay import EbayView
 from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromStationToPackingView, PackingView, \
     FinishPackingView, LoginToStationView, LogoutFromStationView, PackingPickOrderOverview
 from .views import OnlineListView, OnlineDetailView
@@ -29,6 +29,6 @@ urlpatterns = [
         name="delivery_note"),
     url(r'^login_station/$', LoginToStationView.as_view(), name="login_station"),
     url(r'^logout_from_station/(?P<pk>\d+)/$', LogoutFromStationView.as_view(), name="logout_from_station"),
-    url(r'^ebay_test/$', EbayTestView.as_view(), name="ebay_test"),
+    url(r'^ebay_test/$', EbayView.as_view(), name="ebay_test"),
 
 ]

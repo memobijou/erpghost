@@ -65,5 +65,5 @@ class ApiData(models.Model):
     client_secret = models.CharField(max_length=400, null=True, blank=True, verbose_name="Client Secret")
     authentication_token = models.CharField(max_length=400, null=True, blank=True,
                                             verbose_name="Authentifizierungstoken")
-    access_token = models.CharField(max_length=400, null=True, blank=True, verbose_name="Zugriffstoken")
-    refresh_token = models.CharField(max_length=400, null=True, blank=True, verbose_name="Aktualisierungstoken")
+    access_token = models.CharField(max_length=4000, null=True, blank=True, verbose_name="Zugriffstoken")
+    refresh_token = models.CharField(max_length=4000, null=True, blank=True, verbose_name="Aktualisierungstoken")

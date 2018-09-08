@@ -84,7 +84,6 @@ class DHLLabelCreator:
 
     def create_label_through_dhl_api(self):
         doc = self.get_xml_request_file()
-
         base_string = base64.b64encode(str.encode(f"{self.developer_id}:{self.password}")).decode()
         headers = {"Authorization": f"Basic {base_string}"}
         print(doc)

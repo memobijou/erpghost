@@ -71,10 +71,10 @@ class OnlineListView(generic.ListView):
                                                      "billing_number", "shipping", "delivery_address_id",
                                                      "shipping_costs", "shipping_number_of_pieces", "confirmed",
                                                      "is_amazon_fba", "label_pdf", "online_picklist_id",
-                                                     "purchased_date", "shipped"])
+                                                     "purchased_date", "shipped", "delivery_date_to",
+                                                     "delivery_date_from"])
 
-        fields.insert(4, "Lieferung")
-        fields.insert(5, "Fälligkeit")
+        fields.insert(4, "Fälligkeit")
 
         fields.insert(len(fields), "Gesamt (Netto)")
         fields.insert(len(fields), "Gesamt (Brutto)")

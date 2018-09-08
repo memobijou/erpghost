@@ -62,6 +62,7 @@ class AcceptOnlinePickList(generic.CreateView):
             picklist_instance = PickList.objects.create(pick_order=self.pickorder)
             mission.online_picklist = picklist_instance
             mission.save()
+
             for pick_row in pick_rows:
                 pick_row_instance = PickListProducts.objects.create(
                     pick_list=picklist_instance, amount=pick_row.get("amount"), position=pick_row.get("position"),
@@ -76,6 +77,7 @@ class AcceptOnlinePickList(generic.CreateView):
             for mission_product in mission.productmission_set.all():
                 picklist_stocks = []
                 total = 0
+
                 for stock in self.stocks:
                     if mission_product.product.ean == stock.product.ean:
                         if stock in self.used_stocks:

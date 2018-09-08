@@ -46,13 +46,6 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {% for partial in object.partial_set.all %}
-                                                    {% for delivery in partial.delivery_set.all %}
-                                                        {{ delivery.delivery_id }}<br/>
-                                                    {% endfor %}
-                                                {% endfor %}
-                                            </td>
-                                            <td>
                                                 {% if object.difference_delivery_date_today > 0 %}
                                                      <span class="label label-danger">
                                                          {{ object.difference_delivery_date_today }} Tage

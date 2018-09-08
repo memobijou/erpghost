@@ -176,11 +176,16 @@ class PickOrderView(generic.UpdateView):
         self.picklists = list(self.pickorder.picklist_set.all().values_list("pk", flat=True))
         self.picked_rows = PickListProducts.objects.filter(
             Q(Q(pick_list__in=self.picklists)))
-        self.object = self.picked_rows.filter(Q(Q(picked=None) | Q(picked=False))).first()
         print(f"wie: {self.picked_rows}")
         self.order_picked_rows_by_position()
+        self.object = self.picked_rows.filter(Q(Q(picked=None) | Q(picked=False))).first()
         self.packing_stations = PackingStation.objects.all()
         return super().dispatch(request, *args, **kwargs)
+
+    def get_to_pick_object(self):
+        for pick_row in self.picked_rows:
+            if pick_row.picked is None or pick_row.picked is False:
+                return pick_row
 
     def order_picked_rows_by_position(self):
         positions = []

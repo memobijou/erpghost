@@ -35,7 +35,8 @@ def decrypt_encrypted_string(encrypted_string):
 @shared_task
 def online_task():
     # save_amazon_orders()
-    save_ebay_orders()
+    # save_ebay_orders()
+    print("ONLINE CRONJOB AMAZON EBAY")
 
 
 def save_amazon_orders():

@@ -38,15 +38,23 @@
                 </table>
 
             {% endif %}
+            {% if not picked_picklists %}
+                <div class="text-center">
+                    <h3>Es wurde noch kein einziger Auftrag verpackt</h3>
+                    <a href="{% url 'online:login_station' %}" class="btn btn-info btn-lg">Zum Packauftrag</a>
+                </div>
+            {% endif %}
         </div>
     </div>
-    <div class="panel panel-default">
-        <div class="panel-body">
-            <div class="text-center">
-                <form method="POST" action="?finish=1">{% csrf_token %}
-                    <button type="Submit" class="btn btn-primary btn-lg">Pickauftrag abschließen</button>
-                </form>
+    {% if can_finish_pickorder is True %}
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="text-center">
+                    <form method="POST" action="?finish=1">{% csrf_token %}
+                        <button type="Submit" class="btn btn-primary btn-lg">Pickauftrag abschließen</button>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
+    {% endif %}
 {% endblock %}

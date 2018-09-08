@@ -21,13 +21,6 @@ class DHLCreatePdfView(UpdateView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.user_id = "2222222222_01"
-        self.user_signature = "pass"
-        self.account_number = "22222222225301"
-        self.return_shipment_account_number = "22222222220701"
-        self.developer_id = os.environ.get("DHL_DEVELOPER_ID")
-        self.password = os.environ.get("DHL_PASSWORD")
-        self.url = "https://cig.dhl.de/services/sandbox/soap"
         self.client = None
         self.mission = None
 
@@ -56,8 +49,9 @@ class DHLCreatePdfView(UpdateView):
         postal_code = form.cleaned_data.get("zip")
         place = form.cleaned_data.get("place")
         country_code = self.mission.delivery_address.country_code
-        dhl_label, errors = self.create_label_through_dhl_api(package_weight, name, street, street_number, postal_code,
-                                                              place, country_code)
+        dhl_label_creator = DHLLabelCreator(self.mission, self.client)
+        dhl_label, errors = dhl_label_creator.create_label(package_weight, name, street, street_number, postal_code,
+                                                           place, country_code)
         if errors is not None:
             for error in errors:
                 form.add_error(None, error)
@@ -65,8 +59,31 @@ class DHLCreatePdfView(UpdateView):
         # self.mission.tracking_number = dhl_label
         return super().form_valid(form)
 
-    def create_label_through_dhl_api(self, package_weight, name_1, street, street_number, postal_code, place, country_code):
-        doc = self.get_xml_request_file(package_weight, name_1, street, street_number, postal_code, place, country_code)
+
+class DHLLabelCreator:
+    def __init__(self, mission, client):
+        super().__init__()
+        self.user_id = "2222222222_01"
+        self.user_signature = "pass"
+        self.account_number = "22222222225301"
+        self.return_shipment_account_number = "22222222220701"
+        self.developer_id = os.environ.get("DHL_DEVELOPER_ID")
+        self.password = os.environ.get("DHL_PASSWORD")
+        self.url = "https://cig.dhl.de/services/sandbox/soap"
+        self.mission = mission
+        self.client = client
+        self.package_weight, self.name_1, self.street, self.street_number = None, None, None, None
+        self.postal_code, self.place, self.country_code = None, None, None
+
+    def create_label(self, package_weight, name_1, street, street_number, postal_code, place, country_code):
+        self.package_weight, self.name_1, self.street = package_weight, name_1, street
+        self.street_number, self.postal_code, self.place = street_number, postal_code, place
+        self.country_code = country_code
+        self.package_weight = package_weight
+        return self.create_label_through_dhl_api()
+
+    def create_label_through_dhl_api(self):
+        doc = self.get_xml_request_file()
 
         base_string = base64.b64encode(str.encode(f"{self.developer_id}:{self.password}")).decode()
         headers = {"Authorization": f"Basic {base_string}"}
@@ -103,7 +120,7 @@ class DHLCreatePdfView(UpdateView):
                     errors.append(el.text)
             return None, errors
 
-    def get_xml_request_file(self, package_weight, name_1, street, street_number, postal_code, place, country_code):
+    def get_xml_request_file(self):
         doc = f'''
 <?xml version="1.0" encoding="Iso-8859-1" standalone="no"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cis="http://dhl.de/webservice/cisbase" xmlns:bus="http://dhl.de/webservices/businesscustomershipping">
@@ -130,13 +147,13 @@ class DHLCreatePdfView(UpdateView):
                   <cis:accountNumber>{self.account_number}</cis:accountNumber>
                   <!--Optional:-->
                   <customerReference>Sendungsreferenz</customerReference>
-                  <shipmentDate>2018-09-04</shipmentDate>
+                  <shipmentDate>2018-09-30</shipmentDate>
                   <!--Optional:-->
                   <returnShipmentAccountNumber>{self.return_shipment_account_number}</returnShipmentAccountNumber>
                   <!--Optional:-->
                   <returnShipmentReference>Retouren-Sendungsreferenz</returnShipmentReference>
                   <ShipmentItem>
-                     <weightInKG>{package_weight}</weightInKG>
+                     <weightInKG>{self.package_weight}</weightInKG>
                   </ShipmentItem>
                   <!--Optional:-->
                   <Service>
@@ -210,26 +227,26 @@ class DHLCreatePdfView(UpdateView):
                   </Communication>
                </Shipper>
                <Receiver>
-                  <cis:name1>{name_1}</cis:name1>
+                  <cis:name1>{self.name_1}</cis:name1>
                   <!--You have a CHOICE of the next 4 items at this level-->
                   <Address>
                      <!--Optional:-->
                      <cis:name2/>
                      <!--Optional:-->
                      <cis:name3/>
-                     <cis:streetName>{street}</cis:streetName>
-                     <cis:streetNumber>{street_number}</cis:streetNumber>
+                     <cis:streetName>{self.street}</cis:streetName>
+                     <cis:streetNumber>{self.street_number}</cis:streetNumber>
                      <!--0 to 2 repetitions:-->
                      <cis:addressAddition></cis:addressAddition>
                      <!--Optional:-->
                      <cis:dispatchingInformation>?</cis:dispatchingInformation>
-                     <cis:zip>{postal_code}</cis:zip>
-                     <cis:city>{place}</cis:city>
+                     <cis:zip>{self.postal_code}</cis:zip>
+                     <cis:city>{self.place}</cis:city>
                      <!--Optional:-->
                      <cis:Origin>
                         <!--Optional:-->
                         <!--Optional:-->
-                        <cis:countryISOCode>{country_code}</cis:countryISOCode>
+                        <cis:countryISOCode>{self.country_code}</cis:countryISOCode>
                         <!--Optional:-->
                         <cis:state>?</cis:state>
                      </cis:Origin>

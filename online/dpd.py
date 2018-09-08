@@ -46,10 +46,6 @@ class DPDPDFView(UpdateView):
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
         self.client = Client.objects.get(pk=self.request.session.get("client"))
-        self.transport_account = BusinessAccount.objects.get(pk=self.kwargs.get("business_account_pk"))
-        self.username = self.transport_account.username
-        self.password = decrypt_encrypted_string(self.transport_account.password_encrypted).decode("ISO-8859-1")
-        print(self.password)
         print(f"{self.mission} --- {self.client}")
         return super().dispatch(request, *args, **kwargs)
 
@@ -70,7 +66,8 @@ class DPDPDFView(UpdateView):
     #     return response
 
     def form_valid(self, form, **kwargs):
-        parcel_label_number = self.create_label_through_dpd_api()
+        dpd_label_creator = DPDLabelCreator(self.mission, self.client)
+        parcel_label_number = dpd_label_creator.create_label()
         # if errors is not None:
         #     for error in errors:
         #         form.add_error(None, error)
@@ -79,6 +76,28 @@ class DPDPDFView(UpdateView):
         self.mission.tracking_number = parcel_label_number
         self.mission.save()
         return super().form_valid(form)
+
+
+class DPDLabelCreator:
+    def __init__(self, mission, client):
+        super().__init__()
+        self.transport_account = None
+        self.username, self.password = None, None
+        self.headers = {"Content-Type": "application/soap+xml; charset=UTF-8"}
+        self.login_service_url = "https://public-ws-stage.dpd.com/services/LoginService/V2_0/"
+        self.shipment_service_url = "https://public-ws-stage.dpd.com/services/ShipmentService/V3_2/"
+        self.token = None
+        self.client, self.mission = client, mission
+        self.transport_account = BusinessAccount.objects.filter(client=self.client,
+                                                                transport_service__name__iexact="DPD").first()
+        self.username = self.transport_account.username
+        self.password = decrypt_encrypted_string(self.transport_account.password_encrypted).decode("ISO-8859-1")
+
+    def create_label(self):
+        parcel_label_number = self.create_label_through_dpd_api()
+        self.mission.tracking_number = parcel_label_number
+        self.mission.save()
+        return parcel_label_number
 
     def create_label_through_dpd_api(self):
         self.get_authentication_token_from_dpd_api()
@@ -188,20 +207,12 @@ class DPDPDFView(UpdateView):
 
 class DPDGetLabelView(views.View):
     def __init__(self, **kwargs):
-        self.username = "sandboxdpd"
-        self.password = "xMmshh1"
-        self.headers = {"Content-Type": "application/soap+xml; charset=UTF-8"}
-        self.login_service_url = "https://public-ws-stage.dpd.com/services/LoginService/V2_0/"
-        self.shipment_service_url = "https://public-ws-stage.dpd.com/services/ShipmentService/V3_2/"
-        self.token = None
         self.client = None
         self.mission = None
         super().__init__(**kwargs)
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
-        self.client = Client.objects.get(pk=self.request.session.get("client"))
-        print(f"{self.mission} --- {self.client}")
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):

@@ -237,7 +237,6 @@ class OrderMws:
         # restlich werte aus json in Adresse speichern
         if shipping_address is not None:
             shipping_address_components = self.get_street_and_housenumber_from_shipping_address(shipping_address)
-            address_components_from_google = None
 
             city_and_postal_code_have_changed = (mission_instance.delivery_address is not None
                                                  and mission_instance.delivery_address.place is not None
@@ -251,31 +250,13 @@ class OrderMws:
                                             and (mission_instance.delivery_address.place is None
                                                  or mission_instance.delivery_address.zip is None))
 
-            if (mission_instance.delivery_address is None) or (city_and_postal_code_have_changed is True):
-                address_components_from_google = self.get_address_components_from_google_api(shipping_address)
-
-            street_number, street, street_and_housenumber = None, None, None
             street_and_housenumber = shipping_address_components.get("street_and_housenumber")
 
-            if address_components_from_google is not None:
-                street = address_components_from_google.get("route")
-                street_number = address_components_from_google.get("street_number")
-                city = address_components_from_google.get("city")
-                postal_code = address_components_from_google.get("postal_code")
-
-                if city is None:
-                    city = shipping_address.get("City")
-
-                if postal_code is None:
-                    postal_code = shipping_address.get("PostalCode")
-            else:
-                city = shipping_address.get("City")
-                postal_code = shipping_address.get("PostalCode")
+            city = shipping_address.get("City")
+            postal_code = shipping_address.get("PostalCode")
 
             if mission_instance.delivery_address is None:
                 shipping_address_instance = Adress(first_name_last_name=shipping_address.get("Name"),
-                                                   strasse=street,
-                                                   hausnummer=street_number,
                                                    street_and_housenumber=street_and_housenumber,
                                                    adresszusatz=None,
                                                    adresszusatz2=None,
@@ -287,8 +268,6 @@ class OrderMws:
             else:
                 if city_and_postal_code_have_changed is True or postal_code_or_place_is_none:
                     mission_instance.delivery_address.first_name_last_name = shipping_address.get("Name")
-                    mission_instance.delivery_address.strasse = street
-                    mission_instance.delivery_address.hausnummer = street_number
                     mission_instance.delivery_address.street_and_housenumber = street_and_housenumber
                     mission_instance.delivery_address.adresszusatz = None
                     mission_instance.delivery_address.adresszusatz2 = None
@@ -296,7 +275,6 @@ class OrderMws:
                     mission_instance.delivery_address.zip = postal_code
                     mission_instance.delivery_address.country_code = shipping_address.get("CountryCode")
                     mission_instance.delivery_address.save()
-
         return mission_instance.delivery_address
 
     def get_street_and_housenumber_from_shipping_address(self, shipping_address):
@@ -311,79 +289,6 @@ class OrderMws:
             street_components["street_and_housenumber"] = shipping_address.get("AddressLine2")
 
         return street_components
-
-    def get_address_components_from_google_api(self, shipping_address):
-        street_components = self.get_street_and_housenumber_from_shipping_address(shipping_address)
-
-        city = shipping_address.get("City")
-        postal_code = shipping_address.get("PostalCode")
-
-        place_id = self.get_place_id_from_google_maps(street_components["street_and_housenumber"], city, postal_code)
-        if place_id is None:
-            return
-
-        place_details = self.get_place_details_from_google_maps(place_id)
-
-        if place_details is not None:
-            return place_details
-
-        # Checken ob Addresslinie 1 und 2 vorhanden, wenn ja dann, Company -> Adresse
-        # Checken ob nur Addressline 1, wenn ja dann, Adresse
-        # Checken ob nur Addressline 2, wenn ja dann, Adresse
-
-        return
-
-    def get_place_id_from_google_maps(self, street_and_housenumber, city, postal_code):
-        google_maps_input = f"{street_and_housenumber} {city} {postal_code}"
-        google_maps_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-        query_string = f"?key={os.environ.get('GOOGLE_MAPS_KEY')}&inputtype=textquery&input={google_maps_input}"
-        google_maps_url += query_string
-        print(f"blablabla: {google_maps_url}")
-        response = requests.get(google_maps_url)
-        json_data = json.loads(response.text)
-
-        if json_data["status"] == "ZERO_RESULTS":
-            return
-
-        if json_data["status"] == "OVER_QUERY_LIMIT":
-            return
-
-        print(json_data)
-        candidates = json_data["candidates"]
-        for candidate in candidates:
-            print(f"{candidate}")
-            place_id = candidate["place_id"]
-            print(f"{place_id}")
-            return place_id
-
-    def get_place_details_from_google_maps(self, place_id):
-        google_maps_url = "https://maps.googleapis.com/maps/api/place/details/json"
-        query_string = f"?key={os.environ.get('GOOGLE_MAPS_KEY')}&placeid={place_id}"
-        google_maps_url += query_string
-        response = requests.get(google_maps_url)
-        json_data = json.loads(response.text)
-
-        if json_data["status"] == "ZERO_RESULTS":
-            return
-
-        if json_data["status"] == "OVER_QUERY_LIMIT":
-            return
-
-        result = json_data["result"]
-        address_components = result["address_components"]
-        street_number, route, city, postal_code = "", "", "", ""
-        for address_component in address_components:
-            if "street_number" in address_component.get("types"):
-                street_number = address_component.get("long_name")
-            if "route" in address_component.get("types"):
-                route = address_component.get("long_name")
-            if "locality" in address_component.get("types") and "political" in address_component.get("types"):
-                city = address_component.get("long_name")
-            if "postal_code" in address_component.get("types"):
-                postal_code = address_component.get("long_name")
-        print(f"FRONTEND: {route} {street_number} {postal_code} {city}")
-        print(f"baduni {json_data}")
-        return {"route": route, "street_number": street_number, "city": city, "postal_code": postal_code}
 
     def add_product_items_from_order_to_mission_instance(self, order, mission_instance):
         order_products = order.get("products")

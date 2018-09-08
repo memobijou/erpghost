@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                <a class="btn btn-info" href="{% url 'client:create' %}">Mandanten anlegen</a>
+            </div>
+        </div>
+    </div>
+
+    {% include 'snippets/paginate_by.html' %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Rechnungsadresse</th>
+                        <th>Lieferadresse</th>
+                        <th>API-Konten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for object in object_list %}
+                        <tr>
+                            <td class="col-md-1"><a href="{% url 'client:update' pk=object.pk %}">Bearbeiten</a></td>
+                            <td class="col-md-1">{{ object.name }}</td>
+                            <td class="col-md-2">
+                                {{ object.get_billing_address_as_html|safe }}
+                            </td>
+                            <td class="col-md-2">
+                                {{ object.get_delivery_address_as_html|safe }}
+                            </td>
+                            <td>
+                                {% for api_data in object.apidata_set.all %}
+                                    <p>
+                                        {{ api_data.name }}&nbsp;
+                                        <a href="{% url 'client:apidata_update' pk=api_data.pk %}"
+                                       class="glyphicon glyphicon-pencil"></a>
+                                    </p>
+                                {% endfor %}
+                                {% if object.apidata_set.all %}
+                                    <a class="btn btn-info"
+                                       href="{% url 'client:apidata_create' client_pk=object.pk %}">
+                                        Weiteren API-Zugang anlegen</a>
+                                    <br/>
+                                    <br/>
+                                {% else %}
+                                    <br/>
+                                    <a class="btn btn-info"
+                                       href="{% url 'client:apidata_create' client_pk=object.pk %}">
+                                        Neuen API-Zugang anlegen</a>
+                                    <br/><br/>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% include 'snippets/paginate_by.html' %}
+
+{% endblock %}

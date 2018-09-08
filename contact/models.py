@@ -9,6 +9,7 @@ class Bank(models.Model):
 
 
 class Contact(models.Model):
+    first_name_last_name = models.CharField(blank=True, null=True, max_length=200, verbose_name="Name")
     telefon = models.CharField(blank=True, null=True, max_length=200, verbose_name="Telefon")
     fax = models.CharField(blank=True, null=True, max_length=200, verbose_name="Fax")
     email = models.CharField(blank=True, null=True, max_length=200, verbose_name="Email")

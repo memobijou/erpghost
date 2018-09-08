@@ -1,70 +1,3 @@
-<div class="panel panel-default">
-    <form method="POST">{% csrf_token %}
-        <div class="panel-body">
-            <div class="pull-right">
-                <p><a href="{{ detail_url }}">Zur Ansicht</a></p>
-            </div>
-            <div class="col-md-8">
-                {{ form.as_p }}
-                {% if duplicates %}
-                    <h3 style="color:red;">Folgende EANs sind doppelt eingetragen:</h3>
-                        {% for duplicate in duplicates %}
-                            <p style="color:red;">&nbsp;&nbsp;&nbsp;&nbsp;{{ duplicate }}</p>
-                        {% endfor %}
-                {% endif %}
-                <span class="glyphicon glyphicon-plus" style="cursor:pointer;" id="add_row_btn"></span><br/><br/>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>EAN / SKU</th>
-                            <th>Zustand</th>
-                            <th>Menge</th>
-                            <th>Einzelpreis(Netto)</th>
-                            <th>Löschen</th>
-                        </tr>
-                    </thead>
-                    <tbody id="entries_table">
-                            {% for many_to_many_form, product in ManyToManyForms %}
-                                <tr class="entry_row">
-                                    {% for field in many_to_many_form %}
-                                        {% if field.name != "delete" %}
-                                            <td>
-                                                <div class="form-group">
-                                                    {% for field_error in field.errors %}
-                                                        <p style="color:red;" class="error">{{ field_error }}</p>
-                                                    {% endfor %}
-                                                    {{ field }}
-                                                    {% if field.help_text %}
-                                                        <p class="help">{{ field.help_text|safe }}</p>
-                                                    {% endif %}
-                                                </div>
-                                            </td>
-                                        {% endif %}
-                                    {% endfor %}
-                                    <td>
-                                        {% if many_to_many_form.delete %}
-                                            <div class="checkbox" style="cursor: pointer;">
-                                              <label><input type="checkbox" value="" class="delete_checkbox">
-                                                  Löschen
-                                              </label>
-                                              {{ many_to_many_form.delete }}
-                                            </div>
-                                        {% else %}
-                                            <span class="glyphicon glyphicon-trash delete_trash" style="cursor: pointer;
-                                             color: red; font-size: 15px;"></span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                    </tbody>
-                </table>
-                <br/><br/><input type="submit" value="Speichern" class="btn btn-primary btn-lg" id="main_form_submit_btn">
-            </div>
-            <div class="col-md-4" id="product_content">
-            </div>
-        </div>
-    </form>
-</div>
 <script>
     var main_form_submit_btn = document.getElementById("main_form_submit_btn");
     var ean_elements = document.getElementsByName("ean");
@@ -173,11 +106,14 @@
 
     var sample_row = document.getElementsByClassName("entry_row")[0];
     var tbody = document.getElementById("entries_table");
+    var thead = document.getElementById("product_table_head");
+    var add_row_btn = document.getElementById("add_row_btn");
 
     var add_new_row_on_plus_click = function(){
-        var add_row_btn = document.getElementById("add_row_btn");
 
         add_row_btn.onclick = function(){
+            thead.style.display = "";
+
             var table_row_clone = sample_row.cloneNode(true);
             var table_row_clone_inputs = table_row_clone.getElementsByTagName("input");
             var select_fields = table_row_clone.getElementsByTagName("select");
@@ -243,6 +179,11 @@
 
     var delete_row_on_click = function(to_delete_row, click_element){
         click_element.onclick = function () {
+            var amount_rows = to_delete_row.parentElement.getElementsByTagName("tr").length;
+
+            if(amount_rows == 1){
+                thead.style.display = "none";
+            }
             to_delete_row.parentElement.removeChild(to_delete_row);
         };
     };
@@ -262,11 +203,30 @@
         var table_rows = document.getElementsByClassName("entry_row");
 
         if(table_rows.length == 1){
-            {% if object.productmission_set.all.count == 0 %}
-                for(var i = 0; i<table_rows.length; i++){
-                    var table_row = table_rows[i];
-                    table_row.parentElement.removeChild(table_row);
-                }
+            {% if object.productorder_set != None  %}
+                {% if object.productorder_set.all.count == 0 and ManyToManyForms|length == 1 %}
+                    {% if ManyToManyForms.0.1 == None %}
+
+                        for(var i = 0; i<table_rows.length; i++){
+                            var table_row = table_rows[i];
+                            table_row.parentElement.removeChild(table_row);
+                        }
+
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+
+            {% if object.productmission_set != None  %}
+                {% if object.productmission_set.all.count == 0 and ManyToManyForms|length == 1 %}
+                    {% if ManyToManyForms.0.1 == None %}
+
+                        for(var i = 0; i<table_rows.length; i++){
+                            var table_row = table_rows[i];
+                            table_row.parentElement.removeChild(table_row);
+                        }
+
+                    {% endif %}
+                {% endif %}
             {% endif %}
         }
 

@@ -1,0 +1,77 @@
+{% load utils %}
+
+<div class="col-md-12">
+    <a class="pull-right" style="padding-left:30px;" href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
+</div>
+
+<div class="col-md-12">
+    <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
+    <p style="font-size:15px;"><b>Liefertermin: </b>{{ object.delivery_date }}</p>
+    <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
+</div>
+
+{% include "online/detail/delivery_address.html" %}
+
+{% if object.tracking_number %}
+    <div class="col-md-6" style="padding-left: 0px;">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                Paketlabel
+            </div>
+            <div class="panel-body">
+
+                    {% if is_delivery_address_national == True %}
+                        <p>Transportdienstleister: <b>DPD</b></p>
+                    {% else %}
+                        <p>Transportdienstleister: <b>DHL</b></p>
+                    {% endif %}
+
+                    <p style="font-size:15px;">Tracking Nummer: <b>{{object.tracking_number}}</b></p>
+
+                    <div class="text">
+                        {% if is_delivery_address_national == False %}
+                        <a class="btn btn-info"
+                            href="{% url 'online:dhl_get_label' pk=object.pk shipment_number=object.tracking_number %}">
+                            DHL Label ansehen
+                        </a>
+                        {% elif is_delivery_address_national == True %}
+                        <a class="btn btn-info"
+                            href="{% url 'online:dpd_get_label' pk=object.pk %}">
+                            DPD Label ansehen
+                        </a>
+                        {% endif %}
+                    </div>
+            </div>
+            {% if is_delivery_address_national == False %}
+                <div class="panel-footer">
+                    <div class="text-right">
+                        <a class="btn btn-danger"
+                            href="{% url 'online:dhl_delete_label' pk=object.pk shipment_number=object.tracking_number %}">
+                            Label löschen
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+{% include "online/detail/mission_products_fba.html" %}
+
+{% if object.tracking_number is None %}
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="text-center">
+                    <a class="btn btn-info" href="{{ label_form_link }}">Label erstellen</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<style>
+    th, td {
+        vertical-align: top !important;
+    }
+</style>

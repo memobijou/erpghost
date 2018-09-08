@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% load utils %}
+
+{% block content %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if object.is_amazon_fba == True %}
+                {% include "online/detail/fba_detail.html" %}
+            {% else %}
+                {% include "online/detail/seller_detail.html" %}
+            {% endif %}
+        </div>
+    </div>
+
+    <style>
+        th, td {
+            vertical-align: top !important;
+        }
+    </style>
+{% endblock %}
+
+
+

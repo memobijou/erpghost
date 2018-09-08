@@ -11,41 +11,61 @@
         <div class="collapse navbar-collapse" id="myNavbar">
             <ul class="nav navbar-nav">
                 <li><a href="{% url 'product:list' %}" style="color:black;">Artikel</a></li>
-                <li><a href="{% url 'order:list' %}" style="color:black;">Bestellung</a></li>
-                <li><a href="{% url 'mission:list' %}" style="color:black;">Auftrag</a></li>
-                <li><a href="{% url 'stock:list' %}" style="color:black">Lagerbestand</a></li>
-                <li><a href="{% url 'supplier:list' %}" style="color:black">Lieferanten</a></li>
-                <li><a href="{% url 'customer:list' %}" style="color:black">Kunden</a></li>
-                <li><a href="{% url 'stock:position_list' %}" style="color:black">Lagerplätze</a></li>
-
                 <li class="dropdown">
-                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Disposition
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Lager
                     <span class="caret"></span></a>
                     <ul class="dropdown-menu">
-                      <li><a href="{% url 'disposition:calendar' %}">Kalendar</a></li>
-                      <li><a href="{% url 'disposition:truck_list' %}">Verwaltung</a></li>
-                      <li><a href="{% url 'disposition:employee_list' %}">Mitarbeiter</a></li>
-                    </ul>
-                </li>
-                <li class="dropdown">
-                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Warenausgang
-                    <span class="caret"></span></a>
-                    <ul class="dropdown-menu">
-                      <li><a href="{% url 'mission:pickorder_list' %}">Pickaufträge</a></li>
-                      <li><a href="{% url 'mission:packingorder_list' %}">Verpackeraufträge</a></li>
-
-                    </ul>
-                </li>
-                <li class="dropdown">
-                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Wareneingang
-                    <span class="caret"></span></a>
-                    <ul class="dropdown-menu">
-                        <li><a href="{% url 'order:goods_receipt_list' %}">Wareneingänge</a></li>
+                        <li><a href="{% url 'stock:list' %}" style="color:black">Lagerbestand</a></li>
+                        <li><a href="{% url 'stock:position_list' %}" style="color:black">Lagerpositionen</a></li>
                     </ul>
                 </li>
 
-                <li><a href="{% url 'online:list' %}" style="color:black;">Onlinehandel</a></li>
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Großhandel
+                    <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <div class="dropdown-header">Warenausgang</div>
+                        <li><a href="{% url 'mission:list' %}" style="color:black;">Auftrag</a></li>
+                        <li><a href="{% url 'mission:pickorder_list' %}" style="color:black;">Pickauftrag</a></li>
+                        <li><a href="{% url 'mission:packingorder_list' %}" style="color:black;">Verpackerauftrag</a></li>
+                        <li><a href="{% url 'customer:list' %}" style="color:black;">Kunden</a></li>
+                        <li class="divider"></li>
+                        <div class="dropdown-header">Wareneingang</div>
+                        <li><a href="{% url 'order:list' %}" style="color:black;">Bestellung</a></li>
+                        <li><a href="{% url 'order:goods_receipt_list' %}" style="color:black;">Scan</a></li>
+                        <li><a href="{% url 'supplier:list' %}" style="color:black;">Lieferanten</a></li>
+                        <li class="divider"></li>
+                        <div class="dropdown-header">Disposition</div>
+                        <li><a href="{% url 'disposition:calendar' %}" style="color:black;">Kalendar</a></li>
+                        <li><a href="{% url 'disposition:truck_list' %}" style="color:black;">Verwaltung</a></li>
+                        <li><a href="{% url 'disposition:employee_list' %}" style="color:black;">Mitarbeiter</a></li>
+                    </ul>
+                </li>
+                </li>
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Onlinehandel
+                    <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'online:list' %}" style="color:black">Auftrag</a></li>
+                        <li class="divider"></li>
+                        <div class="dropdown-header">Pickerauftrag</div>
+                        <li><a href="{% url 'online:pickorder' %}" style="color:black">Picken</a></li>
+                        <li><a href="{% url 'online:login_station' %}" style="color:black">Station</a></li>
+                    </ul>
+                </li>
 
+                <li class="dropdown">
+                    <a class="dropdown-toggle" data-toggle="dropdown" href="#" style="color:black;">Einstellungen
+                    <span class="caret"></span></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="{% url 'client:list' %}" style="color:black">Mandanten</a></li>
+                        <li><a href="{% url 'config:transport_list' %}" style="color:black">Transportdienstleister</a></li>
+                        <li class="divider"></li>
+                        <div class="dropdown-header">Online</div>
+                        <li><a href="{% url 'config:position_prefix_list' %}" style="color:black;">Lagerpositionen</a></li>
+                        <li><a href="{% url 'config:packingstation_list' %}" style="color:black;">Packstationen</a></li>
+                    </ul>
+                </li>
             </ul>
             <ul class="nav navbar-nav navbar-right">
                 {% if request.user.is_authenticated %}

@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% if messages %}
+        {% for message in messages %}
+        <p{% if message.tags %} class="alert alert-success"{% endif %}>{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="POST">{% csrf_token %}
+                <div class="col-md-2"></div>
+                <div class="col-md-8">
+                    {% for product, pick_rows in picklist_data.items %}
+                        <table class="table table-hover table-striped">
+                            <tbody>
+                                {% for pick_row in pick_rows %}
+                                    <tr>
+                                        <td>
+                                            <div class="col-md-2">
+                                                {% if  product.main_image %}
+                                                    <img class="img-responsive" style="max-height:80px;"
+                                                         src="{{ product.main_image.url }}"/>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-10">
+                                                <p><b>Artikel: </b>{{ product }}</p>
+                                                <p><b>Menge: </b>{{ pick_row.amount }}</p>
+                                                <p><b>Lagerplatz: </b>{{ pick_row.position }}</p>
+                                                <p><b>Auftrag: </b>{{ pick_row.mission_product.mission }}</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% endfor %}
+                </div>
+                <div class="col-md-2"></div>
+                <div class="col-md-12">
+                    <div class="text-center">
+                        {% if picklist_data %}
+                            {{ picklist_data }}
+                            <input type="Submit" class="btn btn-primary btn-lg" value="Pickauftrag annehmen"/>
+                        {% else %}
+                            <h3>Es können zurzeit keine Pickaufträge angenommen werden.</h3>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
+
+
+

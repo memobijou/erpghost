@@ -2,5 +2,80 @@
 {% load utils %}
 
 {% block content %}
+    <div class="panel panel-default">
+        <form method="POST">{% csrf_token %}
+            <div class="panel-body">
+                <div class="pull-right">
+                    <p><a href="{{ detail_url }}">Zur Ansicht</a></p>
+                </div>
+                <div class="col-md-8">
+                    {{ form.as_p }}
+                    {% if duplicates %}
+                        <h3 style="color:red;">Folgende EANs sind doppelt eingetragen:</h3>
+                            {% for duplicate in duplicates %}
+                                <p style="color:red;">&nbsp;&nbsp;&nbsp;&nbsp;{{ duplicate }}</p>
+                            {% endfor %}
+                    {% endif %}
+                    <button  type="button" class="btn btn-default" style="cursor:pointer;" id="add_row_btn">
+                        Neuen Artikel hinzufügen</button>
+                    <br/><br/>
+                    <table class="table table-bordered">
+                        <thead
+                            {% if object.productmission_set.all.count == 0 %}
+                                style="display:none;"
+                            {% endif %}
+                        id="product_table_head">
+                            <tr>
+                                <th>EAN / SKU</th>
+                                <th>Zustand</th>
+                                <th>Menge</th>
+                                <th>Einzelpreis(Netto)</th>
+                                <th>Löschen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="entries_table">
+                                {% for many_to_many_form, product in ManyToManyForms %}
+                                    <tr class="entry_row">
+                                        {% for field in many_to_many_form %}
+                                            {% if field.name != "delete" %}
+                                                <td>
+                                                    <div class="form-group">
+                                                        {% for field_error in field.errors %}
+                                                            <p style="color:red;" class="error">{{ field_error }}</p>
+                                                        {% endfor %}
+                                                        {{ field }}
+                                                        {% if field.help_text %}
+                                                            <p class="help">{{ field.help_text|safe }}</p>
+                                                        {% endif %}
+                                                    </div>
+                                                </td>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <td>
+                                            {% if many_to_many_form.delete %}
+                                                <div class="checkbox" style="cursor: pointer;">
+                                                  <label><input type="checkbox" value="" class="delete_checkbox">
+                                                      Löschen
+                                                  </label>
+                                                  {{ many_to_many_form.delete }}
+                                                </div>
+                                            {% else %}
+                                                <span class="glyphicon glyphicon-trash delete_trash" style="cursor: pointer;
+                                                 color: red; font-size: 15px;"></span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                        </tbody>
+                    </table>
+                    <br/><br/><input type="submit" value="Speichern" class="btn btn-primary btn-lg" id="main_form_submit_btn">
+                </div>
+                <div class="col-md-4" id="product_content">
+                </div>
+            </div>
+        </form>
+    </div>
+
+
     {% include "snippets/forms/form_order_mission.html" %}
 {% endblock %}

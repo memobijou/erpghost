@@ -1,5 +1,5 @@
 from django import forms
-from client.models import Client
+from client.models import Client, ApiData
 
 
 class ClientForm(forms.Form):
@@ -42,6 +42,18 @@ class ClientCreateForm(forms.Form):
     tax_number = forms.CharField(max_length=200, label="Steuernummer")
     sales_tax_identification_number = forms.CharField(max_length=200, label="Ust-IdNr.")
     qr_code = forms.ImageField(label="QR-Code", required=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.ImageField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class ApiDataForm(forms.ModelForm):
+    class Meta:
+        model = ApiData
+        exclude = ["client"]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

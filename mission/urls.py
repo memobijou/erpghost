@@ -1,4 +1,6 @@
 from django.conf.urls import url
+
+from online.pick import PutPickOrderOnStationView
 from .views import MissionListView, MissionCreateView, MissionDetailView, MissionUpdateView, ScanMissionUpdateView, \
     MissionDeleteView, MissionStockCheckForm, CreatePartialDeliveryNote, CreateDeliveryView, \
     PickOrderView, GoToPickListView, GoToScanView, PickOrderListView, PackingOrderListView
@@ -35,4 +37,6 @@ urlpatterns = [
         name="goto_picklist"),
     url(r'^gotopackingist/$', GoToScanView.as_view(),
         name="goto_scan"),
+    url(r'^packingstation/(?P<pk>\d+)/pickorder/(?P<pick_order_pk>\d+)/update/$', PutPickOrderOnStationView.as_view(),
+        name="packingstation_pickorder"),
 ]

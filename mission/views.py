@@ -41,7 +41,7 @@ class MissionDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag " + context["object"].mission_number
-        set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],\
+        set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],
                                 exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_detail_products()
@@ -138,6 +138,7 @@ class MissionListView(ListView):
     def get_queryset(self):
         # queryset = filter_queryset_from_request(self.request, Mission)
         queryset = self.filter_queryset_from_request()
+        queryset = queryset.filter(channel_order_id__isnull=True) # muss ersetzt werden mit channel
         return self.set_pagination(queryset)
 
     def get_context_data(self, **kwargs):
@@ -186,7 +187,7 @@ class MissionListView(ListView):
                                                      "terms_of_payment", "terms_of_delivery", "delivery_note_number",
                                                      "billing_number", "shipping", "delivery_address_id",
                                                      "shipping_costs", "shipping_number_of_pieces", "confirmed",
-                                                     "channel_id"])
+                                                     "channel_id", "channel_order_id", "is_amazon_fba"])
 
         fields.insert(3, "Lieferungen")
         fields.insert(4, "Rechnugsnummern")
@@ -443,21 +444,20 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-
         context["title"] = f"Auftrag {self.object.mission_number} bearbeiten"
-        context["ManyToManyForms"] = self.build_product_mission_forms()
+        context["ManyToManyForms"] = self.build_product_mission_forms(context["form"])
         context["detail_url"] = reverse_lazy("mission:detail", kwargs={"pk": self.kwargs.get("pk")})
         return context
 
-    def build_product_mission_forms(self):
+    def build_product_mission_forms(self, main_form):
         self.product_forms = []
+
         count = 0
         product_missions = self.object.productmission_set.all()
 
         for product_mission in product_missions:
             if self.request.POST:
                 data = self.get_data_from_post_on_index_x_to_form(count)
-                state = data.get("state")
                 product_mission_form = ProductMissionUpdateForm(data=data, product_mission=product_mission)
             else:
                 ean_or_sku, state = self.get_ean_or_sku_and_state(product_mission)
@@ -469,28 +469,28 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
                         "state": state, "netto_price": product_mission.netto_price}
                 product_mission_form = ProductMissionUpdateForm(data=data, product_mission=product_mission)
 
-            if (state, state) not in product_mission_form.fields["state"].choices:
-                choices_with_object_zustand_value = product_mission_form.fields["state"].choices
-                product_mission_form.fields["state"].choices.append((state, state))
-                product_mission_form.fields["state"]._set_choices(choices_with_object_zustand_value)
-                product_mission_form.fields["state"].initial = {"state": state}
-
             product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
             self.product_forms.append((product_mission_form, product))
             count += 1
 
         if self.request.method == "POST":
             amount_forms = self.get_amount_product_mission_forms()
+
             for i in range(count, amount_forms):
                 data = self.get_data_from_post_on_index_x_to_form(i)
                 form = ProductMissionForm(data=data)
                 product = Product.objects.filter(Q(ean__exact=data.get("ean")) | Q(sku__sku=data.get("ean"))).first()
                 self.product_forms.append((form, product))
+
+            if amount_forms == 0:
+                if main_form.is_valid() is False:
+                    self.product_forms.append((ProductMissionForm(), None))
         else:
             if product_missions.count() == 0:
                 self.product_forms.append((ProductMissionForm(), None))
         # no update forms
         # product_mission_form = ProductMissionForm(data=self.get_data_from_post_on_index_x_to_form(count))
+        print(f"banana banana: {self.product_forms}")
         return self.product_forms
 
     def get_ean_or_sku_and_state(self, product_mission):
@@ -528,6 +528,7 @@ class MissionUpdateView(LoginRequiredMixin, UpdateView):
         context = self.get_context_data(**kwargs)
 
         self.object = form.save(commit=False)
+
         if self.validate_product_forms_are_valid() is True:
             self.create_mission_products()
             self.update_mission_products()

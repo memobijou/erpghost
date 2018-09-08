@@ -1,12 +1,17 @@
+from Crypto.Cipher import AES
 from django.shortcuts import render
 from django.views import generic
 from django.urls import reverse_lazy
 # Create your views here.
-from client.forms import ClientForm, ClientCreateForm
-from client.models import Client
+from django.views.generic.base import ContextMixin
+from django.views.generic.edit import ModelFormMixin
+
+from client.forms import ClientForm, ClientCreateForm, ApiDataForm
+from client.models import Client, ApiData
 from contact.models import Contact, Bank
 from adress.models import Adress
 from django.core.exceptions import ValidationError
+import os
 
 
 class ClientSelectView(generic.FormView):
@@ -199,3 +204,82 @@ class ClientUpdateView(generic.FormView):
         except ValidationError as e:
             return render(self.request, self.template_name, self.get_context_data())
         return super().form_valid(form)
+
+
+class ApiDataMixin(ModelFormMixin):
+    def encrypt_message(self, message):
+        enc_key = os.environ.get("enc_key")
+        iv456 = "randomtask123456"
+        aes_object = AES.new(enc_key, AES.MODE_CFB, iv456)
+        encrypted_bytes = aes_object.encrypt(message)
+        encrypted_string = encrypted_bytes.decode("ISO-8859-1")
+        return encrypted_string
+
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+
+        if instance.access_key_encrypted is not None:
+            instance.account_id_encrypted = self.encrypt_message(instance.account_id_encrypted)
+
+        if instance.access_key_encrypted is not None:
+            instance.access_key_encrypted = self.encrypt_message(instance.access_key_encrypted)
+
+        if instance.secret_key_encrypted is not None:
+            instance.secret_key_encrypted = self.encrypt_message(instance.secret_key_encrypted)
+
+        if instance.authentication_token is not None:
+            instance.authentication_token = self.encrypt_message(instance.authentication_token)
+        return super().form_valid(form)
+
+
+class ApiDataCreateView(generic.CreateView, ApiDataMixin):
+    template_name = "client/apidata/form.html"
+    form_class = ApiDataForm
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.client = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.client = Client.objects.get(pk=self.kwargs.get("client_pk"))
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_success_url(self):
+        return reverse_lazy("client:list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Neuen Apizugang anlegen"
+        return context
+
+    def form_valid(self, form):
+        instance = form.save(commit=False)
+        instance.client = self.client
+        return super().form_valid(form)
+
+
+class ApiDataUpdateView(generic.UpdateView, ApiDataMixin):
+    template_name = "client/apidata/form.html"
+    form_class = ApiDataForm
+
+    def get_object(self):
+        return ApiData.objects.get(pk=self.kwargs.get("pk"))
+
+    def get_success_url(self):
+        return reverse_lazy("client:list")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Apizugang bearbeiten"
+        return context
+
+
+class ClientListView(generic.ListView):
+    paginate_by = 15
+    template_name = "client/client_list.html"
+    queryset = Client.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Mandanten Übersicht"
+        return context

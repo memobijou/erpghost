@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+                <div class="col-md-12">
+                    <div class="panel panel-default">
+                        <div class="panel-body">
+                            {% if object %}
+                                <div
+                                    {% if object.product_mission.product.main_image %}
+                                        class="col-md-4"
+                                    {% endif %}
+                                >
+                                    {% if object.product_mission.product.main_image %}
+                                        <img class="img-responsive" style="max-height: 250px;"
+                                             src="{{ object.product_mission.product.main_image.url }}"/>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-6">
+                                    <div style="padding-top:60px;">
+                                        <p style="font-size:20px;"><b>EAN: </b>{{ object.product_mission.product.ean }}</p>
+                                        <p style="font-size:20px;"><b>Menge: </b>{{ object.amount }}</p>
+                                        <p style="font-size:20px;"><b>Lagerplatz: </b>{{ object.position }}</p>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center">
+                                    <h3>Pickauftrag abgeschloßen</h3>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="panel-footer">
+                            {% if object %}
+                                {% if object.picked == False or object.picked == None %}
+                                    <div class="text-center">
+                                   <form method="POST">{% csrf_token %}
+                                        <button type="Submit" style="color:green;border: none;background-color:transparent;font-size:40px;">
+                                            <i class="glyphicon glyphicon-ok"></i>
+                                        </button>
+                                    </form>
+
+                                    </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="text-center">
+                                     {% if pickorder.packingstation_set.first %}
+                                         <h4>Pickauftrag befindet sich auf {{ pickorder.packingstation_set.first.station_id }}</h4>
+                                     {% endif %}
+
+                                     {% if not pickorder.packingstation_set.first %}
+                                         <h5>Ware zum Verpacken ablegen</h5>
+                                         <div class="form-inline">
+                                            {% for packing_station in packing_stations %}
+                                                <div class="form-group">
+                                                    <form method="POST" action="{% url 'mission:packingstation_pickorder' pk=packing_station.pk pick_order_pk=pickorder.pk %}">{% csrf_token %}
+                                                        <button type="submit" style="border-radius: 0;" class="btn btn-primary btn-lg"
+                                                        {% if packing_station.pickorder %}
+                                                            disabled
+                                                        {% endif %}
+                                                        >{{ packing_station.station_id }}</button>
+                                                    </form>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <table class="table table-hover table-striped table-condensed">
+
+                        <tbody>
+                            {% for picked_row in picked_rows %}
+                                 <tr
+                                    {% if picked_row.picked == True %}
+                                        class="success"
+                                    {% endif %}
+                                >
+                                        <td>
+                                            {% if picked_row.product_mission.product.main_image %}
+                                                <img class="img-responsive" style="max-height: 80px;"
+                                                     src="{{ picked_row.product_mission.product.main_image.url }}"/>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <p><b>EAN: </b>{{ picked_row.product_mission.product.ean }}</p>
+                                            <p><b>Menge: </b>{{ picked_row.amount }}</p>
+                                            <p><b>Lagerplatz: </b>{{ picked_row.position }}</p>
+                                        </td>
+                                        <td>
+                                            {% if picked_row.picked == True %}
+                                                 {% if not pickorder.packingstation_set.first %}
+                                                    <form method="POST" action="?pk={{ picked_row.pk }}">{% csrf_token %}
+                                                        <button type="Submit" style="border: none;background-color:transparent;">
+                                                            <span class="glyphicon glyphicon-remove" style="font-size:25px;color:red;">
+                                                            </span>
+                                                        </button>
+                                                    </form>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+        </div>
+    </div>
+{% endblock %}

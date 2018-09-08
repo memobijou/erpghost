@@ -12,6 +12,9 @@ from django.db.models import Max
 from django.core.exceptions import ValidationError
 from mission.managers import MissionObjectManager
 from online.models import Channel
+import django
+from django.contrib.auth import get_user_model
+
 
 CHOICES = (
     (None, "----"),
@@ -19,12 +22,20 @@ CHOICES = (
     (False, "Nein")
 )
 
+online_shipping_choices = (
+    ("DHL", "DHL"),
+    ("DPD", "DPD"),
+)
+
 
 # Create your models here.
 class Mission(models.Model):
     mission_number = models.CharField(max_length=200, blank=True, verbose_name="Auftragsnummer")
     delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
+    delivery_date_from = models.DateField(null=True, blank=True, verbose_name="Lieferdatum von")
+    delivery_date_to = models.DateField(null=True, blank=True, verbose_name="Lieferdatum bis")
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
+    channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
     products = models.ManyToManyField(Product, through="ProductMission")
     customer = models.ForeignKey(Customer, null=True, blank=True, related_name='mission', verbose_name="Kunde",
                                  on_delete=models.SET_NULL)
@@ -42,13 +53,24 @@ class Mission(models.Model):
                                          on_delete=models.SET_NULL)
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
-    shipping = models.CharField(choices=shipping_choices, blank=True, null=True, max_length=200,
-                                verbose_name="Spedition")
-    shipping_number_of_pieces = models.IntegerField(blank=True, null=True, verbose_name="Stückzahl Transport")
-    shipping_costs = models.FloatField(blank=True, null=True, max_length=200, verbose_name="Transportkosten")
-    confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
 
-    channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
+    confirmed = models.NullBooleanField(choices=CHOICES, verbose_name="Bestätigt")
+    channel_order_id = models.CharField(max_length=200, null=True, blank=True, verbose_name="Fremd ID")
+
+    is_amazon_fba = models.NullBooleanField(null=True, blank=True, verbose_name="Fulfillment")
+
+    purchased_date = models.DateTimeField(null=True, blank=True)
+
+    tracking_number = models.CharField(null=True, blank=True, verbose_name="Tracking Nummer", max_length=200)
+    shipping = models.CharField(choices=online_shipping_choices, blank=True, null=True, max_length=200,
+                                verbose_name="Transportdienstleister")
+
+    label_pdf = models.FileField(null=True, blank=True, upload_to="labels/")
+
+    online_picklist = models.ForeignKey("mission.PickList", null=True, blank=True, verbose_name="Online Pickauftrag",
+                                        on_delete=django.db.models.deletion.SET_NULL)
+
+    shipped = models.NullBooleanField(verbose_name="Versendet")
 
     objects = MissionObjectManager()
 
@@ -68,7 +90,8 @@ class Mission(models.Model):
         super().save()
         if self.mission_number is None or self.mission_number == "":
             self.mission_number = f"A{self.pk+1}"
-        self.status = get_status(self)
+        if self.channel is None:
+            self.status = get_status(self)
         super().save()
 
     # def save(self, *args, **kwargs):
@@ -94,6 +117,7 @@ class ProductMission(models.Model):
                                 verbose_name="Auftrag")
     state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
     amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Menge")
+    online_shipped_amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Versendete Menge")
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
@@ -137,16 +161,53 @@ class Partial(models.Model):
     mission = models.ForeignKey(Mission, null=True, blank=True)
 
 
+class PickOrder(models.Model):
+    pick_order_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Pickauftrags ID")
+    user = models.ForeignKey(get_user_model(), on_delete=models.deletion.SET_NULL, null=True, blank=True)
+    completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
+
+    def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
+        super().save()
+        if self.pick_order_id is None or self.pick_order_id == "":
+            self.pick_order_id = f"PO{self.pk}"
+        super().save()
+
+
 class PickList(models.Model):
     partial = models.ForeignKey("mission.Partial", null=True, blank=True)
     pick_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Pick ID")
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
+    pick_order = models.ForeignKey(PickOrder, null=True, blank=True)
+    completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
+    online_delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
         super().save()
         if self.pick_id is None or self.pick_id == "":
             self.pick_id = f"PK{self.pk+1}"
+        super().save()
+
+
+class PackingStation(models.Model):
+    class Meta:
+        unique_together = ('station_number', 'prefix')
+        ordering = ("prefix", "station_number")
+
+    station_id = models.CharField(null=True, blank=True, max_length=200)
+    prefix = models.CharField(null=True, blank=True, max_length=200)
+    station_number = models.IntegerField(null=True, blank=True, verbose_name="Stationsnummer")
+    pickorder = models.ForeignKey("mission.PickOrder", null=True, blank=True, on_delete=models.deletion.SET_NULL)
+    user = models.ForeignKey(get_user_model(), on_delete=models.deletion.SET_NULL, null=True, blank=True)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        super().save()
+        if self.station_id is None or self.station_id == "":
+            if self.prefix is not None:
+                self.station_id = f"{self.prefix}{self.station_number}"
+            else:
+                self.station_id = f"PS{self.pk}"
         super().save()
 
 
@@ -194,12 +255,14 @@ class IgnoreStocksPickList(models.Model):
 
 
 class PickListProducts(models.Model):
-    pick_list = models.ForeignKey(PickList, null=True, blank=True)
+    pick_list = models.ForeignKey(PickList, null=True, blank=True, on_delete=django.db.models.deletion.SET_NULL)
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
     confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
+    picked = models.NullBooleanField(verbose_name="Gepickt", blank=True, null=True)
     missing_amount = models.IntegerField(verbose_name="Fehlende Menge", blank=True, null=True)
+    confirmed_amount = models.IntegerField(verbose_name="Bestätigte Menge", null=True, blank=True)
 
     def amount_minus_missing_amount(self):
         if self.missing_amount is not None and self.missing_amount != "":

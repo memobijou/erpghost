@@ -1,0 +1,38 @@
+{% if object.delivery_address %}
+    <div class="col-md-6">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                Lieferadresse
+            </div>
+            <div class="panel-body">
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Name: </b>
+                    {{ object.delivery_address.first_name_last_name  }}</p>
+                {% if object.delivery_address.street_and_housenumber %}
+                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Straße und Hausnummer: </b>
+                        {{ object.delivery_address.street_and_housenumber|default:'' }}</p>
+                {% endif %}
+                {% if object.delivery_address.strasse and object.delivery_address.hausnummer %}
+                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                        {{ object.delivery_address.strasse }} {{ object.delivery_address.hausnummer }}</p>
+                {% endif %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                    {{ object.delivery_address.place }}</p>
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                    {{ object.delivery_address.zip }}</p>
+                {% if object.delivery_address.adresszusatz %}
+                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                    {{ object.delivery_address.adresszusatz }}</p>
+                {% endif %}
+                {% if object.delivery_address.adresszusatz2 %}
+                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                    {{ object.delivery_address.adresszusatz2 }}</p>
+                {% endif %}
+                {% if object.delivery_address.country_code %}
+                    <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ländercode: </b>
+                    {{  object.delivery_address.country_code }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <br/>
+{% endif %}

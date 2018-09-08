@@ -10,7 +10,10 @@ class Customer(models.Model):
     contact = models.ForeignKey(Contact, null=True, blank=True, related_name='customer', verbose_name="Kontaktdaten")
 
     def __str__(self):
-        return f"{self.contact.billing_address.firma}"
+        if self.contact.billing_address is not None and self.contact.billing_address.firma is not None:
+            return f"{self.contact.billing_address.firma}"
+        else:
+            return self.contact.first_name_last_name
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

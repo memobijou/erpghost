@@ -42,14 +42,13 @@
                     {% endif %}
                 </td>
                 <td> {{object.customer|default:""}} </td>
-                <td> {{object.customer_order_number|default:""}} </td>
-
                 <td>
                     {{ object.productmission_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
                 </td>
                 <td>
                     {{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
                 </td>
+                <td> {{object.customer_order_number|default:""}} </td>
         </tr>
     {% endfor %}
 </form>

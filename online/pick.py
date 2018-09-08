@@ -182,11 +182,6 @@ class PickOrderView(generic.UpdateView):
         self.packing_stations = PackingStation.objects.all()
         return super().dispatch(request, *args, **kwargs)
 
-    def get_to_pick_object(self):
-        for pick_row in self.picked_rows:
-            if pick_row.picked is None or pick_row.picked is False:
-                return pick_row
-
     def order_picked_rows_by_position(self):
         positions = []
 

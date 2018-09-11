@@ -1,24 +1,26 @@
+import re
+from collections import OrderedDict
+
 import pycountry
+from django.contrib import messages
+from django.db.models import Case, When
 from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.views import generic
 from django.urls import reverse_lazy
+from django.views import View
+from django.views import generic
+
+from client.models import Client
+from configuration.models import OnlinePositionPrefix
 from mission.models import Mission, PickList, PickListProducts, PickOrder, PackingStation, DeliveryNote, \
     DeliveryNoteProductMission
+from online.dhl import DHLLabelCreator
 from online.dpd import DPDLabelCreator
 from online.forms import AcceptOnlinePicklistForm, PickListProductsForm, StationGotoPickListForm, PackingForm
 from stock.models import Stock, Position
-from configuration.models import OnlinePositionPrefix
-from collections import OrderedDict
-from django.db.models import Case, When
-from configuration.views import PackingStationUpdate
-from django.views import View
-from django.contrib import messages
-import re
-import pycountry
-from online.dhl import DHLLabelCreator
-from client.models import Client
+import requests
+import json
 
 
 class AcceptOnlinePickList(generic.CreateView):
@@ -142,20 +144,23 @@ class AcceptOnlinePickList(generic.CreateView):
             query_condition &= Q(lagerplatz__istartswith=online_prefix.prefix)
         query_condition &= Q(product__ean__in=ean_list)
         stocks = list(Stock.objects.filter(query_condition).order_by("lagerplatz"))
-        stocks = self.order_stocks_by_position(stocks)
+        stocks = order_stocks_by_position(stocks, query_condition=query_condition)
         return stocks
 
-    def order_stocks_by_position(self, stocks):
-        positions = []
 
-        for stock in stocks:
-            positions.append(stock.lagerplatz)
+def order_stocks_by_position(stocks, query_condition=Q(), exclude_condition=Q()):
+    positions = []
 
-        positions = list(Position.objects.filter(name__in=positions).values_list("name", flat=True))
-        print(f"ordered ? {positions}")
-        preserved = Case(*[When(lagerplatz=position, then=index) for index, position in enumerate(positions)])
-        ordered_stocks = Stock.objects.filter(lagerplatz__in=positions).order_by(preserved)
-        return ordered_stocks
+    for stock in stocks:
+        positions.append(stock.lagerplatz)
+
+    positions = list(Position.objects.filter(name__in=positions).values_list("name", flat=True))
+    print(f"ordered ? {positions}")
+    preserved = Case(*[When(lagerplatz=position, then=index) for index, position in enumerate(positions)])
+
+    query_condition &= Q(lagerplatz__in=positions)
+    ordered_stocks = Stock.objects.filter(query_condition).exclude(exclude_condition).order_by(preserved)
+    return ordered_stocks
 
 
 class PickOrderView(generic.UpdateView):
@@ -660,3 +665,5 @@ class FinishPackingView(View):
         print(f"FRONTEND: {route} {street_number} {postal_code} {city}")
         print(f"baduni {json_data}")
         return {"route": route, "street_number": street_number, "city": city, "postal_code": postal_code}
+
+

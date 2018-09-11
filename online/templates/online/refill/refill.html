@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-hover table-striped">
+                <tbody>
+                    {% for stock in refillorder.refillorderoutbookstock_set.all %}
+                        <tr>
+                            <td class="col-md-4">
+                                {% if stock.product_mission.product.main_image %}
+                                    <img src="{{ stock.product_mission.product.main_image.url }}"
+                                         class="img-responsive center-block"/>
+                                {% endif %}
+                            </td>
+                            <td class="col-md-8">
+                                <div>
+                                    <p><b>Artikel: </b>{{ stock.product_mission.product }}</p>
+                                    <p><b>Lagerplatz:</b> {{ stock.stock.lagerplatz }}</p>
+                                    <p style="font-size:25px;"><a href="">{{ stock.amount }}x Ausbuchen</a></p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

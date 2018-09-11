@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-center">
+                <p style="font-size:20px;">
+                    <b>{{ book_out_amount }}x</b> den Artikel
+                    <b>
+                        {% if object.product %}
+                            {{ object.product.ean }}
+                        {% else %}
+                            {{ object.ean_vollstaendig }}
+                        {% endif %}
+                    </b>
+                    auf Lagerposition <b>{{ object.lagerplatz }}</b> ausbuchen.
+                </p>
+                {% if product.main_image %}
+                    <img class="img-responsive center-block"
+                         src="{{ product.main_image.url }}"/>
+                {% endif %}
+                <input type="Submit" class="btn btn-primary btn-lg" value="{{ book_out_amount }}x Ausbuchen"/>
+
+            </div>
+        </div>
+    </div>
+{% endblock %}

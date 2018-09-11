@@ -4,6 +4,7 @@ from online.delivery_note import OnlineDeliveryNoteView
 from online.ebay import EbayView
 from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromStationToPackingView, PackingView, \
     FinishPackingView, LoginToStationView, LogoutFromStationView, PackingPickOrderOverview
+from online.refill import AcceptRefillStockView, BookOutForOnlinePositions, RefillStockView
 from .views import OnlineListView, OnlineDetailView
 from .dpd import DPDPDFView, DPDGetLabelView
 from .dhl import DHLCreatePdfView, DhlGetLabelView, DhlDeleteLabelView
@@ -30,5 +31,7 @@ urlpatterns = [
     url(r'^login_station/$', LoginToStationView.as_view(), name="login_station"),
     url(r'^logout_from_station/(?P<pk>\d+)/$', LogoutFromStationView.as_view(), name="logout_from_station"),
     url(r'^ebay_test/$', EbayView.as_view(), name="ebay_test"),
-
+    url(r'^accept_refill_order/$', AcceptRefillStockView.as_view(), name="accept_refill"),
+    url(r'^refill_order/$', RefillStockView.as_view(), name="refill"),
+    url(r'^stock/(?P<pk>\d+)/bookout/(?P<book_out_amount>\d+)/$', BookOutForOnlinePositions.as_view(), name="book_out"),
 ]

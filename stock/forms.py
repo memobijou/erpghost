@@ -125,3 +125,4 @@ class GeneratePositionLevelsColumnsForm(forms.Form):
             if type(visible.field) is CharField or type(visible.field) is FloatField \
                     or type(visible.field) is IntegerField or type(visible.field) is forms.ChoiceField:
                 visible.field.widget.attrs["class"] = "form-control"
+

@@ -48,9 +48,11 @@ class AcceptOnlinePickList(generic.CreateView):
             print(f"data: {self.picklist_data}")
             self.missions_pick_rows = self.put_pickrows_under_missions()
             print(f"KHUTI {self.missions_pick_rows}")
-        print(self.picklist_data is True)
-        if self.picklist_data is False and request.method == "POST":
+        print(self.picklist_data is False)
+        if (self.picklist_data is None or len(self.picklist_data) == 0) and request.method == "POST":
+            print(f"kaka: {self.picklist_data} - {request.method}  -- {request.method == 'POST'}")
             return HttpResponseRedirect(reverse_lazy("online:accept_picklist"))
+        print(f"kaka 2: {self.picklist_data} - {request.method}  -- {request.method == 'POST'}")
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

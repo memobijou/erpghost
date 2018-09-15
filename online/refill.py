@@ -148,7 +148,7 @@ class AcceptRefillStockView(View):
         query_condition = Q()
         for mission_product in self.missions_products:
             product = mission_product.product
-            products_sku = product.sku_set.filter(state__iexact="Neu")
+            products_sku = product.sku_set.filter(state__iexact="Neu").first()
             query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") | Q(product__ean=product.ean,
                                                                                             sku=products_sku.sku))
 

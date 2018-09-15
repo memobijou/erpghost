@@ -29,8 +29,8 @@ class AcceptRefillStockView(View):
         self.remove_missions_products_with_online_stock()
         self.missions_products_stocks = self.get_missions_products_stocks()
         self.missions_products_and_stocks = self.get_missions_products_and_stocks()
-        self.products = None
         self.refillorder = None
+        self.existing_refillorder_stocks = None
 
     def dispatch(self, request, *args, **kwargs):
         self.refillorder = request.user.refillorder_set.filter(Q(Q(booked_out=None) | Q(booked_in=None))).first()
@@ -129,6 +129,9 @@ class AcceptRefillStockView(View):
 
         exclude_pks = []
         for mission_product in missions_products:
+            refillorder_stock_instance = RefillOrderOutbookStock(product_mission=mission_product).first()
+            if refillorder_stock_instance is not None:
+                continue
             stock = mission_product.product.stock_set.filter(zustand="Neu").first()
             if stock is None:
                 stock = Stock.objects.filter(ean_vollstaendig=mission_product.product.ean,

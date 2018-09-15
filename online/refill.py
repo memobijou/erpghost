@@ -133,8 +133,9 @@ class AcceptRefillStockView(View):
 
             stock = mission_product.product.stock_set.filter(zustand="Neu").first()
             if stock is None:
-                stock = Stock.objects.filter(ean_vollstaendig=mission_product.product.ean,
-                                             zustand__iexact="Neu").first()
+                stock = Stock.objects.filter(Q(Q(ean_vollstaendig=mission_product.product.ean,
+                                             zustand__iexact="Neu")|Q(product__ean=mission_product.product.ean,
+                                                                      zustand__iexact="Neu"))).first()
             available_amount = int(stock.get_total_stocks().get("Neu").split("/")[0])
             if available_amount < mission_product.amount or refillorder_stock_instance is not None:
                 exclude_pks.append(mission_product.pk)

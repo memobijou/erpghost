@@ -24,7 +24,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from stock.models import Position
 import itertools
-
+from rest_framework import generics
+from rest_framework import serializers
 
 # Create your views here.
 
@@ -581,7 +582,7 @@ class StockCopyView(StockUpdateView):
                                                   f"der Artikel auf dieser Position ein Einzelartikel ist.")
         if form.is_valid() is False:
             return super().form_invalid(form)
-        self.object.id = int(Stock.objects.latest("pk").pk)+1
+        # self.object.id = int(Stock.objects.latest("pk").pk)+1 # kopfschuss
         self.object.save()
         return HttpResponseRedirect(reverse_lazy("stock:detail", kwargs={"pk": self.object.pk}))
 
@@ -733,7 +734,7 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
 
         object.lagerplatz = self.current_position
 
-        object.id = Stock.objects.latest("id").id+1
+        # object.id = Stock.objects.latest("id").id+1  # Kopfschuss
         object.save()
 
         return super().form_valid(form)
@@ -831,7 +832,6 @@ class GeneratePositionsView(FormView):
         if self.validate_column_from_is_less_than_column_to(column_from_to_list, context) is False:
             return render(self.request, self.template_name, context)
 
-
         Position.objects.bulk_create(bulk_instances)
         return super().form_valid(form)
 
@@ -917,10 +917,6 @@ class PositionDeleteView(DeleteView):
 
     def get_object(self, queryset=None):
         return Position.objects.filter(id__in=self.request.GET.getlist('item'))
-
-
-from rest_framework import generics
-from rest_framework import serializers
 
 
 class PositionSerializer(serializers.ModelSerializer):

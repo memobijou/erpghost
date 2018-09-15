@@ -359,12 +359,15 @@ class LoginToStationView(View):
         self.packing_stations = PackingStation.objects.all()
         self.packing_station = None
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.packingstation_set.filter(pickorder__isnull=False).first() is not None:
+            return HttpResponseRedirect(reverse_lazy("online:from_station_to_packing",
+                                                     kwargs={"pk": request.user.packingstation_set.first().pk}))
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, *args, **kwargs):
         context = {"title": "Mit Station verbinden", "packing_stations": self.packing_stations}
         print(request.user.packingstation_set.first())
-        if request.user.packingstation_set.first() is not None:
-            return HttpResponseRedirect(reverse_lazy("online:from_station_to_packing",
-                                                     kwargs={"pk": request.user.packingstation_set.first().pk}))
         return render(request, "online/packing/login_station.html", context)
 
     def post(self, request, *args, **kwargs):

@@ -195,6 +195,8 @@ class PickOrderView(generic.UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.pickorder = request.user.pickorder_set.filter(completed=None).first()
+        if self.pickorder is None:
+            return HttpResponseRedirect(reverse_lazy("online:accept_picklist"))
         self.picklists = list(self.pickorder.picklist_set.all().values_list("pk", flat=True))
         self.picked_rows = PickListProducts.objects.filter(
             Q(Q(pick_list__in=self.picklists)))

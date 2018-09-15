@@ -98,6 +98,8 @@ class AcceptRefillStockView(View):
         self.missions_products_and_stocks = []
 
         for mission_product in self.missions_products:
+            product = mission_product.product
+            product_sku = product.sku_set.filter(state__iexact="Neu").first()
             mission_product_stocks = []
             mission_product_and_stocks = (mission_product, mission_product_stocks)
             self.missions_products_and_stocks.append(mission_product_and_stocks)
@@ -105,9 +107,9 @@ class AcceptRefillStockView(View):
             sum_bookout_amount = 0
 
             for stock in self.missions_products_stocks:
-                if (stock.ean_vollstaendig == mission_product.product.ean or
-                        (stock.product is not None and stock.product.ean == mission_product.product.ean)
-                        and stock.zustand == "Neu"):
+                if (stock.ean_vollstaendig == product.ean and stock.zustand == "Neu" or
+                        (stock.product is not None and stock.product.ean == product.ean
+                         and stock.sku == product_sku.sku)):
                     if sum_bookout_amount == mission_product.amount:
                         break
 
@@ -134,7 +136,7 @@ class AcceptRefillStockView(View):
             stock = mission_product.product.stock_set.filter(zustand="Neu").first()
             if stock is None:
                 product = mission_product.product
-                products_sku = product.sku_set.filter(state__iexact="Neu")
+                products_sku = product.sku_set.filter(state__iexact="Neu").first()
                 stock = Stock.objects.filter(Q(Q(ean_vollstaendig=product.ean,
                                              zustand__iexact="Neu") |
                                                Q(product__ean=product.ean, sku=products_sku.sku))
@@ -146,20 +148,26 @@ class AcceptRefillStockView(View):
 
     def get_missions_products_stocks(self):
         query_condition = Q()
+        print(self.missions_products)
+        if self.missions_products.count() == 0:
+            return
+
         for mission_product in self.missions_products:
             product = mission_product.product
             products_sku = product.sku_set.filter(state__iexact="Neu").first()
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") | Q(product__ean=product.ean,
-                                                                                            sku=products_sku.sku))
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") |
+                                 Q(product__ean=product.ean, sku=products_sku.sku))
 
+        print(f"GOLDFISCH: {query_condition}")
         self.online_prefixes = OnlinePositionPrefix.objects.all()
         exclude_condition = Q()
         for online_prefix in self.online_prefixes:
             exclude_condition |= Q(lagerplatz__istartswith=online_prefix.prefix)
         stocks = list(Stock.objects.filter(query_condition).exclude(exclude_condition).order_by("lagerplatz"))
-        print(stocks)
+        print(f"GOLO: {stocks}")
         stocks = order_stocks_by_position(stocks, query_condition=query_condition, exclude_condition=exclude_condition)
         print(f"samu: {stocks}")
+        print(f"{stocks.first().lagerplatz}")
         return stocks
 
 
@@ -173,6 +181,8 @@ class RefillStockView(View):
     def dispatch(self, request, *args, **kwargs):
         self.refillorder = RefillOrder.objects.filter(Q(Q(booked_out=None) | Q(booked_in=None)) &
                                                       Q(user=self.request.user)).first()
+        if self.refillorder is None:
+            return HttpResponseRedirect(reverse_lazy("online:accept_refill"))
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):

@@ -39,6 +39,7 @@ class AcceptOnlinePickList(generic.CreateView):
         self.used_stocks = {}
         self.missions_pick_rows = None
         self.packing_stations = PackingStation.objects.filter(pickorder__isnull=True)
+        self.refill_order = None
 
     def dispatch(self, request, *args, **kwargs):
         self.stocks = self.get_products_stocks()
@@ -53,6 +54,9 @@ class AcceptOnlinePickList(generic.CreateView):
             print(f"kaka: {self.picklist_data} - {request.method}  -- {request.method == 'POST'}")
             return HttpResponseRedirect(reverse_lazy("online:accept_picklist"))
         print(f"kaka 2: {self.picklist_data} - {request.method}  -- {request.method == 'POST'}")
+        self.refill_order = request.user.refillorder_set.filter(Q(Q(booked_out=None) | Q(booked_in=None))).first()
+        if self.refill_order is not None:
+            return HttpResponseRedirect(reverse_lazy("online:refill"))
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -365,13 +369,10 @@ class LoginToStationView(View):
             return HttpResponseRedirect(reverse_lazy("online:from_station_to_packing",
                                                      kwargs={"pk": request.user.packingstation_set.first().pk}))
         self.station_pk = self.request.GET.get("station_pk")
-        print(f"KAKA: {self.station_pk}")
         if self.station_pk is not None:
-            print(f"KAKA 2: {self.station_pk}")
             for packing_station in self.packing_stations:
                 if packing_station.pk == int(self.station_pk):
                     if packing_station.user is not None:
-                        print(f"KAKA 3: {self.station_pk}")
                         return HttpResponseRedirect(reverse_lazy('online:login_station'))
         return super().dispatch(request, *args, **kwargs)
 

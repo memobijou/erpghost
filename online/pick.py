@@ -94,6 +94,12 @@ class AcceptOnlinePickList(generic.CreateView):
                 picklist_stocks = []
                 total = 0
 
+                picklist_product = PickListProducts.objects.filter(product_mission=mission_product,
+                                                                   amount=mission_product.amount).first()
+
+                if picklist_product is not None:
+                    continue
+
                 for stock in self.stocks:
                     if (mission_product.product.ean == stock.product.ean or
                             mission_product.product.ean == stock.ean_vollstaendig and stock.zustand == "Neu"):

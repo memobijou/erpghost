@@ -129,9 +129,11 @@ class AcceptRefillStockView(View):
 
         exclude_pks = []
         for mission_product in missions_products:
-            refillorder_stock_instance = RefillOrderOutbookStock(product_mission=mission_product).first()
+            refillorder_stock_instance = RefillOrderOutbookStock.objects.filter(product_mission=mission_product).first()
+
             if refillorder_stock_instance is not None:
                 continue
+
             stock = mission_product.product.stock_set.filter(zustand="Neu").first()
             if stock is None:
                 stock = Stock.objects.filter(ean_vollstaendig=mission_product.product.ean,

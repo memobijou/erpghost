@@ -365,10 +365,13 @@ class LoginToStationView(View):
             return HttpResponseRedirect(reverse_lazy("online:from_station_to_packing",
                                                      kwargs={"pk": request.user.packingstation_set.first().pk}))
         self.station_pk = self.request.GET.get("station_pk")
+        print(f"KAKA: {self.station_pk}")
         if self.station_pk is not None:
+            print(f"KAKA 2: {self.station_pk}")
             for packing_station in self.packing_stations:
-                if packing_station.pk == self.station_pk:
+                if packing_station.pk == int(self.station_pk):
                     if packing_station.user is not None:
+                        print(f"KAKA 3: {self.station_pk}")
                         return HttpResponseRedirect(reverse_lazy('online:login_station'))
         return super().dispatch(request, *args, **kwargs)
 

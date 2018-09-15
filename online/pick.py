@@ -358,11 +358,18 @@ class LoginToStationView(View):
         super().__init__(**kwargs)
         self.packing_stations = PackingStation.objects.all()
         self.packing_station = None
+        self.station_pk = None
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.packingstation_set.filter(pickorder__isnull=False).first() is not None:
             return HttpResponseRedirect(reverse_lazy("online:from_station_to_packing",
                                                      kwargs={"pk": request.user.packingstation_set.first().pk}))
+        self.station_pk = self.request.GET.get("station_pk")
+        if self.station_pk is not None:
+            for packing_station in self.packing_stations:
+                if packing_station.pk == self.station_pk:
+                    if packing_station.user is not None:
+                        return HttpResponseRedirect(reverse_lazy('online:login_station'))
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -371,8 +378,7 @@ class LoginToStationView(View):
         return render(request, "online/packing/login_station.html", context)
 
     def post(self, request, *args, **kwargs):
-        station_pk = self.request.GET.get("station_pk")
-        self.packing_station = PackingStation.objects.get(pk=station_pk)
+        self.packing_station = PackingStation.objects.get(pk=self.station_pk)
         current_user = request.user
         self.packing_station.user = current_user
         self.packing_station.save()
@@ -500,8 +506,8 @@ class FinishPackingView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        dhl_label = self.create_label()
-        if dhl_label is not None:
+        label = self.create_label()
+        if label is not None:
             print("????!?!??!!?!?")
             self.picklist.completed = True
             self.create_delivery_note()

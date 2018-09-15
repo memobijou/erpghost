@@ -145,16 +145,17 @@ class AcceptRefillStockView(View):
         return missions_products.exclude(pk__in=exclude_pks)
 
     def get_missions_products_stocks(self):
-        ean_list = []
-
+        query_condition = Q()
         for mission_product in self.missions_products:
-            ean_list.append(mission_product.product.ean)
-        print(ean_list)
+            product = mission_product.product
+            products_sku = product.sku_set.filter(state__iexact="Neu")
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") | Q(product__ean=product.ean,
+                                                                                            sku=products_sku.sku))
+
         self.online_prefixes = OnlinePositionPrefix.objects.all()
         exclude_condition = Q()
         for online_prefix in self.online_prefixes:
             exclude_condition |= Q(lagerplatz__istartswith=online_prefix.prefix)
-        query_condition = Q(product__ean__in=ean_list)
         stocks = list(Stock.objects.filter(query_condition).exclude(exclude_condition).order_by("lagerplatz"))
         print(stocks)
         stocks = order_stocks_by_position(stocks, query_condition=query_condition, exclude_condition=exclude_condition)

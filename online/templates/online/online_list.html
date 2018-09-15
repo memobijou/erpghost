@@ -8,7 +8,11 @@
         {% include "snippets/filter.html" %}
         {% include "snippets/pagination.html" %}
     </div>
-
+    <div class="col-md-12">
+        <div class="text-right">
+            <a class="btn btn-info" href="{% url 'online:import_mission' %}">Auftrag importieren</a>
+        </div>
+    </div>
     <div class="col-md-12" style="padding:0px;">
         <div class="panel panel-default" style="margin:15px;">
             <div class="panel-body">

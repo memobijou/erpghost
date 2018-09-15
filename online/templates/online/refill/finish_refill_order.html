@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-hover table-striped">
+                <tbody>
+                    {% for product, booked_amounts in result.items %}
+                        <tr {% if booked_amounts.booked_in == booked_amounts.booked_out %}
+                                class="success"
+                            {% else %}
+                                class="danger"
+                            {% endif %}>
+                            <td>
+                                <div class="col-md-3">
+                                    <p><b>EAN: </b>{{ product.ean }}</p>
+                                    {% if product.main_image %}
+                                        <img src="{{ product.main_image.url }}"
+                                             class="img-responsive" style="max-height:150px;"/>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-9">
+                                    <p style="color:red;"><b>Ausgebuchte Menge: </b>{{ booked_amounts.booked_out|default:"0" }}</p>
+                                    <p style="color:green;"><b>Eingebuchte Menge: </b>{{ booked_amounts.booked_in|default:"0" }}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <form method="POST">{% csrf_token %}
+                <div class="text-center">
+                    {% if refill_order_has_conflict is True %}
+                        <p class="help-block">
+                            <b>In dem Nachfüllauftrag gibt es Konflikte</b>
+                        </p>
+                        <p class="help-block">
+                            Es wurden mehr oder weniger Artikel eingebucht als ausgebucht
+                        </p>
+                        <input type="Submit" class="btn btn-primary btn-lg" value="Trotzdem Bestätigen"/>
+                    {% else %}
+                        <p class="help-block" style="color:green;">
+                            <b>Alle Artikel wurden erfolgreich umgebucht</b>
+                        </p>
+                        <input type="Submit" class="btn btn-primary btn-lg" value="Bestätigen und abschließen"/>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

@@ -48,12 +48,8 @@
                     <ul class="dropdown-menu">
                         <li><a href="{% url 'online:list' %}" style="color:black">Auftrag</a></li>
                         <li class="divider"></li>
-                        <div class="dropdown-header">Pickerauftrag</div>
-                        <li><a href="{% url 'online:pickorder' %}" style="color:black">Picken</a></li>
-                        <li><a href="{% url 'online:login_station' %}" style="color:black">Station</a></li>
-                        <li class="divider"></li>
-                        <div class="dropdown-header">Online Lager</div>
-                        <li><a href="{% url 'online:accept_refill' %}" style="color:black">Nachfüllauftrag</a></li>
+                        <div class="dropdown-header">Online</div>
+                        <li><a href="{% url 'online:online_redirect' %}" style="color:black">Picken/Verpacken</a></li>
                     </ul>
                 </li>
 

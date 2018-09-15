@@ -1,41 +1,41 @@
 {% extends 'base.html' %}
 
-
 {% block content %}
     <div class="panel panel-default">
         <div class="panel-body">
             <table class="table table-hover table-striped">
                 <tbody>
-                    {% for mission_product, stocks in missions_products_and_stocks %}
+                    {% for product, bookin_stocks in products %}
                         <tr>
                             <td>
                                 <div class="col-md-3">
-                                    {% if  mission_product.product.main_image %}
-                                        <img class="img-responsive" style="max-height:80px;"
-                                             src="{{ mission_product.product.main_image.url }}"/>
+                                    {% if product.main_image %}
+                                        <img src="{{ product.main_image.url }}"
+                                             class="img-responsive" style="max-height: 150px;"/>
                                     {% endif %}
+
                                 </div>
                                 <div class="col-md-9">
-                                    <p><b>Artikel: </b>{{ mission_product.product }}</p>
-                                    <p><b>Menge: </b>{{ mission_product.amount }}</p>
-                                    <p><b>Auftrag: </b>{{ mission_product.mission }}</p>
-
-                                    {% if stocks %}
+                                    <p><b>EAN:</b> {{ product.ean }}</p>
+                                    {% if refill_order.booked_in == None %}
+                                        <p><a href="{% url 'online:warehouse' pk=product.pk %}">Artikel in Online Lager einbuchen</a></p>
+                                    {% endif %}
+                                    {% if bookin_stocks %}
                                         <table class="table">
                                             <thead>
                                                 <tr>
                                                     <th>Lagerplatz</th>
-                                                    <th>Bestand</th>
+                                                    <th>Eingebuchte Menge</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for stock in stocks %}
-                                                    <tr>
+                                                {% for bookin_stock in bookin_stocks %}
+                                                    <tr class="success">
                                                         <td>
-                                                            {{ stock.object.lagerplatz }}
+                                                            {{ bookin_stock.position }}
                                                         </td>
                                                         <td>
-                                                            {{ stock.bookout_amount }}
+                                                            {{ bookin_stock.amount }}
                                                         </td>
                                                     </tr>
                                                 {% endfor %}
@@ -48,19 +48,10 @@
                     {% endfor %}
                 </tbody>
             </table>
-
-
-            <form method="POST">{% csrf_token %}
-                {% if missions_products_and_stocks %}
-                    <div class="text-center">
-                        <input type="Submit" class="btn btn-primary btn-lg" value="Nachfüllauftrag annehmen"/>
-                    </div>
-                {% else %}
-                    <div class="text-center">
-                        <h4>Keine eingehende Aufträge vorhanden.</h4>
-                    </div>
-                {% endif %}
-            </form>
+            <div class="text-center">
+                <a class="btn btn-info btn-lg" href="{% url 'online:finish_refill_order' %}">
+                    Nachfüllautrag Abschließen</a>
+            </div>
         </div>
     </div>
 {% endblock %}

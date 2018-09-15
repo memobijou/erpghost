@@ -215,7 +215,7 @@ class StockListView(LoginRequiredMixin, ListView):
     def build_filter_fields(self, exclude=list):
         filter_fields = []
         for field in Stock._meta.get_fields():
-            if field.attname in exclude:
+            if hasattr(field, "attname") is False or field.attname in exclude:
                 continue
             value = self.request.GET.get(field.attname, "").strip()
             filter_fields.append((field.attname, field.verbose_name, value))

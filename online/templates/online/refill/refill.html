@@ -6,19 +6,28 @@
         <div class="panel-body">
             <table class="table table-hover table-striped">
                 <tbody>
-                    {% for stock in refillorder.refillorderoutbookstock_set.all %}
-                        <tr>
-                            <td class="col-md-4">
-                                {% if stock.product_mission.product.main_image %}
-                                    <img src="{{ stock.product_mission.product.main_image.url }}"
-                                         class="img-responsive center-block"/>
+                    {% for outbook_stock in refillorder.refillorderoutbookstock_set.all %}
+                        <tr
+                            {% if outbook_stock.booked_out == True %}
+                                class="danger"
+                            {% endif %}
+                        >
+                            <td>
+                                {% if outbook_stock.product_mission.product.main_image %}
+                                    <img src="{{ outbook_stock.product_mission.product.main_image.url }}"
+                                         class="img-responsive center-block" style="max-height:150px;"/>
                                 {% endif %}
                             </td>
-                            <td class="col-md-8">
+                            <td>
                                 <div>
-                                    <p><b>Artikel: </b>{{ stock.product_mission.product }}</p>
-                                    <p><b>Lagerplatz:</b> {{ stock.stock.lagerplatz }}</p>
-                                    <p style="font-size:25px;"><a href="">{{ stock.amount }}x Ausbuchen</a></p>
+                                    <p><b>Artikel: </b>{{ outbook_stock.product_mission.product }}</p>
+                                    <p><b>Lagerplatz:</b> {{ outbook_stock.stock.lagerplatz }}</p>
+                                    {% if outbook_stock.booked_out != True %}
+                                        <p style="font-size:25px;"><a href="{% url 'online:book_out' pk=outbook_stock.pk book_out_amount=outbook_stock.amount %}">
+                                            {{ outbook_stock.amount }}x Ausbuchen</a></p>
+                                    {% else %}
+                                        <p><b>Ausgebuchte Menge: </b>{{ outbook_stock.amount }}</p>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -26,5 +35,11 @@
                 </tbody>
             </table>
         </div>
+        {% if refillorder.booked_out == True %}
+            <div class="text-center">
+                <a href="{% url 'online:products_for_bookin' %}" style="font-size: 16px;">Ausgebuchte Ware<br/> in Online Lager einbuchen</a>
+            </div>
+            <br/>
+        {% endif %}
     </div>
 {% endblock %}

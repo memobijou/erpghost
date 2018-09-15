@@ -1,12 +1,16 @@
 from django.db.models import Q
 from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404
 from django.views import generic
 
 # Create your views here.
 from django.views.generic import DetailView
 from django import views
+from online.models import Channel
+from adress.models import Adress
 from mission.models import Mission, ProductMission, PartialMissionProduct
+from product.models import Product
 from stock.models import Stock
 from utils.utils import get_filter_fields, get_verbose_names, set_object_ondetailview
 from django.core.paginator import Paginator
@@ -14,6 +18,9 @@ from django.db.models import F, Func
 import datetime
 import pycountry
 from django.urls import reverse_lazy
+from django.views import View
+from online.forms import ImportForm
+import dateutil.parser
 
 
 class OnlineListView(generic.ListView):
@@ -299,3 +306,140 @@ class OnlineDetailView(DetailView):
                         else:
                                 return stock.get_available_total_stocks().get(state)
 
+
+class ImportMissionView(View):
+    template_name = "online/import_missions.html"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.context = None
+        self.form = None
+        self.header, self.result = None, None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.form = self.get_form()
+        self.context = self.get_context()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.context)
+
+    def get_context(self):
+        self.context = {"title": "Aufträge importieren", "form": self.form}
+        return self.context
+
+    def get_form(self):
+        if self.request.method == "POST":
+            print("waaaas?")
+            return ImportForm(self.request.POST, self.request.FILES)
+        else:
+            return ImportForm()
+
+    def post(self, request, *args, **kwargs):
+        self.fetch_amazon_report()
+        if self.header is not None and self.result is not None:
+            print(f"HELLLOOO")
+            instances = self.get_amazon_mission_instances()
+        return HttpResponseRedirect(reverse_lazy("online:list"))
+
+    def get_amazon_mission_instances(self):
+        print(len(self.result))
+        channel_instance = Channel.objects.get(name="Amazon.de")
+        for row in self.result:
+            shipping_address_instance = self.get_shipping_address_instance(row)
+            shipping_address_instance.save()
+            sku = self.column_from_row("sku", row)
+            product = Product.objects.filter(sku__sku__iexact=sku.strip()).first()
+            if product is None:
+                continue
+            quantity_purchased = int(self.column_from_row("quantity-purchased", row))
+            item_price = float(self.column_from_row("item-price", row))
+
+            instance_data = {"channel_order_id": self.column_from_row("order-id", row),
+                             "is_online": True, "is_amazon_fba": False,
+                             "purchased_date": dateutil.parser.parse(self.column_from_row("purchase-date", row),),
+                             "delivery_date_from": self.parse_date(
+                                 self.column_from_row("delivery-start-date", row),),
+                             "delivery_date_to": self.parse_date(self.column_from_row("delivery-end-date", row)),
+                             "payment_date": self.parse_date(self.column_from_row("payments-date", row)),
+                             "delivery_address_id": shipping_address_instance.pk,
+                             "channel_id": channel_instance.pk}
+            print(f"bankimoon: {instance_data}")
+            mission_instance = Mission()
+            mission_instance.__dict__.update(instance_data)
+            mission_instance.save()
+            productmission_instance = ProductMission.objects.create(product=product, amount=quantity_purchased,
+                                                                    mission=mission_instance, netto_price=item_price,
+                                                                    state="Neu")
+            productmission_instance.save()
+
+    def get_shipping_address_instance(self, row):
+        shipping_address = self.get_street_and_housenumber_from_shipping_address(
+            self.column_from_row("ship-address-1", row), self.column_from_row("ship-address-2", row),
+            self.column_from_row("ship-address-3", row))
+        recipient_name = self.column_from_row("recipient-name", row)
+        ship_city = self.column_from_row("ship-city", row)
+        ship_country_code = self.column_from_row("ship-country", row)
+        ship_postal_code = self.column_from_row("ship-postal-code", row)
+        shipping_address_instance = Adress(first_name_last_name=recipient_name,
+                                           street_and_housenumber=shipping_address.get("street_and_housenumber"),
+                                           adresszusatz=None,
+                                           adresszusatz2=None,
+                                           place=ship_city,
+                                           zip=ship_postal_code,
+                                           country_code=ship_country_code)
+        return shipping_address_instance
+
+    def get_street_and_housenumber_from_shipping_address(self, address_line_1, address_line_2, address_line_3):
+        street_components = {}
+
+        if address_line_1 != "" and address_line_2 != "":
+            street_components["company"] = address_line_1
+            street_components["street_and_housenumber"] = address_line_2
+        elif address_line_1 != "" and address_line_2 == "":
+            street_components["street_and_housenumber"] = address_line_1
+        elif address_line_2 != "" and address_line_1 == "":
+            street_components["street_and_housenumber"] = address_line_2
+        return street_components
+
+    def parse_date(self, date):
+        if date != "":
+           date = dateutil.parser.parse(date)
+           return date
+
+    def column_from_row(self, column, row):
+        index = None
+        for header_col in self.header:
+            if header_col == column:
+                index = self.header.index(header_col)
+        if index is not None:
+            return row[index]
+
+    def fetch_amazon_report(self):
+        if self.form.is_valid() is True:
+            import_file = self.form.cleaned_data.get("import_file")
+            print(f"banana: {import_file.name}")
+            file_ending = import_file.name.split(".")[-1]
+            print(file_ending)
+            if file_ending.lower() == "txt":
+                file_content = import_file.read()
+                content = file_content.decode("ISO-8859-1")
+                print(f"before: {content}")
+                content_list = content.split("\r\n")
+                self.result = []
+                is_header = True
+                for row in content_list:
+                    columns = row.split("\t")
+                    columns_tuple = ()
+                    for col in columns:
+                        columns_tuple += (col,)
+
+                    if is_header is True:
+                        self.header = columns_tuple
+                        is_header = False
+                    else:
+                        self.result.append(columns_tuple)
+                print(self.result)
+                for row in self.result:
+                    if len(row) != len(self.header):
+                        self.result.pop(self.result.index(row))

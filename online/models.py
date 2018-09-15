@@ -12,7 +12,8 @@ class Channel(models.Model):
 class RefillOrder(models.Model):
     refill_order_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nachfüllauftrags ID")
     user = models.ForeignKey(get_user_model(), on_delete=models.deletion.SET_NULL, null=True, blank=True)
-    completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
+    booked_out = models.NullBooleanField(null=True, blank=True, verbose_name="Ausgebucht")
+    booked_in = models.NullBooleanField(null=True, blank=True, verbose_name="Eingebucht")
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         super().save()
@@ -23,9 +24,22 @@ class RefillOrder(models.Model):
 
 class RefillOrderOutbookStock(models.Model):
     refill_order = models.ForeignKey(RefillOrder, null=True, blank=True, on_delete=models.deletion.SET_NULL)
-    product_mission = models.ForeignKey("mission.ProductMission", null=True, blank=True)
+    product_mission = models.ForeignKey("mission.ProductMission", null=True, blank=True,
+                                        on_delete=models.deletion.SET_NULL)
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
     booked_out = models.NullBooleanField(verbose_name="Ausgebucht", blank=True, null=True)
     booked_out_amount = models.IntegerField(verbose_name="Ausgebuchte Menge", null=True, blank=True)
-    stock = models.ForeignKey("stock.Stock", null=True, blank=True, verbose_name="Bestand")
+    stock = models.ForeignKey("stock.Stock", null=True, blank=True, verbose_name="Bestand",
+                              on_delete=models.deletion.SET_NULL)
+
+
+class RefillOrderInbookStock(models.Model):
+    refill_order = models.ForeignKey(RefillOrder, null=True, blank=True, on_delete=models.deletion.SET_NULL)
+    product = models.ForeignKey("product.Product", null=True, blank=True, on_delete=models.deletion.SET_NULL)
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
+    position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
+    booked_in = models.NullBooleanField(verbose_name="Ausgebucht", blank=True, null=True)
+    booked_in_amount = models.IntegerField(verbose_name="Ausgebuchte Menge", null=True, blank=True)
+    stock = models.ForeignKey("stock.Stock", null=True, blank=True, verbose_name="Bestand",
+                              on_delete=models.deletion.SET_NULL)

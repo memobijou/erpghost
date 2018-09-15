@@ -43,9 +43,13 @@
                         {% if picklist_data %}
                             <input type="Submit" class="btn btn-primary btn-lg" value="Pickauftrag annehmen"/>
                         {% else %}
-                            <h3>Es können zurzeit keine Pickaufträge angenommen werden.</h3>
+                            {% if packing_stations %}
+                                <h3>Es können zurzeit keine Pickaufträge angenommen werden.</h3>
+                            {% else %}
+                                <h3>Es können zurzeit keine Pickaufträge angenommen werden, da alle Packstationen belegt sind.</h3>
+                            {% endif %}
                             <br/>
-                            <p><a>Fehlende Bestände nachfüllen</a></p>
+                            <p><a href="{% url 'online:accept_refill' %}">Fehlende Bestände nachfüllen</a></p>
                         {% endif %}
                     </div>
                 </div>
@@ -53,6 +57,3 @@
         </div>
     </div>
 {% endblock %}
-
-
-

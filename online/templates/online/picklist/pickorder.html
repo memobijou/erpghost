@@ -52,17 +52,23 @@
                                      {% if not pickorder.packingstation_set.first %}
                                          <h5>Ware zum Verpacken ablegen</h5>
                                          <div class="form-inline">
-                                            {% for packing_station in packing_stations %}
-                                                <div class="form-group">
-                                                    <form method="POST" action="{% url 'mission:packingstation_pickorder' pk=packing_station.pk pick_order_pk=pickorder.pk %}">{% csrf_token %}
-                                                        <button type="submit" style="border-radius: 0;" class="btn btn-primary btn-lg"
-                                                        {% if packing_station.pickorder %}
-                                                            disabled
-                                                        {% endif %}
-                                                        >{{ packing_station.station_id }}</button>
-                                                    </form>
+                                            {% if packing_stations %}
+                                                {% for packing_station in packing_stations %}
+                                                    <div class="form-group">
+                                                        <form method="POST" action="{% url 'mission:packingstation_pickorder' pk=packing_station.pk pick_order_pk=pickorder.pk %}">{% csrf_token %}
+                                                            <button type="submit" style="border-radius: 0;" class="btn btn-primary btn-lg"
+                                                            {% if packing_station.pickorder %}
+                                                                disabled
+                                                            {% endif %}
+                                                            >{{ packing_station.station_id }}</button>
+                                                        </form>
+                                                    </div>
+                                                {% endfor %}
+                                            {% else %}
+                                                <div class="text-center">
+                                                    <h3>Alle Packstationen sind belegt.</h3>
                                                 </div>
-                                            {% endfor %}
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 </div>
@@ -73,7 +79,6 @@
 
                 <div class="col-md-12">
                     <table class="table table-hover table-striped table-condensed">
-
                         <tbody>
                             {% for picked_row in picked_rows %}
                                  <tr

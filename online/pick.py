@@ -48,6 +48,9 @@ class AcceptOnlinePickList(generic.CreateView):
             print(f"data: {self.picklist_data}")
             self.missions_pick_rows = self.put_pickrows_under_missions()
             print(f"KHUTI {self.missions_pick_rows}")
+        print(self.picklist_data is True)
+        if self.picklist_data is False and request.method == "POST":
+            return HttpResponseRedirect(reverse_lazy("online:accept_picklist"))
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

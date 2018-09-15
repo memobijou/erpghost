@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-hover table-striped">
+                <tbody>
+                    {% for product, bookin_stocks in products %}
+                        <tr>
+                            <td>
+                                <div class="col-md-3">
+                                    {% if product.main_image %}
+                                        <img src="{{ product.main_image.url }}"
+                                             class="img-responsive" style="max-height: 150px;"/>
+                                    {% endif %}
+
+                                </div>
+                                <div class="col-md-9">
+                                    <p><b>EAN:</b> {{ product.ean }}</p>
+                                    {% if refill_order.booked_in == None %}
+                                        <p><a href="{% url 'online:warehouse' pk=product.pk %}">Artikel in Online Lager einbuchen</a></p>
+                                    {% endif %}
+                                    {% if bookin_stocks %}
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Lagerplatz</th>
+                                                    <th>Eingebuchte Menge</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for bookin_stock in bookin_stocks %}
+                                                    <tr class="success">
+                                                        <td>
+                                                            {{ bookin_stock.position }}
+                                                        </td>
+                                                        <td>
+                                                            {{ bookin_stock.amount }}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                         </table>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="text-center">
+                <a class="btn btn-info btn-lg" href="{% url 'online:finish_refill_order' %}">
+                    Nachfüllautrag Abschließen</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

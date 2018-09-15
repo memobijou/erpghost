@@ -63,3 +63,16 @@ class PackingForm(forms.Form):
 
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "form-control"
+
+
+class BookinForm(forms.Form):
+    bookin_amount = forms.IntegerField(required=True, label="Menge")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            visible.field.widget.attrs["class"] = "form-control"
+
+
+class ImportForm(forms.Form):
+    import_file = forms.FileField(label="Import Datei", required=True)

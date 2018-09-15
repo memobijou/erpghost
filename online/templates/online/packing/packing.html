@@ -45,7 +45,7 @@
             {% if is_all_scanned == True and picklist.completed == None %}
                 <div class="text-center">
                 <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk %}">{% csrf_token %}
-                    <input type="Submit" class="btn btn-primary btn-lg" value="Abschließen"/>
+                    <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Verpacken abschließen"/>
                 </form>
                 </div>
             {% elif is_all_scanned == True and picklist.completed == True %}

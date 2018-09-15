@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="text-center">
+                    <p><b>EAN: </b>{{ product.ean }}</p>
+                    {% if product.main_image %}
+                        <img src="{{ product.main_image.url }}"
+                             class="img-responsive center-block" style="max-height:150px;"/>
+                    {% endif %}
+                    <p class="help-block">Bitte wählen Sie eine Position aus, auf die der Artikel eingebucht werden soll.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12" style="padding-bottom: 25px;">
+        <div class="col-md-12" style="padding:0;">
+            <form method="GET">
+                <div class="input-group">
+                  <input type="text" name="position" value="{{ request.GET.position }}" class="form-control" placeholder="Lagerplatz einscannen">
+                  <span class="input-group-btn">
+                    <input type="submit" class="btn btn-info" value="Filter"/>
+                  </span>
+                </div><!-- /input-group -->
+            </form>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <table class="table table-hover table-striped">
+                    <thead>
+                        <tr>
+                            <th>Lagerplatz</th>
+                            <th>Artikel einbuchen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for object in object_list %}
+                            <tr>
+                                <td>
+                                    {{ object.position }}
+                                </td>
+                                <td>
+                                    <div>
+                                        <a href="{% url 'online:book_product_in_position' product_pk=product.pk position_pk=object.pk %}" class="btn btn-info">Artikel einbuchen</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

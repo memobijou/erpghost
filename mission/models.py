@@ -60,6 +60,7 @@ class Mission(models.Model):
     is_amazon_fba = models.NullBooleanField(null=True, blank=True, verbose_name="Fulfillment")
 
     purchased_date = models.DateTimeField(null=True, blank=True)
+    payment_date = models.DateTimeField(null=True, blank=True)
 
     tracking_number = models.CharField(null=True, blank=True, verbose_name="Tracking Nummer", max_length=200)
     shipping = models.CharField(choices=online_shipping_choices, blank=True, null=True, max_length=200,
@@ -69,6 +70,8 @@ class Mission(models.Model):
 
     online_picklist = models.ForeignKey("mission.PickList", null=True, blank=True, verbose_name="Online Pickauftrag",
                                         on_delete=django.db.models.deletion.SET_NULL)
+
+    is_online = models.NullBooleanField(choices=CHOICES, verbose_name="Onlinehandel")
 
     shipped = models.NullBooleanField(verbose_name="Versendet")
 

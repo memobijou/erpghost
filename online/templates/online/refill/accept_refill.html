@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-hover table-striped">
+                <tbody>
+                    {% for mission_product, stocks in missions_products_and_stocks %}
+                        <tr>
+                            <td>
+                                <div class="col-md-3">
+                                    {% if  mission_product.product.main_image %}
+                                        <img class="img-responsive" style="max-height:80px;"
+                                             src="{{ mission_product.product.main_image.url }}"/>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-9">
+                                    <p><b>Artikel: </b>{{ mission_product.product }}</p>
+                                    <p><b>Menge: </b>{{ mission_product.amount }}</p>
+                                    <p><b>Auftrag: </b>{{ mission_product.mission }}</p>
+
+                                    {% if stocks %}
+                                        <table class="table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Lagerplatz</th>
+                                                    <th>Bestand</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for stock in stocks %}
+                                                    <tr>
+                                                        <td>
+                                                            {{ stock.object.lagerplatz }}
+                                                        </td>
+                                                        <td>
+                                                            {{ stock.bookout_amount }}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                         </table>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+
+            <form method="POST">{% csrf_token %}
+                {% if missions_products_and_stocks %}
+                    <div class="text-center">
+                        <input type="Submit" class="btn btn-primary btn-lg" value="Nachfüllauftrag annehmen"/>
+                    </div>
+                {% else %}
+                    <div class="text-center">
+                        <h4>Keine eingehende Aufträge vorhanden.</h4>
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+{% endblock %}

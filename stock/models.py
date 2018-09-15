@@ -160,7 +160,6 @@ class Stock(models.Model):
             raise ValidationError(Template(stock_html).render(c))
 
     def get_total_stocks(self, product=None):
-
         if self.product is not None:
             product = self.product
 

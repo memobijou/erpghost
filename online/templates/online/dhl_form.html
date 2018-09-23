@@ -2,6 +2,15 @@
 
 {% block content %}
     <form method="POST">{% csrf_token %}
+        <div class="col-md-12" style="padding:15px;">
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                <p><b>Name: </b>{{ object.first_name_last_name }}</p>
+                <p><b>Straße und Hausnummer: </b>{{ object.street_and_housenumber }}</p>
+            </div>
+
+        </div>
+
         <div class="panel panel-default">
             <div class="panel-body">
                 <div class="col-md-3">

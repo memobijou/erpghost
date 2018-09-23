@@ -4,7 +4,7 @@ from django.http import HttpResponse
 from django import views
 
 from disposition.models import BusinessAccount
-from mission.models import Mission
+from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission
 from client.models import Client
 import base64
 from xml.etree import ElementTree as Et
@@ -74,8 +74,21 @@ class DPDPDFView(UpdateView):
         #     return super().form_invalid(form)
 
         self.mission.tracking_number = parcel_label_number
+        self.mission.online_picklist.completed = True
+        self.mission.online_picklist.save()
+        self.create_delivery_note(self.mission.online_picklist)
         self.mission.save()
         return super().form_valid(form)
+
+    def create_delivery_note(self, picklist):
+        picklist.online_delivery_note = DeliveryNote.objects.create()
+        picklist.save()
+        bulk_instances = []
+        for pick_row in picklist.picklistproducts_set.all():
+            bulk_instances.append(DeliveryNoteProductMission(product_mission=pick_row.product_mission,
+                                                             delivery_note=picklist.online_delivery_note,
+                                                             amount=pick_row.confirmed_amount, ))
+        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
 
 class DPDLabelCreator:
@@ -97,6 +110,10 @@ class DPDLabelCreator:
         parcel_label_number = self.create_label_through_dpd_api()
         self.mission.tracking_number = parcel_label_number
         self.mission.save()
+        picklist = self.mission.online_picklist
+        if picklist is not None:
+            picklist.completed = True
+            picklist.save()
         return parcel_label_number
 
     def create_label_through_dpd_api(self):

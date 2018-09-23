@@ -146,7 +146,7 @@ class DHLLabelCreator:
                   <cis:accountNumber>{self.account_number}</cis:accountNumber>
                   <!--Optional:-->
                   <customerReference>Sendungsreferenz</customerReference>
-                  <shipmentDate>2018-09-30</shipmentDate>
+                  <shipmentDate>2018-09-28</shipmentDate>
                   <!--Optional:-->
                   <returnShipmentAccountNumber>{self.return_shipment_account_number}</returnShipmentAccountNumber>
                   <!--Optional:-->
@@ -165,7 +165,7 @@ class DHLLabelCreator:
                      <!--Optional:-->
                      <Premium active="1"/>
                      <!--Optional:-->
-                     <CashOnDelivery active="1" codAmount="10"/>
+                     <CashOnDelivery active="?" codAmount="10"/>
                      <!--Optional:-->
                      <AdditionalInsurance active="1" insuranceAmount="2500"/>
                      <!--Optional:-->

@@ -1,22 +1,58 @@
 {% load utils %}
 
+
 <div class="col-md-12">
-    <div class="text-right">
-        <a style="padding-left:30px;" href="">Pickauftrag</a>
+    <div class="col-md-4" style="padding:0;">
+        <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
+        <p style="font-size:15px;"><b>Verkaufskanal: </b>{{ object.channel.name|default:"" }}</p>
+        <p style="font-size:15px;"><b>Fremd ID: </b>{{ object.mission_number }}</p>
+        <p><b>Kunde: </b>{{object.customer|default:"N/A"}}</p>
+        <p>
+            <b>Lieferdatum: </b>{{ object.delivery_date_from|default:"N/A"}}-{{ object.delivery_date_to|default:"N/A"}}
+        </p>
+        <p>
+            <b>Kaufdatum: </b>{{ object.purchased_date|default:"N/A"}}
+        </p>
+        <p>
+            <b>Bezahlungsdatum: </b>{{ object.purchased_date|default:"N/A"}}
+        </p>
+        <p><b>Status: </b>
+            {% if status == "Verpackt" %}
+                 <span class="label label-success" style="font-size:15px;">{{ status }}</span>
+            {% else %}
+                 <span class="label label-warning" style="font-size:15px;">{{ status|default:"Offen"}}</span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="col-md-12" style="padding:0;">
+        <div class="col-md-5" style="padding:5px;">
+            {% include 'online/detail/delivery_address.html' %}
+        </div>
+        <div class="col-md-1"></div>
+        <div class="col-md-5" style="padding:5px;">
+            {% include 'online/detail/billing_address.html' %}
+
+        </div>
     </div>
 </div>
-<div class="col-md-12">
-    <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
-    <p style="font-size:15px;"><b>Liefertermin: </b>{{ object.delivery_date }}</p>
-    <p style="font-size:15px;"><b>Status: </b> {{object.status}}</p>
-</div>
 
-{% include "online/detail/delivery_address.html" %}
-
-<div class="col-md-12" style="padding-right: 0">
-    <a href="{% url 'mission:mission_confirmation_pdf' pk=object.id %}" class="btn btn-info pull-right" style="margin-right:15px;">
-    Auftragsbestätigung</a>
-<br/><br/><br/>
+<div class="col-md-12" style="padding-bottom:25px;">
+    {% if object.online_picklist.online_delivery_note %}
+        <a class="btn btn-info"
+            href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
+            Lieferschein
+        </a>
+    {% else %}
+        <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
+    {% endif %}
+    {% if object.online_picklist.online_billing %}
+        <a class="btn btn-info"
+            href="">
+            Rechnung
+        </a>
+    {% else %}
+        <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
+    {% endif %}
 </div>
 
 

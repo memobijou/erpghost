@@ -12,6 +12,9 @@ class Adress(models.Model):
     strasse = models.CharField(blank=False, null=True, max_length=200, verbose_name="Straße")
     street_and_housenumber = models.CharField(blank=True, null=True, max_length=200,
                                               verbose_name="Straße und Hasunummer")
+    address_line_1 = models.CharField(blank=True, null=True, max_length=200, verbose_name="Adresslinie 1")
+    address_line_2 = models.CharField(blank=True, null=True, max_length=200, verbose_name="Adresslinie 2")
+    address_line_3 = models.CharField(blank=True, null=True, max_length=200, verbose_name="Adresslinie 3")
     hausnummer = models.CharField(blank=False, null=True, max_length=200, verbose_name="Hausnummer")
     adresszusatz = models.CharField(blank=True, null=True, max_length=200, verbose_name="Adresszusatz")
     adresszusatz2 = models.CharField(blank=True, null=True, max_length=200, verbose_name="Adresszusatz 2")

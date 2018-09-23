@@ -20,6 +20,7 @@ class Profile(models.Model):
     first_name = models.CharField(verbose_name="Vorname", null=True, blank=True, max_length=200)
     last_name = models.CharField(verbose_name="Nachname", null=True, blank=True, max_length=200)
     user = models.OneToOneField(User, null=True, blank=True)
+    celery_import_task_id = models.CharField(max_length=400, null=True, blank=True)
 
 
 class TruckAppointment(models.Model):

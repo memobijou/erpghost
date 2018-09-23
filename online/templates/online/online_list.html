@@ -3,81 +3,169 @@
 {% load utils %}
 
 {% block content %}
+    {% if messages %}
+        <div class="col-md-12" style="padding:0 15px 15px 15px;">
+            <div class="alert alert-success">
+                {% for msg in messages %}
+                    <p>{{ msg }}</p>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
     <div class="col-md-12" style="padding:0;">
     <br/>
         {% include "snippets/filter.html" %}
-        {% include "snippets/pagination.html" %}
     </div>
+
     <div class="col-md-12">
+            {% include 'snippets/paginate_by.html' %}
+    </div>
+
+    <div class="col-md-12" style="padding:0 15px 15px 15px;">
         <div class="text-right">
             <a class="btn btn-info" href="{% url 'online:import_mission' %}">Auftrag importieren</a>
         </div>
     </div>
-    <div class="col-md-12" style="padding:0px;">
-        <div class="panel panel-default" style="margin:15px;">
-            <div class="panel-body">
-                <form method="GET" action="{% url 'mission:delete' %}">
-                    <div class="col-md-12" style="padding:0px;">
-                        <div class="col pull-right" style="padding-bottom: 10px;">
-                            <button type="submit" class="btn btn-default">Löschen</button>
-                        </div>
-                    </div>
-                    <div class="col-md-12" style="padding:0px;">
-                        <div class="table-responsive">
-                            <table class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th></th>
-                                        {% for field in fields %}
-                                            <th>{{ field }}</th>
-                                        {% endfor %}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for object, billings, delivery_notes in object_list_zip %}
-                                        <tr>
-                                            <td class="col-md-1"><a href="{% url 'online:detail' pk=object.id %}">Ansicht</a>
-                                                <a href="{% url 'mission:update' pk=object.id %}">Bearbeiten</a>
-                                                <input type="checkbox" name="item" value="{{object.pk}}">
-                                            </td>
-                                            <td>{{ object.mission_number }}</td>
-                                            <td>{{ object.delivery_date }}</td>
-                                            <td>{{ object.status }}</td>
-                                            <td>{{ object.channel.name|default:"" }}
-                                                {% if object.is_amazon_fba == True %}
-                                                    <br/>
-                                                     <span class="label label-default">FBA</span>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {% if object.difference_delivery_date_today > 0 %}
-                                                     <span class="label label-danger">
-                                                         {{ object.difference_delivery_date_today }} Tage
-                                                     </span>
-                                                {% elif object.difference_delivery_date_today <= 0 %}
-                                                     <span class="label label-success">
-                                                         {{ object.difference_delivery_date_today|cut:"-"  }} Tage
-                                                     </span>
-                                                {% endif %}
-                                            </td>
-                                            <td> {{object.customer|default:""}} </td>
-                                            <td> {{object.customer_order_number|default:""}} </td>
-                                            <td>{{ object.channel_order_id|default:"" }}</td>
-                                            <td>{{ object.tracking_number|default:"" }}</td>
-                                            <td>
-                                                {{ object.productmission_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
-                                            </td>
-                                            <td>
-                                                {{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </form>
-            </div>
+    <div class="col-md-12" style="padding:0 15px 15px 15px;">
+        <table class="table table-condensed table-bordered" style="background: white;">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th>Channel</th>
+                    <th>Auftragsnummer</th>
+                    <th>Fremd ID</th>
+                    <th>Status</th>
+                    <th>Tracking ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for object, status in object_list %}
+                    <tr>
+                        <td>
+                                <p>
+                                    <a href="{% url 'online:detail' pk=object.pk %}">Ansicht</a>
+                                </p>
+                        </td>
+                        <td class="show_hide" style="cursor:pointer;">
+                            <p>
+                                <a collapseid="collapse_{{ forloop.counter }}">
+                                    <span class="glyphicon glyphicon-chevron-down"></span>
+                                </a>
+                            </p>
+                        </td>
+                        <td>
+                            <p>{{ object.channel.name|default:"" }}</p>
+                        </td>
+                        <td>
+                            <p>{{ object.mission_number }}</p>
+                        </td>
+                        <td>
+                            <p><b></b>{{ object.channel_order_id|default:""}}</p>
+                        </td>
+                        <td>
+                            <p>
+                                {% if status == "Verpackt" %}
+                                    <h4>
+                                         <span class="label label-success">{{ status }}</span>
+                                    </h4>
+                                {% else %}
+                                    <h4>
+                                         <span class="label label-warning">{{ status|default:"Offen"}}</span>
+                                    </h4>
+                                {% endif %}
+                            </p>
+                        </td>
+                        <td>
+                            <p>{{ object.tracking_number|default:"N/A" }}</p>
+                        </td>
+                    </tr>
+                    <tr id="collapse_{{ forloop.counter }}" class="collapse">
+                        <td colspan="12">
+                            <div class="col-md-4" style="padding:0;">
+                                <p>
+                                    {% if object.is_amazon_fba == True %}
+                                        <br/>
+                                         <span class="label label-default">FBA</span>
+                                    {% endif %}
+                                </p>
+
+                                <p><b>Kunde: </b>{{object.customer|default:"N/A"}}</p>
+                                <p>
+                                    <b>Lieferdatum von: </b>{{ object.delivery_date_from|default:"N/A"}}
+                                </p>
+                                <p>
+                                    <b>Lieferdatum bis: </b>{{ object.delivery_date_to|default:"N/A"}}
+                                </p>
+                                <p>
+                                    <b>Kaufdatum: </b>{{ object.purchased_date|default:"N/A"}}
+                                </p>
+                                <p>
+                                    <b>Bezahlungsdatum: </b>{{ object.purchased_date|default:"N/A"}}
+                                </p>
+                                <p>
+                                    <b>Gesamtpreis Netto: </b>{{ object.productmission_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
+                                </p>
+                                <p>
+                                    <b>Gesamtpreis Brutto: </b>{{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
+                                </p>
+
+                                {% if object.online_picklist.online_delivery_note %}
+                                    <a class="btn btn-info"
+                                        href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
+                                        Lieferschein
+                                    </a>
+                                {% else %}
+                                    <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
+                                {% endif %}
+                                {% if object.online_picklist.online_billing %}
+                                    <a class="btn btn-info"
+                                        href="">
+                                        Rechnung
+                                    </a>
+                                {% else %}
+                                        <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="col-md-12" style="padding:0;">
+            {% include 'snippets/paginate_by.html' %}
         </div>
     </div>
+
+    <script>
+        var show_hide_elements = document.getElementsByClassName("show_hide");
+
+        for(var i = 0; i<show_hide_elements.length; i++){
+            var show_hide_element = show_hide_elements[i];
+
+
+            show_hide_element.onclick = function(e){
+               var a_element = this.getElementsByTagName("a")[0];
+
+               var show_or_hide_element = this.getElementsByTagName("span")[0];
+
+               flip_down_up(show_or_hide_element);
+
+               $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+
+            }
+        }
+
+        var flip_down_up = function(el){
+               if(el.className.includes("chevron-down")){
+                   el.className = el.className.replace("chevron-down", "chevron-up");
+               }else{
+                  el.className = el.className.replace("chevron-up", "chevron-down");
+               }
+        };
+
+
+    </script>
 {% endblock %}

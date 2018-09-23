@@ -50,7 +50,9 @@ class Mission(models.Model):
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
                                          verbose_name="Lieferkonditionen")
     delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse",
-                                         on_delete=models.SET_NULL)
+                                         on_delete=models.SET_NULL, related_name="delivery")
+    billing_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Rechnungsadresse",
+                                        on_delete=models.SET_NULL, related_name="billing")
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
 
@@ -76,6 +78,23 @@ class Mission(models.Model):
     shipped = models.NullBooleanField(verbose_name="Versendet")
 
     objects = MissionObjectManager()
+
+    def get_online_status(self):
+        if self.online_picklist is not None:
+            if self.online_picklist.completed is True and self.tracking_number is not None:
+                return "Verpackt"
+        if self.tracking_number is not None:
+            return "Verpackt"
+
+        if self.online_picklist is not None:
+            pick_order = self.online_picklist.pick_order
+            if pick_order is not None:
+                packing_station = pick_order.packingstation_set.first()
+                if packing_station is None:
+                    return "am Picken"
+                else:
+                    return f"auf Station {packing_station.station_id}"
+        return "Offen"
 
     @property
     def difference_delivery_date_today(self):
@@ -183,6 +202,7 @@ class PickList(models.Model):
     pick_order = models.ForeignKey(PickOrder, null=True, blank=True)
     completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
     online_delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True)
+    online_billing = models.ForeignKey("mission.Billing", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):

@@ -34,7 +34,7 @@ urlpatterns = [
     url(r'^ebay_test/$', EbayView.as_view(), name="ebay_test"),
     url(r'^accept_refill_order/$', AcceptRefillStockView.as_view(), name="accept_refill"),
     url(r'^refill_order/$', RefillStockView.as_view(), name="refill"),
-    url(r'^stock/(?P<pk>\d+)/bookout/(?P<book_out_amount>\d+)/$', BookOutForOnlinePositions.as_view(), name="book_out"),
+    url(r'^stock/(?P<pk>\d+)/bookout/$', BookOutForOnlinePositions.as_view(), name="book_out"),
     url(r'^warehouse/product/(?P<pk>\d+)/$', BookInOnlineWarehouseList.as_view(),
         name="warehouse"),
     url(r'^products_for_bookin/$', ProductsForBookInView.as_view(), name="products_for_bookin"),

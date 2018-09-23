@@ -6,28 +6,53 @@
         <div class="panel-body">
             <table class="table table-hover table-striped">
                 <tbody>
-                    {% for outbook_stock in refillorder.refillorderoutbookstock_set.all %}
+                    {% if refill_object %}
+                        <div class="col-md-12" style="padding: 0 0 25px 0;">
+                            <div
+                                {% if refill_object.0.product_mission.product.main_image %}
+                                    class="col-md-4"
+                                {% endif %}
+                            >
+                                {% if refill_object.0.product_mission.product.main_image %}
+                                    <img class="img-responsive" style="max-height: 250px;"
+                                         src="{{ refill_object.0.product_mission.product.main_image.url }}"/>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div style="padding-top:60px;">
+                                    <p style="font-size:20px;"><b>EAN: </b>{{ refill_object.0.product_mission.product.ean }}</p>
+                                    <p style="font-size:20px;"><b>Lagerplatz: </b>{{ refill_object.0.position }}</p>
+                                    <p style="font-size:25px;"><a href="{% url 'online:book_out' pk=refill_object.0.pk %}">
+                                    {{ refill_object.1 }}x Ausbuchen</a></p>
+                                </div>
+                            </div>
+
+                        </div>
+                    {% endif %}
+
+
+                    {% for outbook_stock, bookout_amount in refill_order_rows %}
                         <tr
                             {% if outbook_stock.booked_out == True %}
                                 class="danger"
                             {% endif %}
                         >
-                            <td>
+                            <td class="col-md-4">
                                 {% if outbook_stock.product_mission.product.main_image %}
                                     <img src="{{ outbook_stock.product_mission.product.main_image.url }}"
-                                         class="img-responsive center-block" style="max-height:150px;"/>
+                                         class="img-responsive center-block" style="max-height:80px;"/>
                                 {% endif %}
                             </td>
                             <td>
                                 <div>
                                     <p><b>Artikel: </b>{{ outbook_stock.product_mission.product }}</p>
-                                    <p><b>Lagerplatz:</b> {{ outbook_stock.stock.lagerplatz }}</p>
-                                    {% if outbook_stock.booked_out != True %}
-                                        <p style="font-size:25px;"><a href="{% url 'online:book_out' pk=outbook_stock.pk book_out_amount=outbook_stock.amount %}">
-                                            {{ outbook_stock.amount }}x Ausbuchen</a></p>
-                                    {% else %}
-                                        <p><b>Ausgebuchte Menge: </b>{{ outbook_stock.amount }}</p>
-                                    {% endif %}
+                                    <p><b>Lagerplatz:</b> {{ outbook_stock.position }}</p>
+                                    <p><b>Auszubuchende Menge:</b> {{ bookout_amount }} </p>
+                                        {% if outbook_stock.booked_out == True %}
+                                            <p><b>Ausgebuchte Menge: </b>{{ outbook_stock.amount }}</p>
+                                        {% else %}
+                                            <p><b>Ausgebuchte Menge: </b>0</p>
+                                        {% endif %}
                                 </div>
                             </td>
                         </tr>

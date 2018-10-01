@@ -4,7 +4,10 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="text-right">
-                <a class="" href="{% url 'online:packing_overview' %}">Zur Übersicht</a>
+                <a href="{% url 'online:packing_overview' %}" style="padding-right:10px;">Zur Übersicht</a>
+                {% if is_all_scanned == True and picklist.completed == True %}
+                    <a href="{% url 'online:login_station' %}">Nächster Auftrag</a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -35,6 +38,7 @@
                             </td>
                             <td>
                                 <p><b>EAN: </b>{{ pick_row.product_mission.product.ean }}</p>
+                                <p><b>Zustand: </b>{{ pick_row.product_mission.state }}</p>
                                 <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
                             </td>
                         </tr>
@@ -52,6 +56,11 @@
                     <a class="btn btn-info"
                        href="{% url 'online:delivery_note' pk=picklist.mission_set.first.pk delivery_note_pk=picklist.online_delivery_note.pk %}">
                         Lieferschein ansehen
+                    </a>
+                <br/><br/>
+                    <a class="btn btn-info"
+                       href="{% url 'online:billing' pk=picklist.mission_set.first.pk billing_pk=picklist.online_billing.pk %}">
+                        Rechnung ansehen
                     </a>
                     {% if mission.tracking_number == None %}
                         wiee

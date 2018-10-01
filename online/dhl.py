@@ -1,4 +1,5 @@
 from django import views
+from django.db.models import Q
 from django.http import HttpResponse
 import os
 import base64
@@ -8,11 +9,14 @@ from xml.etree import ElementTree as Et
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.views.generic import UpdateView
-from mission.models import Mission
+from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission
 from client.models import Client
 from online.forms import DhlForm
 from django.urls import reverse_lazy
 import pycountry
+import datetime
+
+from stock.models import Stock
 
 
 class DHLCreatePdfView(UpdateView):
@@ -57,7 +61,50 @@ class DHLCreatePdfView(UpdateView):
                 form.add_error(None, error)
             return super().form_invalid(form)
         # self.mission.tracking_number = dhl_label
+        picklist = self.mission.online_picklist
+        if picklist is not None:
+            self.create_delivery_note(picklist)
+            self.create_billing(picklist)
+            self.book_out_stocks(picklist)
         return super().form_valid(form)
+
+    def create_delivery_note(self, picklist):
+        picklist.online_delivery_note = DeliveryNote.objects.create()
+        picklist.save()
+        bulk_instances = []
+        for pick_row in picklist.picklistproducts_set.all():
+            bulk_instances.append(DeliveryNoteProductMission(product_mission=pick_row.product_mission,
+                                                             delivery_note=picklist.online_delivery_note,
+                                                             amount=pick_row.confirmed_amount, ))
+        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+
+    def create_billing(self, picklist):
+        picklist.online_billing = Billing.objects.create()
+        picklist.save()
+        bulk_instances = []
+
+        for pick_row in picklist.picklistproducts_set.all():
+            bulk_instances.append(BillingProductMission(product_mission=pick_row.product_mission,
+                                                        billing=picklist.online_billing,
+                                                        amount=pick_row.confirmed_amount))
+        BillingProductMission.objects.bulk_create(bulk_instances)
+
+    def book_out_stocks(self, picklist):
+        for pick_row in picklist.picklistproducts_set.all():
+            product = pick_row.product_mission.product
+            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+            stock = Stock.objects.get(Q(Q(lagerplatz=pick_row.position)
+                                        & Q(Q(ean_vollstaendig=product.ean,
+                                              zustand__iexact=pick_row.product_mission.state) |
+                                            Q(sku=product_sku.sku)))
+                                      )
+            stock.bestand -= pick_row.confirmed_amount
+            print(f"{stock} - {stock.bestand}")
+            if stock.bestand > 0:
+                stock.save()
+            else:
+                stock.delete()
+            print(f"SO 1: {stock}")
 
 
 class DHLLabelCreator:
@@ -111,6 +158,10 @@ class DHLLabelCreator:
             self.mission.tracking_number = shipment_number
             self.mission.shipped = True
             self.mission.save()
+            picklist = self.mission.online_picklist
+            if picklist is not None:
+                picklist.completed = True
+                picklist.save()
             return pdf_content, None
         else:
             errors = []
@@ -146,7 +197,7 @@ class DHLLabelCreator:
                   <cis:accountNumber>{self.account_number}</cis:accountNumber>
                   <!--Optional:-->
                   <customerReference>Sendungsreferenz</customerReference>
-                  <shipmentDate>2018-09-28</shipmentDate>
+                  <shipmentDate>{datetime.date.today().strftime("%Y-%m-%d")}</shipmentDate>
                   <!--Optional:-->
                   <returnShipmentAccountNumber>{self.return_shipment_account_number}</returnShipmentAccountNumber>
                   <!--Optional:-->

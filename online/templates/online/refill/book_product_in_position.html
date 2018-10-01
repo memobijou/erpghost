@@ -10,6 +10,9 @@
                 <p style="font-size:25px;">
                     <b>EAN: </b> {{ product.ean }}
                 </p>
+                <p style="font-size:25px;">
+                    <b>Zustand: </b> {{ state }}
+                </p>
                 <p>
                     {% if product.main_image %}
                         <img src="{{ product.main_image.url }}"

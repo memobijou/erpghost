@@ -6,9 +6,43 @@ from django.db.models import Sum
 from django.template import Context, Template
 import re
 
-from mission.models import PartialMissionProduct, DeliveryNoteProductMission, PickListProducts
+from mission.models import PartialMissionProduct, DeliveryNoteProductMission, PickListProducts, ProductMission
 from product.models import Product
 from sku.models import Sku
+
+
+class StockQuerySet(models.QuerySet):
+    def values_as_instances(self, *fields, **expressions):
+        clone = self._clone()
+        if expressions:
+            clone = clone.annotate(**expressions)
+        clone._fields = fields
+        return clone
+
+    def delete(self):
+        for obj in self:
+            if is_stock_reserved(obj) is True:
+                pass
+            else:
+                obj.delete()
+
+
+class CustomManger(models.Manager):
+    def get_queryset(self):
+        return StockQuerySet(self.model, using=self._db)  # Important!
+
+
+class StockObjectManager(CustomManger):
+    def table_list(self):
+        return self.all()
+
+
+def is_stock_reserved(stock):
+    total_reserved = PickListProducts.objects.get_total_of_stock(stock)
+    print(f"{stock.bestand} --- {total_reserved.get('total')}")
+    if stock.bestand < int(total_reserved.get("total") or 0):
+        return True
+    print(total_reserved)
 
 
 class Stock(models.Model):
@@ -20,6 +54,8 @@ class Stock(models.Model):
         ('IGNORE', 'Ja'),
         ('NOT_IGNORE', 'Nein'),
     )
+
+    objects = StockObjectManager()
 
     id = models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')
     ean_vollstaendig = models.CharField(max_length=250, verbose_name="EAN", null=True, blank=True)
@@ -47,13 +83,28 @@ class Stock(models.Model):
         return str(self.ean_vollstaendig)
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None, *args, **kwargs):
+             update_fields=None, hard_save=None, *args, **kwargs):
         product = self.get_product()
         if product is not None:
             self.product = product
+        if kwargs.get("hard_save") is None:
+            if is_stock_reserved(self) is True:
+                return
         super().save(*args, **kwargs)
 
+    def delete(self, using=None, keep_parents=False, hard_delete=None, *args, **kwargs):
+        print(f"sdnfadsfndsajfndsa waaaaaarrummmm   +******")
+        if kwargs.get("hard_delete") is None:
+            if is_stock_reserved(self) is True:
+                return
+        super().delete(*args, **kwargs)
+
     def clean(self):
+
+        if is_stock_reserved(self) is True:
+            c = Context({"unique_message": ""})
+            error_msg = "Dieser Bestand ist reserviert und kann nicht ausgebucht werden"
+            raise ValidationError(Template(f"<h3 style='color:red;'>{error_msg}</h3>").render(c))
 
         if self.lagerplatz is None:
             return
@@ -273,35 +324,28 @@ class Stock(models.Model):
                     for partial_product in partial_products:
                         total_amount += partial_product.missing_amount()
 
-                    pick_list_total = 0
+                    online_total = 0
                     print(f"sa {sku_string} {sku_state}")
-                    pick_rows = PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
-                                                                product_mission__state=sku_state).exclude(
-                        pick_list__pick_order__isnull=False)
 
-                    for pick_row in pick_rows:
-                        if pick_row.confirmed is not None and pick_row.confirmed != "":
-                            pick_list_total += pick_row.amount_minus_missing_amount()
-                    print(f"?? {pick_list_total}")
-                    print(f"subh assr: {pick_rows} - {pick_list_total}")
+                    online_missions_products = ProductMission.objects.filter(mission__is_online=True,
+                                                                             product__sku__sku=sku_string,
+                                                                             mission__online_picklist__completed__isnull
+                                                                             =True, state=sku_state)
 
-                    online_pick_rows = PickListProducts.objects.filter(product_mission__product__sku__sku=sku_string,
-                                                                       product_mission__state=sku_state,
-                                                                       pick_list__pick_order__isnull=False,
-                                                                       pick_list__completed=None)
+                    for mission_product in online_missions_products:
+                        online_total += mission_product.amount
 
-                    for online_pick_row in online_pick_rows:
-                        pick_list_total += online_pick_row.amount
+                    print(f"?? {online_total}")
+                    print(f"subh assr: {online_missions_products} - {online_total}")
 
                     print(f"!! {total_amount}")
 
                     if total_amount is not None:
-                        total_amount -= pick_list_total
+                        total_amount -= online_total
                         if int(total_amount) > 0:
                             available_total[sku_state] = f"{int(total[sku_state])-int(total_amount)}"
                         else:
                             available_total[sku_state] = f"{int(total[sku_state])+int(total_amount)}"
-
 
         available_total_gesamt = 0
         print(f"bandi: {self.states}")
@@ -538,6 +582,39 @@ class Stock(models.Model):
 
         if self.product is not None:
             return self.product.get_state_from_sku(self.sku)
+
+    def get_real_stock(self):
+        total = 0
+        stocks = None
+        if self.sku is not None:
+            sku = Sku.objects.filter(sku=self.sku).first()
+            if sku is not None:
+                sku_string = sku.sku
+                stocks = Stock.objects.filter(sku=sku_string)
+
+        if self.ean_vollstaendig is not None and self.zustand is not None:
+            stocks = Stock.objects.filter(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand)
+
+        if stocks is not None:
+            total = stocks.aggregate(Sum("bestand"))["bestand__sum"]
+
+        online_total = 0
+
+        query_condition = Q(Q(mission__is_online=True, mission__online_picklist__completed__isnull=True)
+                            & Q(Q(product__ean=self.ean_vollstaendig, state=self.zustand) |
+                                Q(product__sku__sku=self.sku)))
+
+        online_missions_products = ProductMission.objects.filter(query_condition).distinct("pk")
+
+        for mission_product in online_missions_products:
+            online_total += mission_product.amount
+
+        print(f"?? {online_total}")
+        print(f"subh assr: {online_missions_products} - {online_total}")
+
+        if total is not None:
+            total -= online_total
+        return total or 0
 
 
 class Stockdocument(models.Model):

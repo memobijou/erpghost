@@ -1,4 +1,6 @@
+from django.db.models import OuterRef
 from django.db.models import Q, Sum
+from django.db.models import Subquery
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -10,6 +12,7 @@ from mission.models import Mission, ProductMission, PickOrder
 from online.models import RefillOrder, RefillOrderOutbookStock, RefillOrderInbookStock
 from online.pick import order_stocks_by_position
 from product.models import Product
+from sku.models import Sku
 from stock.models import Stock
 from django.views import generic
 from stock.models import Position
@@ -27,20 +30,23 @@ class AcceptRefillStockView(View):
                                                productmission__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
         self.missions_products = self.get_missions_products()
-        self.remove_missions_products_with_online_stock()
         self.missions_products_stocks = self.get_missions_products_stocks()
-        self.missions_products_and_stocks = self.get_missions_products_and_stocks()
+        self.refill_data = self.get_refill_data()
+        self.refill_data = self.refill_data
         self.refillorder = None
         self.existing_refillorder_stocks = None
         self.context = None
         self.pickorder = None
+        self.online_prefixes = OnlinePositionPrefix.objects.all()
 
     def dispatch(self, request, *args, **kwargs):
         self.refillorder = request.user.refillorder_set.filter(Q(Q(booked_out=None) | Q(booked_in=None))).first()
         self.context = self.get_context()
+
         if self.refillorder is not None:
             return HttpResponseRedirect(reverse_lazy("online:refill"))
         self.pickorder = request.user.pickorder_set.filter(completed=None).first()
+
         if self.pickorder is not None:
             return HttpResponseRedirect(reverse_lazy("online:pickorder"))
         return super().dispatch(request, *args, **kwargs)
@@ -52,42 +58,10 @@ class AcceptRefillStockView(View):
         self.create_refill_order()
         return HttpResponseRedirect(reverse_lazy("online:refill"))
 
-    def remove_missions_products_with_online_stock(self):
-        missions_data = {}
-
-        for mission_product in self.missions_products:
-            query_condition = Q()
-            product = mission_product.product
-            product_sku = product.sku_set.filter(state__iexact="Neu").first()
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") | Q(sku=product_sku.sku))
-            online_positions_condition = Q()
-            for online_prefix in self.online_prefixes:
-                online_positions_condition |= Q(lagerplatz__istartswith=online_prefix.prefix)
-            query_condition &= online_positions_condition
-            online_stocks_total_amount = Stock.objects.filter(query_condition).aggregate(Sum("bestand"))
-            mission = mission_product.mission
-
-            if mission not in missions_data:
-                missions_data[mission] = {"online_total": 0, "mission_products": [], "mission_total": 0}
-
-            if mission_product not in missions_data[mission]["mission_products"]:
-                missions_data[mission]["online_total"] += online_stocks_total_amount["bestand__sum"] or 0
-                missions_data[mission]["mission_total"] += mission_product.amount
-                missions_data[mission]["mission_products"].append(mission_product)
-
-        print(f"QAMAR: {missions_data}")
-        exclude_missions_pks = []
-        print(len(missions_data))
-        for mission, stock in missions_data.items():
-            if stock.get("online_total") >= stock.get("mission_total"):
-                exclude_missions_pks.append(mission.pk)
-
-        self.missions_products = self.missions_products.exclude(mission__pk__in=exclude_missions_pks)
-
     def create_refill_order(self):
         self.refillorder = RefillOrder.objects.create(user=self.request.user)
         bulk_instances = []
-        for mission_product, stocks in self.missions_products_and_stocks:
+        for mission_product, stocks in self.refill_data:
             for stock in stocks:
                 bulk_instances.append(
                     RefillOrderOutbookStock(product_mission=mission_product, amount=stock.get("bookout_amount"),
@@ -99,77 +73,87 @@ class AcceptRefillStockView(View):
     def get_context(self):
         context = {"missions": self.missions, "title": "Nachfüllauftrag annehmen",
                    "missions_products": self.missions_products,
-                   "missions_products_and_stocks": self.missions_products_and_stocks}
+                   "refill_data": self.refill_data}
         if self.missions.count() == 0:
             context["title"] = "Keine Online Aufträge vorhanden"
         return context
 
-    def get_missions_products_and_stocks(self):
-        self.missions_products_and_stocks = []
+    def get_refill_data(self):
+        self.refill_data = []
+        refill_totals = {}
 
         for mission_product in self.missions_products:
             product = mission_product.product
-            product_sku = product.sku_set.filter(state__iexact="Neu").first()
-            mission_product_stocks = []
-            mission_product_and_stocks = (mission_product, mission_product_stocks)
-            self.missions_products_and_stocks.append(mission_product_and_stocks)
+            product_sku = mission_product.sku
+            stocks = []
+            mission_product_stocks = (mission_product, stocks)
 
-            sum_bookout_amount = 0
+            current_mission_product_amount = 0
+            refill_total = mission_product.refill_total
+
+            if product_sku not in refill_totals:
+                refill_totals[product_sku] = 0
+            print(f"hey {product.ean} - {refill_totals[product_sku]}")
 
             for stock in self.missions_products_stocks:
-                if (stock.ean_vollstaendig == product.ean and stock.zustand == "Neu") or (stock.sku == product_sku.sku):
-                    if sum_bookout_amount == mission_product.amount:
+                if (stock.ean_vollstaendig == product.ean and stock.zustand == mission_product.state) or (
+                            stock.sku == product_sku):
+
+                    if current_mission_product_amount == mission_product.amount:
                         break
 
                     bookout_amount = 0
 
-                    if sum_bookout_amount + stock.bestand <= mission_product.amount:
+                    if current_mission_product_amount + stock.bestand <= mission_product.amount:
                         bookout_amount = stock.bestand
-                        sum_bookout_amount += bookout_amount
-                    elif sum_bookout_amount + stock.bestand > mission_product.amount:
-                        bookout_amount = mission_product.amount - sum_bookout_amount
-                        sum_bookout_amount += bookout_amount
-                    print(f"wieeee: {sum_bookout_amount}")
-                    mission_product_stocks.append({"object": stock, "bookout_amount": bookout_amount})
-        return self.missions_products_and_stocks
+                        current_mission_product_amount += bookout_amount
+                        # Falls schon Onlinebestand existiert
+                        if refill_totals[product_sku] + bookout_amount > refill_total:
+                            break
+                        refill_totals[product_sku] += bookout_amount
+                    elif current_mission_product_amount + stock.bestand > mission_product.amount:
+                        bookout_amount = mission_product.amount - current_mission_product_amount
+                        current_mission_product_amount += bookout_amount
+                        # Falls schon Onlinebestand existiert
+                        if refill_totals[product_sku] + bookout_amount > refill_total:
+                            break
+                        refill_totals[product_sku] += bookout_amount
+                    stocks.append({"object": stock, "bookout_amount": bookout_amount})
+
+            if len(stocks) > 0:
+                self.refill_data.append(mission_product_stocks)
+        return self.refill_data
 
     def get_missions_products(self):
-        mission_pks = [mission.pk for mission in self.missions]
-        missions_products = ProductMission.objects.filter(mission__in=mission_pks)
+
+        missions_products = ProductMission.objects.get_stocks().filter(
+            mission__in=self.missions.values_list("pk", flat=True)).order_by("mission__purchased_date")
 
         exclude_pks = []
         for mission_product in missions_products:
             refillorder_stock_instance = RefillOrderOutbookStock.objects.filter(product_mission=mission_product).first()
 
-            stock = mission_product.product.stock_set.filter(zustand="Neu").first()
-            if stock is None:
-                product = mission_product.product
-                products_sku = product.sku_set.filter(state__iexact="Neu").first()
-                stock = Stock.objects.filter(Q(Q(ean_vollstaendig=product.ean,
-                                             zustand__iexact="Neu") |
-                                               Q(product__ean=product.ean, sku=products_sku.sku))
-                                             ).first()
-            if stock is not None:
-                available_amount = int(stock.get_total_stocks().get("Neu").split("/")[0])
-                if available_amount < mission_product.amount or refillorder_stock_instance is not None:
-                    exclude_pks.append(mission_product.pk)
-            else:
+            available_total = mission_product.available_total
+
+            if (available_total <= 0 or available_total < mission_product.amount
+                    or refillorder_stock_instance is not None):
                 exclude_pks.append(mission_product.pk)
+
         return missions_products.exclude(pk__in=exclude_pks)
 
     def get_missions_products_stocks(self):
         query_condition = Q()
-        print(self.missions_products)
+
         if self.missions_products.count() == 0:
             return
 
         for mission_product in self.missions_products:
             product = mission_product.product
-            products_sku = product.sku_set.filter(state__iexact="Neu").first()
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") | Q(sku=products_sku.sku))
+            product_sku = mission_product.sku
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state)
+                                 | Q(sku=product_sku))
 
         print(f"GOLDFISCH: {query_condition}")
-        self.online_prefixes = OnlinePositionPrefix.objects.all()
         exclude_condition = Q()
         for online_prefix in self.online_prefixes:
             exclude_condition |= Q(lagerplatz__istartswith=online_prefix.prefix)
@@ -193,19 +177,17 @@ class RefillStockView(View):
         self.refillorder = request.user.refillorder_set.filter(Q(Q(booked_out=None) | Q(booked_in=None))).first()
         if self.refillorder is None:
             return HttpResponseRedirect(reverse_lazy("online:accept_refill"))
-        self.refill_order_rows = self.refillorder.refillorderoutbookstock_set.all()
-        for r in self.refill_order_rows:
-            print(f"{r.position} - {r.pk}")
-        distinct_pks = self.refill_order_rows.distinct("product_mission__product", "position"
-                                                       ).values_list("pk", flat=True)
-        print(distinct_pks)
-        self.order_by_position(query_condition=Q(pk__in=distinct_pks))
-        print(self.refill_order_rows)
-        for r in self.refill_order_rows:
-            print(r.position)
-        self.refill_order_rows = self.add_bookout_amount_to_rows()
+        self.refill_order_rows = self.get_refill_order_rows()
         self.refill_object = self.get_refill_object()
         return super().dispatch(request, *args, **kwargs)
+
+    def get_refill_order_rows(self):
+        self.refill_order_rows = self.refillorder.refillorderoutbookstock_set.all()
+        distinct_pks = self.refill_order_rows.distinct("product_mission__product", "position"
+                                                       ).values_list("pk", flat=True)
+        self.order_by_position(query_condition=Q(pk__in=distinct_pks))
+        self.refill_order_rows = self.add_bookout_amount_to_rows()
+        return self.refill_order_rows
 
     def get_refill_object(self):
         for refill_object, total_bookout_amount in self.refill_order_rows:
@@ -277,13 +259,7 @@ class BookOutForOnlinePositions(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get_product(self):
-        if self.object.product_mission.product is not None:
-            self.product = self.object.product_mission.product
-        else:
-            if self.object.ean_vollstaendig is not None:
-                self.product = Product.objects.filter(ean=self.object.ean_vollstaendig).first()
-            else:
-                self.product = Product.objects.filter(sku__sku=self.object.sku).first()
+        self.product = self.object.product_mission.product
         return self.product
 
     def get(self, request, *args, **kwargs):
@@ -295,16 +271,22 @@ class BookOutForOnlinePositions(View):
 
     def bookout_stock(self):
         for refill_order_row in self.refill_order_rows:
+            refill_order_row.refresh_from_db()
             stock, bookout_amount = refill_order_row.stock, refill_order_row.amount
-            print(f"test: {stock.lagerplatz} - {stock.bestand}  - {bookout_amount}")
 
-            if bookout_amount <= stock.bestand and refill_order_row.booked_out is not True:
-                if stock.bestand - bookout_amount <= 0:
-                    stock.delete()
-                else:
-                    stock.bestand -= bookout_amount
-                    stock.save()
-                print(f"OK GO {bookout_amount}")
+            if stock is not None:
+                if bookout_amount <= stock.bestand and refill_order_row.booked_out is not True:
+                    if stock.bestand - bookout_amount <= 0:
+                        refill_order_row.stock = None
+                        refill_order_row.save()
+                        stock.delete()
+                    else:
+                        stock.bestand -= bookout_amount
+                        stock.save()
+                    print(f"OK GO {bookout_amount}")
+                    refill_order_row.booked_out = True
+                    refill_order_row.save()
+            else:
                 refill_order_row.booked_out = True
                 refill_order_row.save()
         self.finish_bookout()
@@ -318,7 +300,7 @@ class BookOutForOnlinePositions(View):
 
     def get_context(self):
         context = {"title": "Bestand ausbuchen", "object": self.object, "book_out_amount": self.book_out_amount,
-                   "product": self.product, "refill_order": self.refill_order,}
+                   "product": self.product, "refill_order": self.refill_order}
         return context
 
 
@@ -346,6 +328,7 @@ class BookInOnlineWarehouseList(generic.ListView):
         context = super().get_context_data(**kwargs)
         context["title"] = "Artikel einbuchen"
         context["product"] = Product.objects.get(pk=self.kwargs.get("pk"))
+        context["state"] = self.kwargs.get("state")
         return context
 
 
@@ -371,9 +354,10 @@ class ProductsForBookInView(View):
         for refillorderoutbookstock in self.refill_order.refillorderoutbookstock_set.all().distinct(
                 "product_mission__product"):
             product = refillorderoutbookstock.product_mission.product
-            if product not in products:
-                inbook_stocks = self.refill_order.refillorderinbookstock_set.filter(product=product)
-                products.append((product, inbook_stocks))
+            inbook_stocks = self.refill_order.refillorderinbookstock_set.filter(product=product)
+            state = refillorderoutbookstock.product_mission.state
+            if (product, inbook_stocks, state) not in products:
+                products.append((product, inbook_stocks, state))
         return products
 
     def get(self, request, *args, **kwargs):
@@ -390,13 +374,14 @@ class BookProductInPosition(View):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.product, self.position, self.form, self.refill_order = None, None, None, None
+        self.product, self.state, self.position, self.form, self.refill_order = None, None, None, None, None
         self.bookin_amount, self.booked_in_amount, self.booked_out_amount = 0, 0, 0
         self.stock = None
 
     def dispatch(self, request, *args, **kwargs):
         self.product = Product.objects.get(pk=self.kwargs.get("product_pk"))
         self.position = Position.objects.get(pk=self.kwargs.get("position_pk"))
+        self.state = self.kwargs.get("state")
         self.form = self.get_form()
         self.refill_order = request.user.refillorder_set.filter(Q(Q(booked_out=None) | Q(booked_in=None)) &
                                                                 Q(user=self.request.user)).first()
@@ -410,7 +395,7 @@ class BookProductInPosition(View):
 
     def get_context(self):
         context = {"title": "Artikel in Lagerposition einbuchen", "product": self.product, "position": self.position,
-                   "form": self.form, "refill_order": self.refill_order}
+                   "form": self.form, "refill_order": self.refill_order, "state": self.state}
         return context
 
     def get_form(self):
@@ -430,13 +415,13 @@ class BookProductInPosition(View):
             return render(request, self.template_name, self.get_context())
 
     def bookin_product_on_position(self):
-        query_condition = Q(Q(product=self.product, lagerplatz__iexact=self.position.name, zustand="Neu")
+        query_condition = Q(Q(product=self.product, lagerplatz__iexact=self.position.name, zustand=self.state)
                             | (Q(ean_vollstaendig=self.product.ean, lagerplatz__iexact=self.position.name,
-                                 zustand="Neu")))
+                                 zustand=self.state)))
         self.stock = Stock.objects.filter(query_condition).first()
         print(f"bbaba: {self.position.name} - {self.stock}")
         if self.stock is None:
-            self.stock = Stock(ean_vollstaendig=self.product.ean, zustand="Neu", lagerplatz=self.position.name,
+            self.stock = Stock(ean_vollstaendig=self.product.ean, zustand=self.state, lagerplatz=self.position.name,
                                product=self.product)
         print(f"GUTE FRAGE : {self.bookin_amount} - {self.stock.bestand}")
 
@@ -451,7 +436,7 @@ class BookProductInPosition(View):
     def create_refill_order_inbook_stock(self):
         RefillOrderInbookStock.objects.create(refill_order=self.refill_order, product=self.product,
                                               amount=self.bookin_amount, position=self.position.name,
-                                              booked_in=True, stock=self.stock)
+                                              booked_in=True, stock=self.stock, state=self.state)
 
     def get_bookin_amount(self):
         if self.form.is_valid() is True:
@@ -519,25 +504,28 @@ class FinishRefillOrderView(View):
         for outbook_product in self.refill_order.refillorderoutbookstock_set.all():
             bookout_amount = outbook_product.amount
             product = outbook_product.product_mission.product
-            if product not in self.refill_order_result:
-                self.refill_order_result[product] = {}
+            state = outbook_product.product_mission.state
+            if (product, state) not in self.refill_order_result:
+                self.refill_order_result[(product, state)] = {}
 
-            if "booked_out" not in self.refill_order_result[product]:
-                self.refill_order_result[product]["booked_out"] = bookout_amount
+            if "booked_out" not in self.refill_order_result[(product, state)]:
+                self.refill_order_result[(product, state)]["booked_out"] = bookout_amount
             else:
-                self.refill_order_result[product]["booked_out"] += bookout_amount
+                self.refill_order_result[(product, state)]["booked_out"] += bookout_amount
 
         for inbook_product in self.refill_order.refillorderinbookstock_set.all():
             bookin_amount = inbook_product.amount
             product = inbook_product.product
+            state = inbook_product.state
+            print(f"hahahahah: {inbook_product.state}")
 
-            if product not in self.refill_order_result:
-                self.refill_order_result[product] = {}
+            if (product, state) not in self.refill_order_result:
+                self.refill_order_result[(product, state)] = {}
 
-            if "booked_in" not in self.refill_order_result[product]:
-                self.refill_order_result[product]["booked_in"] = bookin_amount
+            if "booked_in" not in self.refill_order_result[(product, state)]:
+                self.refill_order_result[(product, state)]["booked_in"] = bookin_amount
             else:
-                self.refill_order_result[product]["booked_in"] += bookin_amount
+                self.refill_order_result[(product, state)]["booked_in"] += bookin_amount
         return self.refill_order_result
 
     def refill_order_has_conflict(self):
@@ -553,7 +541,9 @@ class OnlineRedirectView(View):
         self.pick_order = None
 
     def dispatch(self, request, *args, **kwargs):
-        self.station = PackingStation.objects.filter(pickorder__isnull=False, user__isnull=True).first()
+        station_condition = Q(Q(pickorder__isnull=False, user__isnull=True) |
+                              Q(pickorder__isnull=False, user=request.user))
+        self.station = PackingStation.objects.filter(station_condition).first()
 
         if self.station is not None:
             return HttpResponseRedirect(reverse_lazy("online:login_station"))

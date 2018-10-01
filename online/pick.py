@@ -3,8 +3,6 @@ from collections import OrderedDict
 
 import pycountry
 from django.contrib import messages
-from django.db.models import Case, When
-from django.db.models import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -14,13 +12,16 @@ from django.views import generic
 from client.models import Client
 from configuration.models import OnlinePositionPrefix
 from mission.models import Mission, PickList, PickListProducts, PickOrder, PackingStation, DeliveryNote, \
-    DeliveryNoteProductMission
+    DeliveryNoteProductMission, Billing, BillingProductMission, ProductMission
 from online.dhl import DHLLabelCreator
 from online.dpd import DPDLabelCreator
 from online.forms import AcceptOnlinePicklistForm, PickListProductsForm, StationGotoPickListForm, PackingForm
+from sku.models import Sku
 from stock.models import Stock, Position
 import requests
 import json
+from django.db.models import Sum, Case, When, Q, F, OuterRef, Subquery, Count, ExpressionWrapper, CharField
+from django.db.models.functions import Lower
 
 
 class AcceptOnlinePickList(generic.CreateView):
@@ -33,20 +34,32 @@ class AcceptOnlinePickList(generic.CreateView):
         self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
                                                productmission__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
+
         self.picklist_data = None
         self.pickorder = None
         self.stocks = None
         self.used_stocks = {}
         self.missions_pick_rows = None
         self.packing_stations = PackingStation.objects.filter(pickorder__isnull=True)
+        self.packing_station_current_user = None
         self.refill_order = None
         self.pickorder = None
+        self.limit_result = None
+        self.online_prefixes = OnlinePositionPrefix.objects.all()
 
     def dispatch(self, request, *args, **kwargs):
         self.pickorder = request.user.pickorder_set.filter(completed=None).first()
+        print(f"waaaaas? {self.pickorder}")
         if self.pickorder is not None:
             return HttpResponseRedirect(reverse_lazy("online:pickorder"))
         self.stocks = self.get_products_stocks()
+
+        station_condition = Q(pickorder__isnull=False, user=request.user)
+        self.packing_station_current_user = PackingStation.objects.filter(station_condition).first()
+
+        if self.packing_station_current_user is not None:
+            return HttpResponseRedirect(reverse_lazy("online:login_station"))
+
         if self.packing_stations.count() > 0:
             self.picklist_data = self.get_picklist_data()
             self.missions_pick_rows = self.put_pickrows_under_missions()
@@ -72,12 +85,13 @@ class AcceptOnlinePickList(generic.CreateView):
     def create_picklists(self):
         self.pickorder = PickOrder.objects.create(user=self.request.user)
         for mission, pick_rows in self.missions_pick_rows.items():
-            print(f"DDD: {mission} {pick_rows}")
             picklist_instance = PickList.objects.create(pick_order=self.pickorder)
             mission.online_picklist = picklist_instance
             mission.save()
 
             for pick_row in pick_rows:
+                print(f"DDD: {mission} - {pick_row.get('position')} - {pick_row.get('mission_product').product.ean}"
+                      f" - {pick_row.get('amount')}")
                 pick_row_instance = PickListProducts.objects.create(
                     pick_list=picklist_instance, amount=pick_row.get("amount"), position=pick_row.get("position"),
                     product_mission=pick_row.get("mission_product")
@@ -87,66 +101,100 @@ class AcceptOnlinePickList(generic.CreateView):
 
     def get_picklist_data(self):
         picklist_data = OrderedDict()
-        for mission in self.missions:
-            for mission_product in mission.productmission_set.all():
-                picklist_stocks = []
-                total = 0
+        product_missions = ProductMission.objects.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
 
-                picklist_product = PickListProducts.objects.filter(product_mission=mission_product,
-                                                                   amount=mission_product.amount).first()
-                print(f"kahlti: {picklist_product}")
-                if picklist_product is not None:
-                    continue
+        online_prefixes_list = self.online_prefixes.annotate(prefix_lower=Lower(F("prefix"))
+                                                             ).values_list("prefix_lower", flat=True)
+        print(online_prefixes_list)
+        online_positions_list = Position.objects.annotate(prefix_lower=Lower(F("prefix"))).filter(
+            prefix_lower__in=online_prefixes_list).values_list("name", flat=True)
+        print(online_positions_list.count())
+        sub_sku = Sku.objects.filter(state=OuterRef("state"), product=OuterRef("product"))
+        total_condition = Q(Q(product__stock__lagerplatz__in=online_positions_list)
+                            & Q(Q(product__stock__sku=F("sku")) | Q(product__stock__ean_vollstaendig=F("product__ean"),
+                                                                    product__stock__zustand=F("state"))))
+        total_count_condition = Q(Q(product__stock__product=F("product")))
+        mission_condition = Q(Q(product__productmission__product=F("product"),
+                                product__productmission__state=F("state")))
 
-                for stock in self.stocks:
-                    product = mission_product.product
-                    product_sku = product.sku_set.filter(state__iexact="Neu").first()
+        product_missions = product_missions.annotate(sku=Subquery(sub_sku.values("sku")[:1])).annotate(
+            total=Sum(Case(When(total_condition, then="product__stock__bestand"), default=0))).annotate(
+            mission_total=Sum(Case(When(mission_condition, then="product__productmission__amount")))).annotate(
+            mission_count=Count(Case(When(mission_condition, then="product__productmission"), default=1),
+                                distinct=True)).annotate(
+            total_count=Count(Case(When(total_count_condition, then="product__stock"), default=1), distinct=True)
+        ).annotate(
+            total=F("total")/F("mission_count")).annotate(mission_total=F("mission_total")/F("total_count")).annotate(
+            available_total=F("total")-F("mission_total")
+        )
 
-                    if ((product_sku.sku == stock.sku) or (product.ean == stock.ean_vollstaendig
-                                                           and stock.zustand == "Neu")):
-                        if stock in self.used_stocks:
-                            stock_bestand = stock.bestand-self.used_stocks[stock]
-                        else:
-                            stock_bestand = stock.bestand
-                        print(f"peter: {stock_bestand}")
+        exclude_missions_pks = product_missions.filter(available_total__lt=0).values_list(
+            "mission__pk", flat=True)
 
-                        if stock_bestand <= 0:
-                            continue
+        print(f"mama: {exclude_missions_pks}")
 
-                        pick_row = {"position": stock.lagerplatz, "mission_product": mission_product}
-                        print(f"peter 2: {total + stock_bestand}")
-                        if (total + stock_bestand) <= mission_product.amount:
-                            total += stock_bestand
-                            pick_row["amount"] = stock_bestand
-                            if stock not in self.used_stocks:
-                                self.used_stocks[stock] = stock_bestand
-                            else:
-                                self.used_stocks[stock] += stock_bestand
-                            picklist_stocks.append(pick_row)
-                        else:
-                            difference = 0
-                            if (total + stock_bestand) > mission_product.amount:
-                                difference = mission_product.amount-total
-                            print(f"peter 3: {difference}")
-                            if difference > 0:
-                                total += difference
-                                pick_row["amount"] = difference
-                                picklist_stocks.append(pick_row)
-                            print(f"peter 4: {picklist_stocks}")
-                            if stock not in self.used_stocks:
-                                self.used_stocks[stock] = difference
-                            else:
-                                self.used_stocks[stock] += difference
-                            break
-                print(f"warum: {total}")
-                if total < mission_product.amount:
-                    continue
+        product_missions = product_missions.exclude(mission__pk__in=exclude_missions_pks)
 
-                if len(picklist_stocks) > 0:
-                    if mission_product.product not in picklist_data:
-                        picklist_data[mission_product.product] = picklist_stocks
+        missions_pks = product_missions.values_list("mission__pk", flat=True)[:10]
+        print(f"baba: {missions_pks}")
+
+        product_missions = product_missions.filter(mission__pk__in=missions_pks)
+
+        for mission_product in product_missions:
+            picklist_stocks = []
+            total = 0
+
+            picklist_product = PickListProducts.objects.filter(product_mission=mission_product,
+                                                               amount=mission_product.amount).first()
+            if picklist_product is not None:
+                continue
+
+            product = mission_product.product
+            product_sku = mission_product.sku
+
+            for stock in self.stocks:
+                if ((product_sku == stock.sku) or (product.ean == stock.ean_vollstaendig
+                                                   and stock.zustand == mission_product.state)):
+                    if stock in self.used_stocks:
+                        stock_bestand = stock.bestand-self.used_stocks[stock]
                     else:
-                        picklist_data[mission_product.product].extend(picklist_stocks)
+                        stock_bestand = stock.bestand
+
+                    if stock_bestand <= 0:
+                        continue
+
+                    pick_row = {"position": stock.lagerplatz, "mission_product": mission_product}
+                    if (total + stock_bestand) <= mission_product.amount:
+                        total += stock_bestand
+                        pick_row["amount"] = stock_bestand
+                        if stock not in self.used_stocks:
+                            self.used_stocks[stock] = stock_bestand
+                        else:
+                            self.used_stocks[stock] += stock_bestand
+                        picklist_stocks.append(pick_row)
+                    else:
+                        difference = 0
+                        if (total + stock_bestand) > mission_product.amount:
+                            difference = mission_product.amount-total
+
+                        if difference > 0:
+                            total += difference
+                            pick_row["amount"] = difference
+                            picklist_stocks.append(pick_row)
+
+                        if stock not in self.used_stocks:
+                            self.used_stocks[stock] = difference
+                        else:
+                            self.used_stocks[stock] += difference
+                        break
+            if total < mission_product.amount:
+                continue
+
+            if len(picklist_stocks) > 0:
+                if (mission_product.product, mission_product.state, product_sku) not in picklist_data:
+                    picklist_data[(mission_product.product, mission_product.state, product_sku)] = picklist_stocks
+                else:
+                    picklist_data[(mission_product.product, mission_product.state, product_sku)].extend(picklist_stocks)
         print(picklist_data)
         return picklist_data
 
@@ -167,17 +215,15 @@ class AcceptOnlinePickList(generic.CreateView):
         for mission in self.missions:
             for mission_product in mission.productmission_set.all():
                 product = mission_product.product
-                products_sku = product.sku_set.filter(state__iexact="Neu").first()
+                products_sku = product.sku_set.filter(state__iexact=mission_product.state).first()
 
-                query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") |
+                query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state) |
                                      Q(sku=products_sku.sku))
-
-        online_prefixes = OnlinePositionPrefix.objects.all()
 
         if len(query_condition) == 0:
             return
 
-        for online_prefix in online_prefixes:
+        for online_prefix in self.online_prefixes:
             query_condition &= Q(lagerplatz__istartswith=online_prefix.prefix)
 
         stocks = list(Stock.objects.filter(query_condition))
@@ -385,7 +431,12 @@ class PackingPickOrderOverview(View):
             return HttpResponseRedirect(reverse_lazy("online:login_station"))
 
         if self.pickorder is not None:
-            self.picked_picklists = self.pickorder.picklist_set.filter(completed=True)
+            missions_list = []
+            picked_picklists = self.pickorder.picklist_set.filter(completed=True)
+            for picklist in picked_picklists:
+                mission = picklist.mission_set.first()
+                missions_list.append(mission)
+            self.picked_picklists = list(zip(picked_picklists, missions_list))
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -433,6 +484,15 @@ class LoginToStationView(View):
 
         if self.pickorder is not None:
             return HttpResponseRedirect(reverse_lazy("online:pickorder"))
+
+        connectable_station_condition = Q(pickorder__isnull=False, user__isnull=True)
+        amount_empty_stations = self.packing_stations.filter(connectable_station_condition).aggregate(
+            amount=Count("pk"))["amount"]
+
+        print(f"hey: {amount_empty_stations}")
+
+        if amount_empty_stations is None or amount_empty_stations <= 0:
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
 
         self.station_pk = self.request.GET.get("station_pk")
         if self.station_pk is not None:
@@ -537,7 +597,7 @@ class PackingView(View):
             return render(request, "online/packing/packing.html", context)
 
     def get_context(self):
-        context = {"title": f"Verpacken {self.picklist.pick_id or ''}", "picklist": self.picklist,
+        context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
                    "form": self.get_form(), "is_all_scanned": self.is_all_scanned(), "mission": self.mission,
                    "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
                    "is_delivery_address_national": self.is_delivery_address_national()}
@@ -600,6 +660,7 @@ class FinishPackingView(View):
             print("????!?!??!!?!?")
             self.picklist.completed = True
             self.create_delivery_note()
+            self.create_billing()
             self.book_out_stocks()
         return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}))
 
@@ -612,6 +673,17 @@ class FinishPackingView(View):
                                                              delivery_note=self.picklist.online_delivery_note,
                                                              amount=pick_row.confirmed_amount, ))
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+
+    def create_billing(self):
+        self.picklist.online_billing = Billing.objects.create()
+        self.picklist.save()
+        bulk_instances = []
+
+        for pick_row in self.picklist.picklistproducts_set.all():
+            bulk_instances.append(BillingProductMission(product_mission=pick_row.product_mission,
+                                                        billing=self.picklist.online_billing,
+                                                        amount=pick_row.confirmed_amount, ))
+        BillingProductMission.objects.bulk_create(bulk_instances)
 
     def create_label(self):
         error = self.break_down_address_in_street_and_house_number()
@@ -658,17 +730,18 @@ class FinishPackingView(View):
     def book_out_stocks(self):
         for pick_row in self.picklist.picklistproducts_set.all():
             product = pick_row.product_mission.product
-            product_stock = product.sku_set.filter(state__iexact="Neu").first()
-            stock = Stock.objects.get(Q(Q(lagerplatz=pick_row.position)
-                                        & Q(Q(ean_vollstaendig=product.ean, zustand__iexact="Neu") |
-                                            Q(sku=product_stock.sku)))
+            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+            stock = Stock.objects.get(Q(Q(lagerplatz__iexact=pick_row.position)
+                                        & Q(Q(ean_vollstaendig=product.ean,
+                                              zustand__iexact=pick_row.product_mission.state) |
+                                            Q(sku=product_sku.sku)))
                                       )
             stock.bestand -= pick_row.confirmed_amount
             print(f"{stock} - {stock.bestand}")
             if stock.bestand > 0:
-                stock.save()
+                stock.save(hard_save=True)
             else:
-                stock.delete()
+                stock.delete(hard_delete=True)
             print(f"SO 1: {stock}")
 
     # Adresse in Stasse und Hausnummer zerlegen durch Reguläre Ausdrücke
@@ -704,7 +777,6 @@ class FinishPackingView(View):
         if delivery_address.strasse is None and delivery_address.hausnummer is None:
             return True
         print(f"sahbi {delivery_address.strasse} {delivery_address.hausnummer}")
-
 
     # alles unten ist google maps places api, muss angepasst werden
 

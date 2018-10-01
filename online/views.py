@@ -9,7 +9,7 @@ from django.views.generic import DetailView
 from django import views
 from online.models import Channel
 from adress.models import Adress
-from mission.models import Mission, ProductMission, PartialMissionProduct
+from mission.models import Mission, ProductMission, PartialMissionProduct, PickListProducts
 from online.tasks_import import AmazonImportTask, amazon_import_task
 from product.models import Product
 from stock.models import Stock
@@ -44,7 +44,7 @@ class OnlineListView(generic.ListView):
         self.context["filter_fields"] = self.filter_fields
         self.context["object_list"] = self.get_object_list()
         self.context["option_fields"] = [
-            {"status": ["Offen", "Verpackt"]}
+            {"status": ["Offen", "Verpackt", "am Picken", "auf Station"]}
         ]
         return self.context
 
@@ -99,8 +99,14 @@ class OnlineListView(generic.ListView):
         for status in self.request.GET.getlist("status"):
             if status == "Verpackt":
                 status_filter |= Q(Q(online_picklist__completed=True) | Q(tracking_number__isnull=False))
-            if status == "Offen":
+            elif status == "Offen":
                 status_filter |= Q(Q(online_picklist__isnull=True) & Q(tracking_number__isnull=True))
+            elif status == "am Picken":
+                status_filter |= Q(Q(online_picklist__isnull=False) & Q(tracking_number__isnull=True) &
+                                   Q(online_picklist__pick_order__isnull=False))
+            elif "auf Station" in status:
+                status_filter |= Q(Q(online_picklist__isnull=False) & Q(online_picklist__pick_order__isnull=False)
+                                   & Q(online_picklist__completed__isnull=True))
 
         print(f"bababbaba: {status_filter}")
 
@@ -117,6 +123,7 @@ class OnlineListView(generic.ListView):
             search_filter |= Q(tracking_number__icontains=search_value)
             search_filter |= Q(online_picklist__online_delivery_note__delivery_note_number__icontains=search_value)
             search_filter |= Q(channel__name__icontains=search_value)
+            search_filter |= Q(productmission__product__ean=search_value)
         q_filter &= search_filter
 
         queryset = Mission.objects.filter(q_filter).annotate(
@@ -148,11 +155,33 @@ class OnlineDetailView(DetailView):
         super().__init__()
         self.object = None
         self.mission_products = None
+        self.picklist_products = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
         self.mission_products = self.object.productmission_set.all()
+        self.get_picklist_products()
         return super().dispatch(request, *args, **kwargs)
+
+    def get_picklist_products(self):
+        picklist_products = []
+
+        self.picklist_products = PickListProducts.objects.filter(
+            product_mission__pk__in=self.mission_products.values_list("pk", flat=True))
+
+        for mission_product in self.mission_products:
+            picklist_rows = []
+            product_tuple = (mission_product, picklist_rows)
+            for picklist_product in self.picklist_products:
+                if picklist_product.product_mission == mission_product:
+                    picklist_rows.append(picklist_product)
+            if len(picklist_rows) > 0:
+                picklist_products.append(product_tuple)
+        self.picklist_products = picklist_products
+
+
+
+
 
     def get_object(self):
         return self.object
@@ -166,6 +195,8 @@ class OnlineDetailView(DetailView):
         context["products_from_stock"] = self.get_detail_products()
         context["is_delivery_address_national"] = self.is_delivery_address_national()
         context["label_form_link"] = self.get_label_form_link()
+        context["status"] = self.object.get_online_status()
+        context["picklist_products"] = self.picklist_products
         print(context["is_delivery_address_national"])
         return context
 
@@ -293,7 +324,8 @@ class ImportMissionView(View):
     def dispatch(self, request, *args, **kwargs):
         self.form = self.get_form()
         self.context = self.get_context()
-        if request.user.profile.celery_import_task_id is not None:
+        profile = request.user.profile
+        if profile is not None and profile.celery_import_task_id is not None:
             result = AsyncResult(request.user.profile.celery_import_task_id, app=app)
             print(result.status)
             print(f"baby 3: {result.status}")
@@ -302,6 +334,10 @@ class ImportMissionView(View):
                 request.user.profile.save()
                 messages.success(request, "Aufträge wurden erfolgreich importiert")
                 return HttpResponseRedirect(reverse_lazy("online:list"))
+            if result.status == "PENDING":
+                self.context["still_pending"] = True
+
+        print("But why !?")
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):

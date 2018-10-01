@@ -37,6 +37,7 @@ class RefillOrderOutbookStock(models.Model):
 class RefillOrderInbookStock(models.Model):
     refill_order = models.ForeignKey(RefillOrder, null=True, blank=True, on_delete=models.deletion.SET_NULL)
     product = models.ForeignKey("product.Product", null=True, blank=True, on_delete=models.deletion.SET_NULL)
+    state = models.CharField(verbose_name="Zustand", null=True, blank=True, max_length=200)
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
     booked_in = models.NullBooleanField(verbose_name="Ausgebucht", blank=True, null=True)

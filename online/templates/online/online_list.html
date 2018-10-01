@@ -5,11 +5,11 @@
 {% block content %}
     {% if messages %}
         <div class="col-md-12" style="padding:0 15px 15px 15px;">
-            <div class="alert alert-success">
-                {% for msg in messages %}
-                    <p>{{ msg }}</p>
-                {% endfor %}
-            </div>
+            {% for msg in messages %}
+                <div class="alert alert-{{ msg.tags }}">
+                   <p>{{ msg }}</p>
+                </div>
+            {% endfor %}
         </div>
     {% endif %}
 
@@ -121,12 +121,52 @@
                                 {% endif %}
                                 {% if object.online_picklist.online_billing %}
                                     <a class="btn btn-info"
-                                        href="">
+                                        href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">
                                         Rechnung
                                     </a>
                                 {% else %}
                                         <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
                                 {% endif %}
+                            </div>
+                            <div class="col-md-8" style="padding:0;">
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <th></th>
+                                            <th>EAN</th>
+                                            <th>Zustand</th>
+                                            <th>Menge</th>
+                                            <th>Einzelpreis (Netto)</th>
+                                            <th>Gesamtpreis (Netto)</th>
+                                        </thead>
+                                        <tbody>
+                                            {% for mission_product in object.productmission_set.all %}
+                                                <tr>
+                                                    <td>
+                                                        {% if mission_product.product.main_image %}
+                                                            <img src="{{ mission_product.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.product.ean }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.state }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.amount }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.netto_price }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.netto_price|multiply:mission_product.amount|format_number_thousand_decimal_points  }}</p>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </td>
                     </tr>

@@ -1,6 +1,7 @@
 from django.db.models import OuterRef
 from django.db.models import Q, Sum
 from django.db.models import Subquery
+from django.db.models.functions import Lower
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -32,7 +33,6 @@ class AcceptRefillStockView(View):
         self.missions_products = self.get_missions_products()
         self.missions_products_stocks = self.get_missions_products_stocks()
         self.refill_data = self.get_refill_data()
-        self.refill_data = self.refill_data
         self.refillorder = None
         self.existing_refillorder_stocks = None
         self.context = None
@@ -81,11 +81,12 @@ class AcceptRefillStockView(View):
     def get_refill_data(self):
         self.refill_data = []
         refill_totals = {}
-
+        current_stock_totals = {}
+        used_stocks = {}
         for mission_product in self.missions_products:
-            product = mission_product.product
-            product_sku = mission_product.sku
-            stocks = []
+            print(f"WHAT: {mission_product.product.ean} - {mission_product.amount}")
+            product, product_sku, stocks = mission_product.product, mission_product.sku, []
+            total_stock = mission_product.total
             mission_product_stocks = (mission_product, stocks)
 
             current_mission_product_amount = 0
@@ -93,52 +94,63 @@ class AcceptRefillStockView(View):
 
             if product_sku not in refill_totals:
                 refill_totals[product_sku] = 0
-            print(f"hey {product.ean} - {refill_totals[product_sku]}")
+
+            if product_sku not in current_stock_totals:
+                current_stock_totals[product_sku] = 0
 
             for stock in self.missions_products_stocks:
+                if stock not in used_stocks:
+                    used_stocks[stock] = 0
+
                 if (stock.ean_vollstaendig == product.ean and stock.zustand == mission_product.state) or (
                             stock.sku == product_sku):
 
                     if current_mission_product_amount == mission_product.amount:
-                        break
+                        continue
 
                     bookout_amount = 0
 
-                    if current_mission_product_amount + stock.bestand <= mission_product.amount:
-                        bookout_amount = stock.bestand
-                        current_mission_product_amount += bookout_amount
-                        # Falls schon Onlinebestand existiert
-                        if refill_totals[product_sku] + bookout_amount > refill_total:
-                            break
-                        refill_totals[product_sku] += bookout_amount
-                    elif current_mission_product_amount + stock.bestand > mission_product.amount:
-                        bookout_amount = mission_product.amount - current_mission_product_amount
-                        current_mission_product_amount += bookout_amount
-                        # Falls schon Onlinebestand existiert
-                        if refill_totals[product_sku] + bookout_amount > refill_total:
-                            break
-                        refill_totals[product_sku] += bookout_amount
-                    stocks.append({"object": stock, "bookout_amount": bookout_amount})
+                    stock_bestand = stock.bestand - used_stocks[stock]
 
-            if len(stocks) > 0:
+                    if current_mission_product_amount + stock_bestand <= mission_product.amount:
+                        bookout_amount = stock_bestand
+
+                    elif current_mission_product_amount + stock_bestand > mission_product.amount:
+                        bookout_amount = mission_product.amount - current_mission_product_amount
+
+                    if bookout_amount > 0:
+                        # Falls schon Onlinebestand existiert
+                        if refill_totals[product_sku] + bookout_amount > refill_total:
+                            continue
+                        # Falls keine Bestand mehr im Lager vorhanden
+                        if current_stock_totals[product_sku] + mission_product.amount > total_stock:
+                            continue
+
+                        refill_totals[product_sku] += bookout_amount
+                        current_stock_totals[product_sku] += bookout_amount
+                        current_mission_product_amount += bookout_amount
+                        used_stocks[stock] += bookout_amount
+                        stocks.append({"object": stock, "bookout_amount": bookout_amount})
+
+            if len(stocks) > 0 and current_mission_product_amount == mission_product.amount:
                 self.refill_data.append(mission_product_stocks)
         return self.refill_data
 
     def get_missions_products(self):
 
-        missions_products = ProductMission.objects.get_stocks().filter(
+        missions_products = ProductMission.objects.get_online_stocks().filter(
             mission__in=self.missions.values_list("pk", flat=True)).order_by("mission__purchased_date")
+
+        print(f"URGEN: {missions_products.count()}")
 
         exclude_pks = []
         for mission_product in missions_products:
-            refillorder_stock_instance = RefillOrderOutbookStock.objects.filter(product_mission=mission_product).first()
+            refillorder_stock_instance = RefillOrderOutbookStock.objects.filter(
+                product_mission=mission_product, booked_out=None).first()
 
-            available_total = mission_product.available_total
-
-            if (available_total <= 0 or available_total < mission_product.amount
-                    or refillorder_stock_instance is not None):
+            if refillorder_stock_instance is not None:
                 exclude_pks.append(mission_product.pk)
-
+        print(len(exclude_pks))
         return missions_products.exclude(pk__in=exclude_pks)
 
     def get_missions_products_stocks(self):
@@ -153,14 +165,12 @@ class AcceptRefillStockView(View):
             query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state)
                                  | Q(sku=product_sku))
 
-        print(f"GOLDFISCH: {query_condition}")
         exclude_condition = Q()
         for online_prefix in self.online_prefixes:
             exclude_condition |= Q(lagerplatz__istartswith=online_prefix.prefix)
-        stocks = list(Stock.objects.filter(query_condition).exclude(exclude_condition).order_by("lagerplatz"))
-        print(f"GOLO: {stocks}")
+        stocks = list(Stock.objects.filter(query_condition).exclude(exclude_condition))
+        print(stocks)
         stocks = order_stocks_by_position(stocks, query_condition=query_condition, exclude_condition=exclude_condition)
-        print(f"samu: {stocks}")
         return stocks
 
 
@@ -195,27 +205,34 @@ class RefillStockView(View):
                 return refill_object, total_bookout_amount
 
     def order_by_position(self, query_condition=Q(), exclude_condition=Q()):
-        positions = []
+        stock_positions = []
 
         for outbook_stock in self.refill_order_rows:
-            if outbook_stock.stock is not None:
-                positions.append(outbook_stock.stock.lagerplatz)
-            else:
-                positions.append(outbook_stock.position)
-                print(f"whaaaat?? : {outbook_stock.position}")
-        positions = list(Position.objects.filter(name__in=positions).values_list("name", flat=True))
-        positions.reverse()
+            if outbook_stock.position is not None:
+                position = outbook_stock.position.lower()
+                if position not in stock_positions:
+                    stock_positions.append(position)
+            print(f"whaaaat?? : {outbook_stock.position}")
+        positions = list(Position.objects.annotate(name_lower=Lower("name")).filter(
+            name_lower__in=stock_positions).values_list("name", flat=True))
         print(f"ordered ? {positions}")
-        when_list = []
-        for index, position in enumerate(positions):
-            when_list.append(When(Q(position=position), then=index))
-        preserved = Case(*when_list)
 
-        query_condition &= Q(position__in=positions)
-        ordered_refill_order_rows = self.refill_order_rows.filter(query_condition).exclude(exclude_condition
-                                                                                           ).order_by(preserved)
-        self.refill_order_rows = ordered_refill_order_rows
-        return ordered_refill_order_rows
+        positions = [position.lower() for position in positions]
+
+        for stock_position in stock_positions:
+            if stock_position.lower() not in positions:
+                positions.append(stock_position)
+
+        print(f"ordered 2? {positions}")
+
+        positions.reverse()
+
+        preserved = Case(*[When(position_lower=position, then=index) for index, position in enumerate(positions)])
+
+        query_condition &= Q(position_lower__in=positions)
+        self.refill_order_rows = self.refill_order_rows.annotate(position_lower=Lower("position")).filter(
+            query_condition).exclude(exclude_condition).order_by(preserved)
+        return self.refill_order_rows
 
     def add_bookout_amount_to_rows(self):
         refill_order_outbook_stocks = self.refillorder.refillorderoutbookstock_set.all()

@@ -22,7 +22,7 @@ from stock.tasks import table_data_to_model_task
 from erpghost import app
 from django.core.paginator import Paginator
 from django.db.models import Q
-from stock.models import Position
+from stock.models import Position, is_stock_reserved_for_delete
 import itertools
 from rest_framework import generics
 from rest_framework import serializers
@@ -474,7 +474,13 @@ class StockDeleteView(DeleteView):
 
     def delete(self, request, *args, **kwargs):
         self.object = self.get_object()
+        context = self.get_context_data(**kwargs)
         print(self.object)
+
+        if is_stock_reserved_for_delete(self.object) is True:
+            context["error"] = f"Dieser Bestand ist reserviert und kann nicht ausgebucht werden"
+            return render(request, "stock/stock_confirm_delete.html", context)
+
         state = self.object.zustand
         if state is None or state == "":
             sku = Sku.objects.filter(sku__iexact=self.object.sku).first()
@@ -484,7 +490,6 @@ class StockDeleteView(DeleteView):
         if state is not None and state != "":
             reserved_stock = self.object.get_reserved_stocks().get(state)
             available_stock = self.object.get_available_total_stocks().get(state)
-            context = self.get_context_data(**kwargs)
 
             if reserved_stock > 0:
                 if int(self.object.bestand) > int(available_stock):

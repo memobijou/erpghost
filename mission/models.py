@@ -138,7 +138,7 @@ class Mission(models.Model):
 
 
 class ProductMissionManager(models.Manager):
-    def get_stocks(self):
+    def get_online_stocks(self):
         from stock.models import Stock
         from configuration.models import OnlinePositionPrefix
         online_prefixes = OnlinePositionPrefix.objects.all()
@@ -325,7 +325,7 @@ class PickListProductsManager(models.Manager):
             Q(Q(product_mission__product__ean=stock.ean_vollstaendig,
               product_mission__state=stock.zustand) |
               Q(sku_state=F("product_mission__state"), product_mission__product__sku=sku))
-            & Q(pick_list__completed__isnull=True)).aggregate(total=Sum("amount"))
+            & Q(pick_list__completed__isnull=True, position=stock.lagerplatz)).aggregate(total=Sum("amount"))
 
 
 class PickListProducts(models.Model):

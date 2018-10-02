@@ -13,7 +13,7 @@ import requests
 from django.views.generic import UpdateView
 from django.urls import reverse_lazy
 
-from online.forms import DhlForm
+from online.forms import DhlForm, DPDForm
 import os
 from Crypto.Cipher import AES
 
@@ -32,7 +32,7 @@ def decrypt_encrypted_string(encrypted_string):
 
 class DPDPDFView(UpdateView):
     template_name = "online/dhl_form.html"
-    form_class = DhlForm
+    form_class = DPDForm
 
     def __init__(self, **kwargs):
         self.transport_account = None
@@ -55,6 +55,7 @@ class DPDPDFView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "DPD Label erstellen"
+        context["mission"] = self.mission
         return context
 
     def get_object(self, queryset=None):

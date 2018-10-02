@@ -34,9 +34,10 @@ class AcceptOnlinePickList(generic.CreateView):
         self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
                                                productmission__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
-
+        print(f"jo: {self.missions.count()}")
         self.picklist_data = None
         self.pickorder = None
+        self.missions_products = None
         self.stocks = None
         self.used_stocks = {}
         self.missions_pick_rows = None
@@ -52,7 +53,6 @@ class AcceptOnlinePickList(generic.CreateView):
         print(f"waaaaas? {self.pickorder}")
         if self.pickorder is not None:
             return HttpResponseRedirect(reverse_lazy("online:pickorder"))
-        self.stocks = self.get_products_stocks()
 
         station_condition = Q(pickorder__isnull=False, user=request.user)
         self.packing_station_current_user = PackingStation.objects.filter(station_condition).first()
@@ -61,7 +61,10 @@ class AcceptOnlinePickList(generic.CreateView):
             return HttpResponseRedirect(reverse_lazy("online:login_station"))
 
         if self.packing_stations.count() > 0:
+            self.missions_products = self.get_missions_products()
+            self.stocks = self.get_products_stocks()
             self.picklist_data = self.get_picklist_data()
+            print(f"jo 2: {len(self.picklist_data)}")
             self.missions_pick_rows = self.put_pickrows_under_missions()
         if (self.picklist_data is None or len(self.picklist_data) == 0) and request.method == "POST":
             return HttpResponseRedirect(reverse_lazy("online:accept_picklist"))
@@ -69,6 +72,25 @@ class AcceptOnlinePickList(generic.CreateView):
         if self.refill_order is not None:
             return HttpResponseRedirect(reverse_lazy("online:refill"))
         return super().dispatch(request, *args, **kwargs)
+
+    def get_missions_products(self):
+        product_missions = ProductMission.objects.get_online_stocks()
+        product_missions = product_missions.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
+
+        print(f"banana: {product_missions}")
+
+        exclude_missions_pks = product_missions.filter(
+            Q(Q(total__lte=0) | Q(online_total__lte=0))).values_list("mission__pk", flat=True)
+
+        print(f"mama: {exclude_missions_pks}")
+
+        product_missions = product_missions.exclude(mission__pk__in=exclude_missions_pks)
+
+        missions_pks = product_missions.values_list("mission__pk", flat=True)[:10]
+        print(f"baba: {missions_pks}")
+
+        self.missions_products = product_missions.filter(mission__pk__in=missions_pks)
+        return self.missions_products
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -101,51 +123,14 @@ class AcceptOnlinePickList(generic.CreateView):
 
     def get_picklist_data(self):
         picklist_data = OrderedDict()
-        product_missions = ProductMission.objects.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
 
-        online_prefixes_list = self.online_prefixes.annotate(prefix_lower=Lower(F("prefix"))
-                                                             ).values_list("prefix_lower", flat=True)
-        print(online_prefixes_list)
-        online_positions_list = Position.objects.annotate(prefix_lower=Lower(F("prefix"))).filter(
-            prefix_lower__in=online_prefixes_list).values_list("name", flat=True)
-        print(online_positions_list.count())
-        sub_sku = Sku.objects.filter(state=OuterRef("state"), product=OuterRef("product"))
-        total_condition = Q(Q(product__stock__lagerplatz__in=online_positions_list)
-                            & Q(Q(product__stock__sku=F("sku")) | Q(product__stock__ean_vollstaendig=F("product__ean"),
-                                                                    product__stock__zustand=F("state"))))
-        total_count_condition = Q(Q(product__stock__product=F("product")))
-        mission_condition = Q(Q(product__productmission__product=F("product"),
-                                product__productmission__state=F("state")))
-
-        product_missions = product_missions.annotate(sku=Subquery(sub_sku.values("sku")[:1])).annotate(
-            total=Sum(Case(When(total_condition, then="product__stock__bestand"), default=0))).annotate(
-            mission_total=Sum(Case(When(mission_condition, then="product__productmission__amount")))).annotate(
-            mission_count=Count(Case(When(mission_condition, then="product__productmission"), default=1),
-                                distinct=True)).annotate(
-            total_count=Count(Case(When(total_count_condition, then="product__stock"), default=1), distinct=True)
-        ).annotate(
-            total=F("total")/F("mission_count")).annotate(mission_total=F("mission_total")/F("total_count")).annotate(
-            available_total=F("total")-F("mission_total")
-        )
-
-        exclude_missions_pks = product_missions.filter(available_total__lt=0).values_list(
-            "mission__pk", flat=True)
-
-        print(f"mama: {exclude_missions_pks}")
-
-        product_missions = product_missions.exclude(mission__pk__in=exclude_missions_pks)
-
-        missions_pks = product_missions.values_list("mission__pk", flat=True)[:10]
-        print(f"baba: {missions_pks}")
-
-        product_missions = product_missions.filter(mission__pk__in=missions_pks)
-
-        for mission_product in product_missions:
+        for mission_product in self.missions_products:
             picklist_stocks = []
             total = 0
 
             picklist_product = PickListProducts.objects.filter(product_mission=mission_product,
                                                                amount=mission_product.amount).first()
+
             if picklist_product is not None:
                 continue
 
@@ -160,17 +145,16 @@ class AcceptOnlinePickList(generic.CreateView):
                     else:
                         stock_bestand = stock.bestand
 
+                    print(f"why:?: {mission_product.amount} - {stock_bestand} ::: {stock.bestand} - "
+                          f"{self.used_stocks.get(stock, 'nothing')}")
+
                     if stock_bestand <= 0:
                         continue
 
-                    pick_row = {"position": stock.lagerplatz, "mission_product": mission_product}
+                    pick_row = {"position": stock.lagerplatz, "mission_product": mission_product, "stock": stock}
                     if (total + stock_bestand) <= mission_product.amount:
                         total += stock_bestand
                         pick_row["amount"] = stock_bestand
-                        if stock not in self.used_stocks:
-                            self.used_stocks[stock] = stock_bestand
-                        else:
-                            self.used_stocks[stock] += stock_bestand
                         picklist_stocks.append(pick_row)
                     else:
                         difference = 0
@@ -181,12 +165,7 @@ class AcceptOnlinePickList(generic.CreateView):
                             total += difference
                             pick_row["amount"] = difference
                             picklist_stocks.append(pick_row)
-
-                        if stock not in self.used_stocks:
-                            self.used_stocks[stock] = difference
-                        else:
-                            self.used_stocks[stock] += difference
-                        break
+                            break
             if total < mission_product.amount:
                 continue
 
@@ -195,7 +174,14 @@ class AcceptOnlinePickList(generic.CreateView):
                     picklist_data[(mission_product.product, mission_product.state, product_sku)] = picklist_stocks
                 else:
                     picklist_data[(mission_product.product, mission_product.state, product_sku)].extend(picklist_stocks)
-        print(picklist_data)
+
+                for pick_row in picklist_stocks:
+                    pick_row_stock = pick_row.get("stock")
+                    if pick_row_stock not in self.used_stocks:
+                        self.used_stocks[pick_row_stock] = pick_row.get("amount")
+                    else:
+                        self.used_stocks[pick_row_stock] += pick_row.get("amount")
+        print(f"picklist_data: {picklist_data}")
         return picklist_data
 
     def put_pickrows_under_missions(self):
@@ -212,13 +198,12 @@ class AcceptOnlinePickList(generic.CreateView):
     def get_products_stocks(self):
         query_condition = Q()
 
-        for mission in self.missions:
-            for mission_product in mission.productmission_set.all():
-                product = mission_product.product
-                products_sku = product.sku_set.filter(state__iexact=mission_product.state).first()
+        for mission_product in self.missions_products:
+            product = mission_product.product
+            product_sku = mission_product.sku
 
-                query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state) |
-                                     Q(sku=products_sku.sku))
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state) |
+                                 Q(sku=product_sku))
 
         if len(query_condition) == 0:
             return
@@ -229,21 +214,35 @@ class AcceptOnlinePickList(generic.CreateView):
         stocks = list(Stock.objects.filter(query_condition))
 
         stocks = order_stocks_by_position(stocks, query_condition=query_condition)
+        print(f"Hey stocks: {stocks}")
         return stocks
 
 
 def order_stocks_by_position(stocks, query_condition=Q(), exclude_condition=Q()):
-    positions = []
+    stock_positions = []
 
     for stock in stocks:
-        positions.append(stock.lagerplatz)
+        position = stock.lagerplatz
+        if position is not None:
+            position = position.lower()
+        if position not in stock_positions:
+            stock_positions.append(position)
 
-    positions = list(Position.objects.filter(name__in=positions).values_list("name", flat=True))
+    positions = list(Position.objects.annotate(name_lower=Lower("name")).filter(
+        name_lower__in=stock_positions).values_list("name_lower", flat=True))
     print(f"ordered ? {positions}")
-    preserved = Case(*[When(lagerplatz=position, then=index) for index, position in enumerate(positions)])
 
-    query_condition &= Q(lagerplatz__in=positions)
-    ordered_stocks = Stock.objects.filter(query_condition).exclude(exclude_condition).order_by(preserved)
+    for stock_position in stock_positions:
+        if stock_position.lower() not in [position.lower() for position in positions]:
+            positions.append(stock_position)
+
+    print(f"ordered 2? {positions}")
+    preserved = Case(*[When(lagerplatz__iexact=position, then=index) for index, position in enumerate(positions)])
+
+    query_condition &= Q(lagerplatz_lower__in=positions)
+    ordered_stocks = Stock.objects.annotate(lagerplatz_lower=Lower("lagerplatz")).filter(
+        query_condition).exclude(exclude_condition).order_by(preserved)
+
     return ordered_stocks
 
 

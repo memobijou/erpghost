@@ -21,7 +21,7 @@ class StockQuerySet(models.QuerySet):
 
     def delete(self):
         for obj in self:
-            if is_stock_reserved(obj) is True:
+            if is_stock_reserved_for_delete(obj) is True:
                 pass
             else:
                 obj.delete()
@@ -43,6 +43,12 @@ def is_stock_reserved(stock):
     if stock.bestand < int(total_reserved.get("total") or 0):
         return True
     print(total_reserved)
+
+
+def is_stock_reserved_for_delete(stock):
+    total_reserved = PickListProducts.objects.get_total_of_stock(stock)
+    if int(total_reserved.get("total") or 0) > 0:
+        return True
 
 
 class Stock(models.Model):
@@ -95,7 +101,7 @@ class Stock(models.Model):
     def delete(self, using=None, keep_parents=False, hard_delete=None, *args, **kwargs):
         print(f"sdnfadsfndsajfndsa waaaaaarrummmm   +******")
         if kwargs.get("hard_delete") is None:
-            if is_stock_reserved(self) is True:
+            if is_stock_reserved_for_delete(self) is True:
                 return
         super().delete(*args, **kwargs)
 

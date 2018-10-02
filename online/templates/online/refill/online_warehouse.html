@@ -7,6 +7,7 @@
             <div class="panel-body">
                 <div class="text-center">
                     <p><b>EAN: </b>{{ product.ean }}</p>
+                    <p><b>Zustand: </b> {{ state }}</p>
                     {% if product.main_image %}
                         <img src="{{ product.main_image.url }}"
                              class="img-responsive center-block" style="max-height:150px;"/>
@@ -46,7 +47,7 @@
                                 </td>
                                 <td>
                                     <div>
-                                        <a href="{% url 'online:book_product_in_position' product_pk=product.pk position_pk=object.pk %}" class="btn btn-info">Artikel einbuchen</a>
+                                        <a href="{% url 'online:book_product_in_position' product_pk=product.pk state=state position_pk=object.pk %}" class="btn btn-info">Artikel einbuchen</a>
                                     </div>
                                 </td>
                             </tr>

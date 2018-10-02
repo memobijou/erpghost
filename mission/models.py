@@ -1,7 +1,10 @@
+from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import models
 import datetime
 from django.core.urlresolvers import reverse
+from django.db.models import OuterRef
 from django.db.models import Q
+from django.db.models import Subquery
 
 from adress.models import Adress
 from customer.models import Customer
@@ -14,7 +17,9 @@ from mission.managers import MissionObjectManager
 from online.models import Channel
 import django
 from django.contrib.auth import get_user_model
+from django.db.models import F, Q, Sum, Case, When, Count
 
+from sku.models import Sku
 
 CHOICES = (
     (None, "----"),
@@ -50,7 +55,9 @@ class Mission(models.Model):
     terms_of_delivery = models.CharField(choices=terms_of_delivery_choices, blank=True, null=True, max_length=200,
                                          verbose_name="Lieferkonditionen")
     delivery_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Lieferadresse",
-                                         on_delete=models.SET_NULL)
+                                         on_delete=models.SET_NULL, related_name="delivery")
+    billing_address = models.ForeignKey(Adress, null=True, blank=True, verbose_name="Rechnungsadresse",
+                                        on_delete=models.SET_NULL, related_name="billing")
     created_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     modified_date = models.DateTimeField(auto_now=True, null=True, blank=True)
 
@@ -71,11 +78,30 @@ class Mission(models.Model):
     online_picklist = models.ForeignKey("mission.PickList", null=True, blank=True, verbose_name="Online Pickauftrag",
                                         on_delete=django.db.models.deletion.SET_NULL)
 
+    online_transport_cost = models.FloatField(null=True, blank=True, verbose_name="Transportkosten")
+
     is_online = models.NullBooleanField(choices=CHOICES, verbose_name="Onlinehandel")
 
     shipped = models.NullBooleanField(verbose_name="Versendet")
 
     objects = MissionObjectManager()
+
+    def get_online_status(self):
+        if self.online_picklist is not None:
+            if self.online_picklist.completed is True and self.tracking_number is not None:
+                return "Verpackt"
+        if self.tracking_number is not None:
+            return "Verpackt"
+
+        if self.online_picklist is not None:
+            pick_order = self.online_picklist.pick_order
+            if pick_order is not None:
+                packing_station = pick_order.packingstation_set.first()
+                if packing_station is None:
+                    return "am Picken"
+                else:
+                    return f"auf Station {packing_station.station_id}"
+        return "Offen"
 
     @property
     def difference_delivery_date_today(self):
@@ -111,6 +137,38 @@ class Mission(models.Model):
         return reverse("mission:detail", kwargs={"pk": self.id})
 
 
+class ProductMissionManager(models.Manager):
+    def get_online_stocks(self):
+        from stock.models import Stock
+        from configuration.models import OnlinePositionPrefix
+        online_prefixes = OnlinePositionPrefix.objects.all()
+        online_prefixes_condition = Q()
+        for prefix in online_prefixes:
+            online_prefixes_condition |= Q(product__stock__lagerplatz__istartswith=prefix.prefix)
+
+        stock_condition = Q(Q(product__stock__sku=F("sku")) |
+                            Q(product__stock__ean_vollstaendig=F("product__ean"), product__stock__zustand=F("state")))
+
+        subquery_sku = Sku.objects.filter(product=OuterRef("product"), state=OuterRef("state")).annotate(
+            total=Sum(Case(When(stock_condition, then="product__stock__bestand"), default=0))).annotate(
+            online_total=Sum(Case(When(Q(stock_condition & online_prefixes_condition),
+                                       then="product__stock__bestand"), default=0)))[:1]
+
+        subquery_mission_total = Sku.objects.filter(product=OuterRef("product"), state=OuterRef("state")).annotate(
+            mission_total=Sum(Case(When(product__productmission__state=F("state"),
+                                        product__productmission__mission__is_online=True,
+                                        product__productmission__mission__online_picklist__completed__isnull=True,
+                                        then="product__productmission__amount"), default=0)))[:1]
+        return self.all().annotate(sku=Subquery(subquery_sku.values("sku"))).annotate(
+            total=Subquery(subquery_sku.values("total"), output_field=models.IntegerField())).annotate(
+            mission_total=Subquery(subquery_mission_total.values("mission_total"),
+                                   output_field=models.IntegerField())).annotate(
+            available_total=F("total")-F("mission_total")).annotate(
+            online_total=Subquery(subquery_sku.values("online_total"), output_field=models.IntegerField())).annotate(
+            refill_total=F("mission_total")-F("online_total")
+        )
+
+
 class ProductMission(models.Model):
     class Meta:
         ordering = ['pk']
@@ -124,6 +182,7 @@ class ProductMission(models.Model):
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
+    objects = ProductMissionManager()
 
     def __str__(self):
         return str(self.product) + " : " + str(self.mission) + " : " + str(self.amount)
@@ -183,6 +242,7 @@ class PickList(models.Model):
     pick_order = models.ForeignKey(PickOrder, null=True, blank=True)
     completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
     online_delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True)
+    online_billing = models.ForeignKey("mission.Billing", null=True, blank=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -257,6 +317,17 @@ class IgnoreStocksPickList(models.Model):
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
 
 
+class PickListProductsManager(models.Manager):
+    def get_total_of_stock(self, stock):
+        sku = stock.sku
+        sku_subquery = Sku.objects.filter(state=OuterRef("product_mission__state"), sku=sku)[:1]
+        return self.annotate(sku_state=Subquery(sku_subquery.values("state"))).filter(
+            Q(Q(product_mission__product__ean=stock.ean_vollstaendig,
+              product_mission__state=stock.zustand) |
+              Q(sku_state=F("product_mission__state"), product_mission__product__sku=sku))
+            & Q(pick_list__completed__isnull=True, position=stock.lagerplatz)).aggregate(total=Sum("amount"))
+
+
 class PickListProducts(models.Model):
     pick_list = models.ForeignKey(PickList, null=True, blank=True, on_delete=django.db.models.deletion.SET_NULL)
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
@@ -266,6 +337,8 @@ class PickListProducts(models.Model):
     picked = models.NullBooleanField(verbose_name="Gepickt", blank=True, null=True)
     missing_amount = models.IntegerField(verbose_name="Fehlende Menge", blank=True, null=True)
     confirmed_amount = models.IntegerField(verbose_name="Bestätigte Menge", null=True, blank=True)
+
+    objects = PickListProductsManager()
 
     def amount_minus_missing_amount(self):
         if self.missing_amount is not None and self.missing_amount != "":
@@ -342,6 +415,23 @@ class Billing(models.Model):
         if self.billing_number is None or self.billing_number == "":
             self.billing_number = f"RG{self.pk+1}"
         super().save()
+
+
+class BillingProductMissionManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        super().bulk_create(objs)
+        obj = objs[len(objs)-1]
+        obj.product_mission.mission.status = get_status(obj.product_mission.mission)
+        obj.product_mission.mission.save()
+
+
+class BillingProductMission(models.Model):
+    product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+
+    amount = models.IntegerField(blank=True, null=True)
+    billing = models.ForeignKey("mission.Billing", blank=True, null=True)
+
+    objects = BillingProductMissionManager()
 
 
 class DeliveryNote(models.Model):

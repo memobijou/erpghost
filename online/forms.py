@@ -17,6 +17,19 @@ class DhlForm(forms.ModelForm):
             visible.field.widget.attrs["class"] = "form-control"
 
 
+class DPDForm(forms.ModelForm):
+    class Meta:
+        model = Adress
+        fields = ("first_name_last_name", 'strasse', "hausnummer", "zip", "place")
+    package_weight = forms.FloatField(label="Paketgewicht in KG", required=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            visible.field.widget.attrs["class"] = "form-control"
+
+
 class AcceptOnlinePicklistForm(forms.ModelForm):
     class Meta:
         model = PickList

@@ -2,6 +2,26 @@
 
 {% block content %}
     <form method="POST">{% csrf_token %}
+        <div class="col-md-12" style="padding:15px;">
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                <p><b>Auftragsnummer: </b>{{ mission.mission_number }}</p>
+                <p><b>Channel: </b> {{ mission.channel.name }}</p>
+                <p><b>Fremd ID: </b> {{ mission.channel_order_id }}</p>
+                <hr/>
+                <p><b>Name: </b>{{ object.first_name_last_name }}</p>
+                {% if object.address_line_1 %}
+                    <p><b>Adresszeile 1: </b>{{ object.address_line_1 }}</p>
+                {% endif %}
+                {% if object.address_line_2 %}
+                    <p><b>Adresszeile 2: </b>{{ object.address_line_2 }}</p>
+                {% endif %}
+                {% if object.address_line_3 %}
+                    <p><b>Adresszeile 3: </b>{{ object.address_line_3 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="panel panel-default">
             <div class="panel-body">
                 <div class="col-md-3">

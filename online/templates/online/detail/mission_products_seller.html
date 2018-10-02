@@ -11,9 +11,6 @@
                         <th>Zustand</th>
                         <th>Artikelname</th>
                         <th>Auftragsmenge</th>
-                        <th>Offene Menge</th>
-                        <th>Reservierte Menge</th>
-                        <th>Versendete Menge</th>
                         <th>Lagerbestand</th>
                         <th>Einzelpreis (Netto)</th>
                         <th>Gesamtpreis (Netto)</th>
@@ -34,15 +31,6 @@
                                 <td>{{productmission.state}}</td>
                                 <td>{{productmission.product.title|default:""}}</td>
                                 <td>{{productmission.amount}}</td>
-                                <td style="color:red;">
-                                    {{ missing_amount }}
-                                </td>
-                                <td style="color:#ffb800;">
-                                    {{ delivery_amount|default:'0' }}
-                                </td>
-                                <td style="color:green;">
-                                    {{ sent_amount }}
-                                </td>
                                 <td>
                                     {{ stock|default:'0' }}
                                 </td>

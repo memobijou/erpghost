@@ -6,7 +6,7 @@
         <div class="panel-body">
             <table class="table table-hover table-striped">
                 <tbody>
-                    {% for mission_product, stocks in missions_products_and_stocks %}
+                    {% for mission_product, stocks in refill_data %}
                         <tr>
                             <td>
                                 <div class="col-md-3">
@@ -16,7 +16,8 @@
                                     {% endif %}
                                 </div>
                                 <div class="col-md-9">
-                                    <p><b>Artikel: </b>{{ mission_product.product }}</p>
+                                    <p><b>EAN: </b>{{ mission_product.product.ean }}</p>
+                                    <p><b>Zustand: </b>{{ mission_product.state }}</p>
                                     <p><b>Menge: </b>{{ mission_product.amount }}</p>
                                     <p><b>Auftrag: </b>{{ mission_product.mission }}</p>
 
@@ -51,7 +52,7 @@
 
 
             <form method="POST">{% csrf_token %}
-                {% if missions_products_and_stocks %}
+                {% if refill_data %}
                     <div class="text-center">
                         <input type="Submit" class="btn btn-primary btn-lg" value="Nachfüllauftrag annehmen"/>
                     </div>

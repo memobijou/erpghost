@@ -1,0 +1,36 @@
+{% if object.billing_address %}
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            Rechnungsadresse
+        </div>
+        <div class="panel-body">
+            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Name: </b>
+                {{ object.billing_address.first_name_last_name  }}</p>
+            {% if object.billing_address.street_and_housenumber %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Straße und Hausnummer: </b>
+                    {{ object.billing_address.street_and_housenumber|default:'' }}</p>
+            {% endif %}
+            {% if object.billing_address.strasse and object.billing_address.hausnummer %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresse: </b>
+                    {{ object.billing_address.strasse }} {{ object.billing_address.hausnummer }}</p>
+            {% endif %}
+            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ort: </b>
+                {{ object.billing_address.place }}</p>
+            <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Plz: </b>
+                {{ object.billing_address.zip }}</p>
+            {% if object.billing_address.adresszusatz %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz: </b>
+                {{ object.billing_address.adresszusatz }}</p>
+            {% endif %}
+            {% if object.billing_address.adresszusatz2 %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Adresszusatz 2: </b>
+                {{ object.billing_address.adresszusatz2 }}</p>
+            {% endif %}
+            {% if object.billing_address.country_code %}
+                <p style="font-size:15px;"><b>&nbsp;&nbsp;&nbsp;Ländercode: </b>
+                {{  object.billing_address.country_code }}</p>
+            {% endif %}
+        </div>
+    </div>
+    <br/>
+{% endif %}

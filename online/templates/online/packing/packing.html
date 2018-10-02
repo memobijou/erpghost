@@ -4,7 +4,10 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="text-right">
-                <a class="" href="{% url 'online:packing_overview' %}">Zur Übersicht</a>
+                <a href="{% url 'online:packing_overview' %}" style="padding-right:10px;">Zur Übersicht</a>
+                {% if is_all_scanned == True and picklist.completed == True %}
+                    <a href="{% url 'online:login_station' %}">Nächster Auftrag</a>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -17,13 +20,13 @@
                 </form>
             {% endif  %}
 
-            {% for pick_row in picklist.picklistproducts_set.all %}
+            {% for pick_row, packing_amount, confirmed_packing_amount in pick_rows %}
                 <table class="table table-bordered table-hover table-striped">
                     <tbody>
                         <tr
                             {% if pick_row.confirmed == True %}
                                 class="success"
-                            {% elif pick_row.confirmed_amount != None %}
+                            {% elif confirmed_packing_amount != 0 %}
                                 class="warning"
                             {% endif %}
                         >
@@ -35,18 +38,18 @@
                             </td>
                             <td>
                                 <p><b>EAN: </b>{{ pick_row.product_mission.product.ean }}</p>
-                                <p><b>Menge: </b>{{ pick_row.confirmed_amount|default:'0' }}/{{ pick_row.amount }}</p>
+                                <p><b>Zustand: </b>{{ pick_row.product_mission.state }}</p>
+                                <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
                             </td>
                         </tr>
                     </tbody>
                 </table>
             {% endfor %}
-
             {% if is_all_scanned == True and picklist.completed == None %}
                 <div class="text-center">
-                <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk %}">{% csrf_token %}
-                    <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Verpacken abschließen"/>
-                </form>
+                    <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk %}">{% csrf_token %}
+                        <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Verpacken abschließen"/>
+                    </form>
                 </div>
             {% elif is_all_scanned == True and picklist.completed == True %}
                 <div class="col-md-12" style="padding: 0 0 25px 0;">
@@ -54,7 +57,13 @@
                        href="{% url 'online:delivery_note' pk=picklist.mission_set.first.pk delivery_note_pk=picklist.online_delivery_note.pk %}">
                         Lieferschein ansehen
                     </a>
-                    {% if mission.tracking_number is None %}
+                <br/><br/>
+                    <a class="btn btn-info"
+                       href="{% url 'online:billing' pk=picklist.mission_set.first.pk billing_pk=picklist.online_billing.pk %}">
+                        Rechnung ansehen
+                    </a>
+                    {% if mission.tracking_number == None %}
+                        wiee
                         <a class="btn btn-info" href="{{ label_form_link }}">Label erstellen</a>
                     {% endif %}
                 </div>

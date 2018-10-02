@@ -21,7 +21,8 @@
                                 <div class="col-md-6">
                                     <div style="padding-top:60px;">
                                         <p style="font-size:20px;"><b>EAN: </b>{{ object.product_mission.product.ean }}</p>
-                                        <p style="font-size:20px;"><b>Menge: </b>{{ object.amount }}</p>
+                                        <p style="font-size:20px;"><b>Zustand: </b>{{ object.product_mission.state }}</p>
+                                        <p style="font-size:20px;"><b>Menge: </b>{{ object_pick_amount }}</p>
                                         <p style="font-size:20px;"><b>Lagerplatz: </b>{{ object.position }}</p>
                                     </div>
                                 </div>
@@ -80,7 +81,7 @@
                 <div class="col-md-12">
                     <table class="table table-hover table-striped table-condensed">
                         <tbody>
-                            {% for picked_row in picked_rows %}
+                            {% for picked_row, pick_amount in picked_rows %}
                                  <tr
                                     {% if picked_row.picked == True %}
                                         class="success"
@@ -94,7 +95,8 @@
                                         </td>
                                         <td>
                                             <p><b>EAN: </b>{{ picked_row.product_mission.product.ean }}</p>
-                                            <p><b>Menge: </b>{{ picked_row.amount }}</p>
+                                            <p><b>Zustand: </b>{{ picked_row.product_mission.state }}</p>
+                                            <p><b>Menge: </b>{{ pick_amount }}</p>
                                             <p><b>Lagerplatz: </b>{{ picked_row.position }}</p>
                                         </td>
                                         <td>

@@ -1,10 +1,11 @@
 from django.core.files.base import ContentFile
+from django.db.models import Q
 from django.http import HttpResponse
 
 from django import views
 
 from disposition.models import BusinessAccount
-from mission.models import Mission
+from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission
 from client.models import Client
 import base64
 from xml.etree import ElementTree as Et
@@ -12,9 +13,11 @@ import requests
 from django.views.generic import UpdateView
 from django.urls import reverse_lazy
 
-from online.forms import DhlForm
+from online.forms import DhlForm, DPDForm
 import os
 from Crypto.Cipher import AES
+
+from stock.models import Stock
 
 
 def decrypt_encrypted_string(encrypted_string):
@@ -29,7 +32,7 @@ def decrypt_encrypted_string(encrypted_string):
 
 class DPDPDFView(UpdateView):
     template_name = "online/dhl_form.html"
-    form_class = DhlForm
+    form_class = DPDForm
 
     def __init__(self, **kwargs):
         self.transport_account = None
@@ -52,6 +55,7 @@ class DPDPDFView(UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "DPD Label erstellen"
+        context["mission"] = self.mission
         return context
 
     def get_object(self, queryset=None):
@@ -72,10 +76,54 @@ class DPDPDFView(UpdateView):
         #     for error in errors:
         #         form.add_error(None, error)
         #     return super().form_invalid(form)
-
-        self.mission.tracking_number = parcel_label_number
-        self.mission.save()
+        if parcel_label_number is not None:
+            self.mission.tracking_number = parcel_label_number
+            self.mission.online_picklist.completed = True
+            self.mission.online_picklist.save()
+            if self.mission.online_picklist is not None:
+                self.create_delivery_note(self.mission.online_picklist)
+                self.create_billing(self.mission.online_picklist)
+                self.book_out_stocks(self.mission.online_picklist)
+            self.mission.save()
         return super().form_valid(form)
+
+    def create_delivery_note(self, picklist):
+        picklist.online_delivery_note = DeliveryNote.objects.create()
+        picklist.save()
+        bulk_instances = []
+        for pick_row in picklist.picklistproducts_set.all():
+            bulk_instances.append(DeliveryNoteProductMission(product_mission=pick_row.product_mission,
+                                                             delivery_note=picklist.online_delivery_note,
+                                                             amount=pick_row.confirmed_amount, ))
+        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+
+    def create_billing(self, picklist):
+        picklist.online_billing = Billing.objects.create()
+        picklist.save()
+        bulk_instances = []
+
+        for pick_row in picklist.picklistproducts_set.all():
+            bulk_instances.append(BillingProductMission(product_mission=pick_row.product_mission,
+                                                        billing=picklist.online_billing,
+                                                        amount=pick_row.confirmed_amount, ))
+        BillingProductMission.objects.bulk_create(bulk_instances)
+
+    def book_out_stocks(self, picklist):
+        for pick_row in picklist.picklistproducts_set.all():
+            product = pick_row.product_mission.product
+            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+            stock = Stock.objects.get(Q(Q(lagerplatz=pick_row.position)
+                                        & Q(Q(ean_vollstaendig=product.ean,
+                                              zustand__iexact=pick_row.product_mission.state) |
+                                            Q(sku=product_sku.sku)))
+                                      )
+            stock.bestand -= pick_row.confirmed_amount
+            print(f"{stock} - {stock.bestand}")
+            if stock.bestand > 0:
+                stock.save()
+            else:
+                stock.delete()
+            print(f"SO 1: {stock}")
 
 
 class DPDLabelCreator:
@@ -95,9 +143,14 @@ class DPDLabelCreator:
 
     def create_label(self):
         parcel_label_number = self.create_label_through_dpd_api()
-        self.mission.tracking_number = parcel_label_number
-        self.mission.save()
-        return parcel_label_number
+        if parcel_label_number is not None and parcel_label_number != "":
+            self.mission.tracking_number = parcel_label_number
+            self.mission.save()
+            picklist = self.mission.online_picklist
+            if picklist is not None:
+                picklist.completed = True
+                picklist.save()
+            return parcel_label_number
 
     def create_label_through_dpd_api(self):
         self.get_authentication_token_from_dpd_api()

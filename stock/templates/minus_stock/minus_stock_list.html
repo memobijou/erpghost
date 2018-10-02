@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    {% include "snippets/paginate_by.html" %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-condensed">
+                <thead>
+                    <tr>
+                        <th>Artikel</th>
+                        <th>Minusbestand</th>
+                        <th>Betroffen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for object in object_list %}
+                        <tr>
+                            <td>
+                                {% if object.product.main_image %}
+                                    <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
+                                        <img src="{{ object.product.main_image.url }}"
+                                             class="img-responsive img-modal img-thumbnail" style="max-height: 90px;cursor:pointer;">
+                                    </div>
+
+                                    <div class="modal fade">
+                                     <!-- Modal -->
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-body">
+                                                    <img src="{{ object.product.main_image.url|default:''}}"
+                                                     class="img-responsive center-block">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                {% if object.product.ean %}
+                                    <p><b>EAN: </b>{{ object.product.ean }}</p>
+                                {% endif %}
+                                <p><b>Sku: </b>{{ object.sku }}</p>
+                                <p><b>Zustand: </b>{{ object.state }}</p>
+
+                            </td>
+                            <td>
+                                <h3 style="padding:0px;margin:0px;"><span class="label label-danger">{{ object.available_total }}</span></h3>
+                            </td>
+                            <td>
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Auftragsnummer</th>
+                                            <th>Verkaufskanal</th>
+                                            <th>Fremd ID</th>
+                                            <th>Kaufdatum</th>
+
+                                        </tr>
+                                    </thead>
+                                    {% for p in object.product.productmission_set.all %}
+                                        <tr>
+                                            <td>
+                                               <p>{{ p.mission.mission_number }}</p>
+                                               <p><a href="{% url 'online:detail' pk=p.mission.pk %}">Zum Auftrag</a></p>
+                                            </td>
+                                            <td>
+                                                {{ p.mission.channel.name }}
+                                            </td>
+                                            <td>
+                                              <p>{{ p.mission.channel_order_id }}</p>
+                                            </td>
+                                            <td>
+                                                {{ p.mission.purchased_date }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% include "snippets/paginate_by.html" %}
+
+<script>
+    var show_hide_elements = document.getElementsByClassName("show_hide");
+
+    for(var i = 0; i<show_hide_elements.length; i++){
+        var show_hide_element = show_hide_elements[i];
+
+
+        show_hide_element.onclick = function(e){
+           var a_element = this.getElementsByTagName("a")[0];
+
+           var show_or_hide_element = this.getElementsByTagName("span")[0];
+
+           flip_down_up(show_or_hide_element);
+
+           $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+
+
+
+        }
+    }
+
+    var flip_down_up = function(el){
+           if(el.className.includes("chevron-down")){
+               el.className = el.className.replace("chevron-down", "chevron-up");
+           }else{
+              el.className = el.className.replace("chevron-up", "chevron-down");
+           }
+    };
+
+    var modal_images = document.getElementsByClassName("img-modal");
+    for(var i = 0; i<modal_images.length; i++){
+        modal_images[i].onclick = function(){
+            var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+    }
+
+</script>
+{% endblock %}

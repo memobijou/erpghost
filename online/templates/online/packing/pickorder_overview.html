@@ -13,7 +13,12 @@
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="text-right">
-                <a class="" href="{% url 'online:login_station' %}">Zur Station</a>
+                {% if can_finish_pickorder is not True %}
+                    <a href="{% url 'online:login_station' %}">Nächster Auftrag</a>
+                {% else %}
+                    <p class="help-block"><b>Kein weiterer Auftrag vorhanden</b></p>
+                    <p class="help-block">Sie können den Pickauftrag unten abschließen</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -22,12 +27,12 @@
         <div class="panel-body">
             {% if picked_picklists %}
                 <table class="table table-hover tabler-striped">
-                    {% for picklist in picked_picklists %}
+                    {% for picklist, mission in picked_picklists %}
                         <tr class="success">
                             <td>
                                 <p>
-                                    <b>Pack ID: </b>
-                                    {{ picklist.pick_id }}
+                                    <b>Auftrag: </b>
+                                    {{ mission.mission_number|default:"" }}
                                 </p>
                                 <p>
                                     <a href="{% url 'online:packing' pk=picklist.pk %}">Zur Ansicht</a>

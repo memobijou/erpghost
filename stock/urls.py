@@ -1,4 +1,6 @@
 from django.conf.urls import url
+
+from stock.minus_stock import MinusStockListView
 from .views import StockListView, StockDocumentDetailView, StockUpdateView, StockDetailView, \
     StockImportView, StockCopyView, PositionListView, BookProductToPositionView, StockDeleteView, GeneratePositionsView, \
     PositionDeleteView, PositionListAPIView, StockCorrectView
@@ -17,4 +19,6 @@ urlpatterns = [
     url(r'^position/generate_positions/$', GeneratePositionsView.as_view(), name="generate_positions"),
     url(r'^delete/$', PositionDeleteView.as_view(), name="position_delete"),
     url(r'^position/api/$', PositionListAPIView.as_view(), name="position_api"),
+    url(r'^minus_stock/$', MinusStockListView.as_view(), name="minus_list"),
+
 ]

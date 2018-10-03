@@ -79,11 +79,15 @@ class AcceptRefillStockView(View):
         return context
 
     def get_refill_data(self):
-        self.refill_data = []
+        added_to_refill_data_count = 0
+        refill_data = []
         refill_totals = {}
         current_stock_totals = {}
         used_stocks = {}
         for mission_product in self.missions_products:
+            if added_to_refill_data_count == 10:
+                break
+
             print(f"WHAT: {mission_product.product.ean} - {mission_product.amount}")
             product, product_sku, stocks = mission_product.product, mission_product.sku, []
             total_stock = mission_product.total
@@ -133,15 +137,14 @@ class AcceptRefillStockView(View):
                         stocks.append({"object": stock, "bookout_amount": bookout_amount})
 
             if len(stocks) > 0 and current_mission_product_amount == mission_product.amount:
-                self.refill_data.append(mission_product_stocks)
-        return self.refill_data
+                refill_data.append(mission_product_stocks)
+                added_to_refill_data_count += 1
+        return refill_data
 
     def get_missions_products(self):
 
         missions_products = ProductMission.objects.get_online_stocks().filter(
             mission__in=self.missions.values_list("pk", flat=True)).order_by("mission__purchased_date")
-
-        print(f"URGEN: {missions_products.count()}")
 
         exclude_pks = []
         for mission_product in missions_products:
@@ -151,7 +154,8 @@ class AcceptRefillStockView(View):
             if refillorder_stock_instance is not None:
                 exclude_pks.append(mission_product.pk)
         print(len(exclude_pks))
-        return missions_products.exclude(pk__in=exclude_pks)
+        missions_products = missions_products.exclude(pk__in=exclude_pks)
+        return missions_products
 
     def get_missions_products_stocks(self):
         query_condition = Q()

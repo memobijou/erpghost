@@ -125,14 +125,9 @@ class AcceptOnlinePickList(generic.CreateView):
         picklist_data = OrderedDict()
 
         for mission_product in self.missions_products:
+            print(f"wie: {mission_product.picklists_total}")
             picklist_stocks = []
             total = 0
-
-            picklist_product = PickListProducts.objects.filter(product_mission=mission_product,
-                                                               amount=mission_product.amount).first()
-
-            if picklist_product is not None:
-                continue
 
             product = mission_product.product
             product_sku = mission_product.sku
@@ -145,7 +140,10 @@ class AcceptOnlinePickList(generic.CreateView):
                     else:
                         stock_bestand = stock.bestand
 
-                    print(f"why:?: {mission_product.amount} - {stock_bestand} ::: {stock.bestand} - "
+                    stock_bestand -= mission_product.picklists_total or 0
+
+                    print(f"why:?:{mission_product.product.ean} {mission_product.amount} - {stock_bestand} ::: "
+                          f"{stock.bestand} - "
                           f"{self.used_stocks.get(stock, 'nothing')}")
 
                     if stock_bestand <= 0:
@@ -690,27 +688,38 @@ class FinishPackingView(View):
             return HttpResponseRedirect(self.get_label_form_link()), True
         national_business_account = self.client.businessaccount_set.filter(type="national").first()
         foreign_country_business_account = self.client.businessaccount_set.filter(type="foreign_country").first()
-
         country = pycountry.countries.get(alpha_2=self.mission.delivery_address.country_code)
+
         if self.mission.delivery_address.strasse is not None and self.mission.delivery_address.hausnummer is not None:
             if country.name == "Germany":
+
                 if national_business_account.transport_service.name.lower() == "dhl":
                     dhl_label = self.create_dhl_label()
+                    if dhl_label is None:
+                        return HttpResponseRedirect(self.get_label_form_link()), True
                     return dhl_label, None
                 elif national_business_account.transport_service.name.lower() == "dpd":
                     dpd_label = self.create_dpd_label()
+                    if dpd_label is None:
+                        return HttpResponseRedirect(self.get_label_form_link()), True
                     return dpd_label, None
             else:
                 if foreign_country_business_account.transport_service.name.lower() == "dhl":
                     dhl_label = self.create_dhl_label()
+                    if dhl_label is None:
+                        return HttpResponseRedirect(self.get_label_form_link()), True
                     return dhl_label, None
                 elif foreign_country_business_account.transport_service.name.lower() == "dpd":
                     dpd_label = self.create_dpd_label()
+                    if dpd_label is None:
+                        return HttpResponseRedirect(self.get_label_form_link()), True
                     return dpd_label, None
 
     def create_dpd_label(self):
         dpd_label_creator = DPDLabelCreator(self.mission, self.client)
         dpd_label = dpd_label_creator.create_label()
+        if dpd_label is None or dpd_label == "":
+            return
         return dpd_label
 
     def create_dhl_label(self):

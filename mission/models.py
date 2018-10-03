@@ -159,14 +159,21 @@ class ProductMissionManager(models.Manager):
                                         product__productmission__mission__is_online=True,
                                         product__productmission__mission__online_picklist__completed__isnull=True,
                                         then="product__productmission__amount"), default=0)))[:1]
+
+        subquery_picklists_total = ProductMission.objects.filter(pk=OuterRef("pk")).annotate(
+            picklists_total=Sum(Case(When(product__productmission__product=F("product"),
+                                          product__productmission__state=F("state"),
+                                          product__productmission__picklistproducts__pick_list__completed__isnull=True,
+                                          then="product__productmission__picklistproducts__amount"), default=0)))[:1]
+
         return self.all().annotate(sku=Subquery(subquery_sku.values("sku"))).annotate(
             total=Subquery(subquery_sku.values("total"), output_field=models.IntegerField())).annotate(
             mission_total=Subquery(subquery_mission_total.values("mission_total"),
                                    output_field=models.IntegerField())).annotate(
             available_total=F("total")-F("mission_total")).annotate(
             online_total=Subquery(subquery_sku.values("online_total"), output_field=models.IntegerField())).annotate(
-            refill_total=F("mission_total")-F("online_total")
-        )
+            refill_total=F("mission_total")-F("online_total")).annotate(
+            picklists_total=Subquery(subquery_picklists_total.values("picklists_total")))
 
 
 class ProductMission(models.Model):

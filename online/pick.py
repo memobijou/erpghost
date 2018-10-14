@@ -655,7 +655,6 @@ class FinishPackingView(View):
             return label_or_manual_label_redirect
         if label_or_manual_label_redirect is not None and error is None:
             print("????!?!??!!?!?")
-            self.picklist.completed = True
             self.create_delivery_note()
             self.create_billing()
             self.book_out_stocks()
@@ -736,21 +735,28 @@ class FinishPackingView(View):
             return dhl_label
 
     def book_out_stocks(self):
-        for pick_row in self.picklist.picklistproducts_set.all():
-            product = pick_row.product_mission.product
-            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
-            stock = Stock.objects.get(Q(Q(lagerplatz__iexact=pick_row.position)
-                                        & Q(Q(ean_vollstaendig=product.ean,
-                                              zustand__iexact=pick_row.product_mission.state) |
-                                            Q(sku=product_sku.sku)))
-                                      )
-            stock.bestand -= pick_row.confirmed_amount
-            print(f"{stock} - {stock.bestand}")
-            if stock.bestand > 0:
-                stock.save(hard_save=True)
-            else:
-                stock.delete(hard_delete=True)
-            print(f"SO 1: {stock}")
+        print(f"BANDITOS: {self.picklist}")
+        print(f"bandit: {self.picklist.completed}")
+
+        if self.picklist.completed is None:
+            print("yeaaah")
+            self.picklist.completed = True
+            self.picklist.save()
+            for pick_row in self.picklist.picklistproducts_set.all():
+                product = pick_row.product_mission.product
+                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+                stock = Stock.objects.filter(
+                    Q(Q(lagerplatz__iexact=pick_row.position) &
+                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
+                        | Q(sku=product_sku.sku)))).first()
+                if stock is not None:
+                    stock.bestand -= pick_row.confirmed_amount
+                    print(f"{stock} - {stock.bestand} - {stock.lagerplatz}")
+                    if stock.bestand > 0:
+                        stock.save(hard_save=True)
+                    else:
+                        stock.delete(hard_delete=True)
+                    print(f"SO 1: {stock} --- {stock.bestand}")
 
     # Adresse in Stasse und Hausnummer zerlegen durch Reguläre Ausdrücke
     def break_down_address_in_street_and_house_number(self):

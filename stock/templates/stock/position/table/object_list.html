@@ -5,9 +5,7 @@
 {% for object in object_list %}
     <tr>
         <td class="col-md-1">
-            <a href="{{ object.id }}">Ansicht</a>
-            <a href="{{ object.id }}/edit">Bearbeiten</a>
-            <input type="checkbox" name="item" value="{{object.pk}}">
+            <input type="checkbox" name="item" style="cursor:pointer;" value="{{object.pk}}">
         </td>
         <td class="show_hide" style="cursor:pointer;">
             <a collapseid="collapse_{{ forloop.counter }}">

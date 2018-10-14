@@ -14,7 +14,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for object in object_list %}
+                    {% for object, missions in object_list %}
                         <tr>
                             <td>
                                 {% if object.product.main_image %}
@@ -56,20 +56,20 @@
 
                                         </tr>
                                     </thead>
-                                    {% for p in object.product.productmission_set.all %}
+                                    {% for mission in missions %}
                                         <tr>
                                             <td>
-                                               <p>{{ p.mission.mission_number }}</p>
-                                               <p><a href="{% url 'online:detail' pk=p.mission.pk %}">Zum Auftrag</a></p>
+                                               <p>{{ mission.mission_number }}</p>
+                                               <p><a href="{% url 'online:detail' pk=mission.pk %}">Zum Auftrag</a></p>
                                             </td>
                                             <td>
-                                                {{ p.mission.channel.name }}
+                                                {{ mission.channel.name }}
                                             </td>
                                             <td>
-                                              <p>{{ p.mission.channel_order_id }}</p>
+                                              <p>{{ mission.channel_order_id }}</p>
                                             </td>
                                             <td>
-                                                {{ p.mission.purchased_date }}
+                                                {{ mission.purchased_date }}
                                             </td>
                                         </tr>
                                     {% endfor %}

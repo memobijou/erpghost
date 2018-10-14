@@ -4,10 +4,11 @@
 {% block content %}
     <div class="row">
         <div class="col-md-12">
-            {% if object.pk %}
-                <a href="{% url 'stock:copy' pk=object.id %}" class="btn btn-info pull-right">Neuen Artikel zu Position buchen
+            {% if instance and position %}
+                <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
+                    Neuen Artikel zu Position buchen
+                </a>
             {% endif %}
-            </a>
             <br/><br/><br/>
         </div>
         <div class="col-md-12">
@@ -25,27 +26,35 @@
 
     <div class="is-table-row" style="padding-bottom: 20px;width:100%">
 
-        {% if object.id %}
+        {% if instance.id %}
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                    <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+                    <b>Position: </b> <span> {{ instance.lagerplatz }} </span></br>
             </div>
 
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                    {% if object.ean_vollstaendig %}
-                         <b>EAN: </b> <span> {{ object.ean_vollstaendig }} </span>
-                    {% elif object.sku %}
-                         <b>SKU: </b> <span> {{ object.sku }} </span>
-                    {% elif object.title %}
+                    {% if instance.ean_vollstaendig %}
+                         <b>EAN: </b> <span> {{ instance.ean_vollstaendig }} </span>
+                         {% if instance.sku_instance.sku %}
+                             - <b>SKU: </b> <span> {{ instance.sku_instance.sku }} </span>
+                         {% endif %}
+                    {% elif instance.sku %}
+                         <b>SKU: </b> <span> {{ instance.sku }} </span>
+                        {% if instance.product %}
+                           - <b>EAN: </b> <span> {{ instance.product.ean }} </span>
+                        {% endif %}
+                    {% elif instance.title %}
                          <b>keine EAN oder SKU vorhanden</b>
                     {% else %}
                         <b>Kein Artikel gebucht</b>
                     {% endif %}
-                    {% if object.zustand %}
-                         - <b>Zustand: </b>{{ object.zustand }}<br/>
+                    {% if instance.zustand %}
+                         <p><b>Zustand: </b>{{ instance.zustand }}</p>
+                    {% elif instance.sku_instance %}
+                         <p><b>Zustand: </b>{{ instance.sku_instance.state }}</p>
                     {% endif %}
             </div>
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
-                    <b>Aktuelle Menge: </b> <span> {{ object.bestand }} </span></br>
+                    <b>Aktuelle Menge: </b> <span> {{ instance.bestand }} </span></br>
             </div>
         {% else %}
             <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;text-align: center;font-size:25px;">
@@ -58,9 +67,9 @@
     </br>
     <div class="panel panel-default">
         <div class="panel-body">
-            {% if object.pk %}
+            {% if instance.pk %}
             <div class="pull-right">
-                <p><a href="{% url 'stock:detail' pk=object.id %}">Zur Ansicht</a></p>
+                <p><a href="{% url 'stock:detail' pk=instance.id %}">Zur Ansicht</a></p>
             </div>
             {% endif %}
                 <form method="POST">{% csrf_token %}
@@ -95,10 +104,10 @@
                     </div>
                 </form>
         </div>
-        {% if object.id %}
+        {% if instance.id %}
                 <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
                     <br/>
-                    <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
+                    <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=instance.id %}">Artikel ausbuchen</a>
                 </div>
         {% endif %}
     </div>

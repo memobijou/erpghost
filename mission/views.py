@@ -23,7 +23,7 @@ from django.db.models import F, Func
 import datetime
 
 
-class MissionDetailView(DetailView):
+class MissionDetailView(LoginRequiredMixin, DetailView):
 
     def __init__(self):
         super().__init__()
@@ -59,8 +59,11 @@ class MissionDetailView(DetailView):
         detail_products = []
 
         for product_mission in self.mission_products:
-            product_stock = self.get_product_stock(product_mission)
-
+            product = product_mission.product
+            sku = product.sku_set.filter(state=product_mission.state).get_totals().first()
+            total = sku.total
+            available_total = sku.available_total
+            product_total = f"{available_total}/{total}"
             amount = product_mission.amount
 
             missing_amount = product_mission.amount
@@ -84,7 +87,7 @@ class MissionDetailView(DetailView):
             if missing_amount == 0:
                 missing_amount = ""
 
-            detail_products.append((product_mission,  missing_amount,  product_stock, reserved_amount, sent_amount))
+            detail_products.append((product_mission,  missing_amount,  product_total, reserved_amount, sent_amount))
         return detail_products
 
     def get_product_stock(self, product_mission):
@@ -132,7 +135,7 @@ class MissionDetailView(DetailView):
                                 return stock.get_available_total_stocks().get(state)
 
 
-class MissionListView(ListView):
+class MissionListView(LoginRequiredMixin, ListView):
     template_name = "mission/mission_list.html"
 
     def get_queryset(self):
@@ -245,7 +248,6 @@ class MissionListView(ListView):
             search_filter |= Q(customer_order_number__icontains=search_value.strip())
             search_filter |= Q(partial__delivery__delivery_id__icontains=search_value.strip())
 
-
         q_filter &= search_filter
 
         billing_number = self.request.GET.get("billing_number")
@@ -279,7 +281,7 @@ class MissionListView(ListView):
         return fields
 
 
-class MissionCreateView(CreateView):
+class MissionCreateView(LoginRequiredMixin, CreateView):
     template_name = "mission/form.html"
     form_class = MissionForm
 
@@ -928,18 +930,17 @@ class MissionStockCheckForm(View):
         product = product_mission.product
         state = product_mission.state
 
-        product_stock = product.stock_set.first()
+        sku = product.sku_set.filter(state=state).get_totals().first()
 
-        if product_stock is None:
-            return 0
+        available_stock = 0
+        if sku is not None:
+            available_stock = int(sku.available_total)
 
-        available_stock = product_stock.get_available_total_stocks().get(state)
-
-        if available_stock is not None and available_stock != "":
-            if int(available_stock) >= amount:
+        if available_stock > 0:
+            if available_stock >= amount:
                 return amount
             else:
-                if int(available_stock) > 0:
+                if available_stock > 0:
                     return available_stock
                 else:
                     return 0
@@ -953,18 +954,13 @@ class MissionStockCheckForm(View):
         return current_amount
 
     def get_stock_from_product(self, product, state):
-        product_stock = product.stock_set.first()
-
-        stock_dict = None
-
-        if product_stock is not None and product_stock != "":
-            stock_dict = product_stock.get_total_stocks()
-
-        stock = 0
-
-        if stock_dict is not None and stock_dict != "":
-            stock = stock_dict.get(state)
-        return stock
+        sku = product.sku_set.filter(state=state).get_totals().first()
+        available_total = 0
+        total = 0
+        if sku is not None:
+            available_total = sku.available_total
+            total = sku.total
+        return f"{available_total}/{total}"
 
     def post(self, request, *args, **kwargs):
         if len(self.new_partial_products) > 0:
@@ -1106,11 +1102,15 @@ class CreatePartialDeliveryNote(View):
 
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
+        PackingListProduct.objects.filter(packing_list__pk__in=self.partial.packinglist_set.values_list("pk", flat=True)).delete()
         self.partial.packinglist_set.all().delete()
+        PickListProducts.objects.filter(pick_list__in=self.partial.picklist_set.values_list("pk", flat=True)).delete()
         self.partial.picklist_set.all().delete()
 
     def cancel_partial_delivery(self):
+        PackingListProduct.objects.filter(packing_list__pk__in=self.partial.packinglist_set.values_list("pk", flat=True)).delete()
         self.partial.packinglist_set.all().delete()
+        PickListProducts.objects.filter(pick_list__in=self.partial.picklist_set.values_list("pk", flat=True)).delete()
         self.partial.picklist_set.all().delete()
 
     def get_product_mission_stock(self, product_mission):
@@ -1271,16 +1271,16 @@ class CreateDeliveryView(View):
     def get_product_position_with_stock(self, partial_product):
         product_mission = partial_product.product_mission
         sku = product_mission.product.sku_set.filter(state=product_mission.state).first()
-        product_stock = Stock.objects.filter(
+        product_stocks = Stock.objects.filter(
             Q(Q(Q(sku=sku, zustand="") | Q(sku=sku, zustand=None)) |
               Q(zustand=product_mission.state, ean_vollstaendig=product_mission.product.ean))
-        ).exclude(bestand__lt=1).distinct("lagerplatz").order_by("lagerplatz")
+        ).exclude(bestand__lt=1).distinct("lagerplatz").order_by("lagerplatz")  # order_by korrigieren
         to_pick_stocks = []
 
         picklist_products = PickListProducts.objects.filter(product_mission=product_mission)
-
-        for single_stock in product_stock:
-            current_bestand = single_stock.bestand - (single_stock.missing_amount or 0)
+        # Falls Pickliste mit einem Bestand abgedeckt wird
+        for single_stock in product_stocks:
+            current_bestand = single_stock.bestand
 
             for picklist_product in picklist_products:
                 if picklist_product.position == single_stock.lagerplatz:
@@ -1293,10 +1293,11 @@ class CreateDeliveryView(View):
                 to_pick_stocks = [(single_stock, int(partial_product.missing_amount()))]
                 break
 
+        # Falls in der Schleife vorher kein Bestand gefunden wurde
         if len(to_pick_stocks) == 0:
             sum_to_pick_stock = 0
-            for single_stock in product_stock:
-                current_bestand = single_stock.bestand - (single_stock.missing_amount or 0)
+            for single_stock in product_stocks:
+                current_bestand = single_stock.bestand
 
                 for picklist_product in picklist_products:
                     if picklist_product.position == single_stock.lagerplatz:
@@ -1361,7 +1362,7 @@ class CreateDeliveryView(View):
             return stock.get_total_stocks().get(state)
 
 
-class PickOrderView(View):
+class PickOrderView(LoginRequiredMixin, View):
     template_name = "mission/pickorder.html"
 
     def __init__(self, **kwargs):
@@ -1415,49 +1416,25 @@ class PickOrderView(View):
     def post(self, request, *args, **kwargs):
         pick_id = self.request.GET.get("pick_id")
         pick_row = PickListProducts.objects.get(pk=pick_id)
-        missing_amount = self.request.POST.get("missing_amount")
-        context = self.get_context()
 
-        if missing_amount is not None and missing_amount != "":
-            validated_picklist = self.get_validated_picklist(pick_id)
-            context["picklist"] = validated_picklist
-
-            for row, pick_form in validated_picklist:
-                if int(row.pk) == int(pick_id):
-                    if pick_form.is_valid() is False:
-                        return render(request, "mission/pickorder.html", context)
-
-            if int(missing_amount) > 0:
-                pick_row.confirmed = False
-                pick_row.missing_amount = missing_amount
-            if int(missing_amount) == 0:
-                pick_row.confirmed = True
-        else:
-            pick_row.confirmed = True
+        pick_row.confirmed = True
 
         pick_row.save()
+        sku = pick_row.product_mission.product.sku_set.filter(state=pick_row.product_mission.state).first()
 
         stock = Stock.objects.filter(Q(lagerplatz=pick_row.position) &
                                      Q(
                                        Q(ean_vollstaendig=pick_row.product_mission.product.ean,
                                          zustand=pick_row.product_mission.state) |
-                                       Q(sku=pick_row.product_mission.product.sku_set.
-                                         filter(state=pick_row.product_mission.state).first())
+                                       Q(sku=sku)
                                     )
                                     ).first()
 
         if stock.bestand-pick_row.amount_minus_missing_amount() < 1:
-            stock.delete()
+            stock.delete(hard_delete=True)
         else:
             stock.bestand -= pick_row.amount_minus_missing_amount()
-
-            if stock.missing_amount is None or stock.missing_amount == "":
-                stock.missing_amount = pick_row.missing_amount
-            else:
-                if int(stock.missing_amount) > 0:
-                    if pick_row.missing_amount is not None and pick_row.missing_amount != "":
-                        stock.missing_amount = int(stock.missing_amount) + int(pick_row.missing_amount)
-            stock.save()
+            stock.save(hard_save=True)
 
         self.create_packing_list_if_all_picked()
         return HttpResponseRedirect(
@@ -1468,6 +1445,8 @@ class PickOrderView(View):
         picklist_all_picked = self.picklist_is_all_picked()
 
         if picklist_all_picked is True:
+            self.picklist.completed = True
+            self.picklist.save()
             exclude_amount_zero_ids = []
             for pick_row, pick_form in self.picklist_products:
                 if pick_row.amount_minus_missing_amount() is None or pick_row.amount_minus_missing_amount() == 0:
@@ -1514,7 +1493,7 @@ class PickOrderView(View):
         return context
 
 
-class PickOrderListView(ListView):
+class PickOrderListView(LoginRequiredMixin, ListView):
     template_name = "mission/pickorder_list.html"
 
     def get_queryset(self):
@@ -1587,7 +1566,7 @@ class PickOrderListView(ListView):
         return fields
 
 
-class PackingOrderListView(ListView):
+class PackingOrderListView(LoginRequiredMixin, ListView):
     template_name = "mission/packingorder_list.html"
 
     def get_queryset(self):

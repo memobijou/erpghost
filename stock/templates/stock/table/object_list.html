@@ -1,4 +1,4 @@
-{% for object, product, stock, product_state in object_list_zip %}
+{% for object in object_list %}
     <tr>
         <td class="col-md-1"><a href="{{ object.id }}">Ansicht</a>
             <a href="{{ object.id }}/edit">Bearbeiten</a>
@@ -73,7 +73,7 @@
         <td>
               <div><b>Gesamt:</b> {{ stock.total|default:"0" }}</div>
                 <br/>
-            {% if stock.total %}
+            {% if stock %}
               <table class="table table-bordered">
                 <thead>
                     <th>Neu</th>

@@ -13,10 +13,11 @@
     </style>
 
     <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
-        {% if object.pk %}
-            <a href="{% url 'stock:copy' pk=object.id %}" class="btn btn-info pull-right">Neuen Artikel zu Position buchen
+        {% if object and position %}
+            <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
+                Neuen Artikel zu Position buchen
+            </a>
         {% endif %}
-        </a>
         <br/><br/><br/>
     </div>
 
@@ -28,8 +29,14 @@
         <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
                 {% if object.ean_vollstaendig %}
                      <b>EAN: </b> <span> {{ object.ean_vollstaendig }} </span>
+                     {% if object.sku_instance %}
+                         - <b>SKU:</b> {{ object.sku_instance.sku }}
+                     {% endif %}
                 {% elif object.sku %}
                      <b>SKU: </b> <span> {{ object.sku }} </span>
+                     {% if object.product and object.product.ean %}
+                         <b>EAN:</b> {{ object.product.ean }}
+                     {% endif %}
                 {% elif object.title %}
                      <b>keine EAN oder SKU vorhanden</b>
                 {% elif product.title %}
@@ -38,9 +45,9 @@
                     <b>Kein Artikel gebucht</b>
                 {% endif %}
                 {% if object.zustand %}
-                     - <b>Zustand: </b>{{ object.zustand }}<br/>
+                     <br/><b>Zustand: </b>{{ object.zustand }}<br/>
                 {% elif sku_state %}
-                     - <b>Zustand: </b>{{ sku_state }}<br/>
+                     <br/><b>Zustand: </b>{{ sku_state }}<br/>
                 {% endif %}
         </div>
         <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
@@ -51,171 +58,142 @@
     <div class="col-md-12" style="padding:0">
         <div class="panel panel-default">
             <div class="panel-body">
-
-
-        <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
-        <div class="col-md-12" style="padding-left: 0px;">
-        {% if product %}
-            {% if product.title %}
-                <h4>{{ product.title }}</h4>
-            {% elif object.title %}
-                <h4>{{ object.title }}</h4>
-            {% endif %}
-        {% elif object.title %}
-                <h4>{{ object.title }}</h4>
-        {% endif %}
-        </div>
-        {% if product %}
-            {% if product.main_image %}
-                <div class="col-md-3" style="padding-left: 0px;">
-                    <p>
-                        <img src="{{ product.main_image.url }}" class="img-responsive img-modal"
-                             style="cursor:pointer;"/>
-                    </p>
-                    <div class="modal fade">
-                         <!-- Modal -->
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-body">
-                                    <img src="{{ product.main_image.url|default:''}}"
-                                     class="img-responsive center-block">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
+                <div class="col-md-12" style="padding-left: 0px;">
+                {% if product %}
+                    {% if product.title %}
+                        <h4>{{ product.title }}</h4>
+                    {% elif object.title %}
+                        <h4>{{ object.title }}</h4>
+                    {% endif %}
+                {% elif object.title %}
+                        <h4>{{ object.title }}</h4>
+                {% endif %}
                 </div>
-            {% endif %}
-        {% endif %}
-
-        <div class="col-md-6">
-        {% if product %}
-            {% if product.short_description %}
-                <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
-            {% endif %}
-        {% endif %}
-        {% if object.name %}
-            <p><b>Person: </b>{{ object.name }}</p>
-        {% endif %}
-        {% if object.regal %}
-            <p><b>Regal: </b>{{ object.regal }}</p>
-        {% endif %}
-        {% if object.scanner %}
-            <p><b>Scanner: </b>{{ object.scanner }}</p>
-        {% endif %}
-        {% if object.karton %}
-            <p><b>Karton: </b>{{ object.karton }}</p>
-        {% endif %}
-        {% if object.box %}
-            <p><b>Box: </b>{{ object.box }}</p>
-        {% endif %}
-        {% if object.aufnahme_datum %}
-            <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
-        {% endif %}
-        <br/>
-        <h4><b>Bestand Artikel auf <u>alle</u> Positionen: </b>{{ stock.total }}</h4>
-        {% if object.missing_amount %}
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    Fehlende Bestände
-                </div>
-                <div class="panel-body text-center">
-                    <h3 style="color:red;">
-                        {{ object.missing_amount }}
-                    </h3>
-                    <p>
-                    <a class="btn btn-info"  href="{% url 'stock:correct' pk=object.id %}" >Bestand korrigieren</a>
-                    </p>
-                </div>
-            </div>
-        {% endif %}
-        {% if stock.total %}
-          <table class="table table-bordered">
-            <thead>
-                <th>Neu</th>
-                <th>B</th>
-                <th>C</th>
-                <th>D</th>
-                <th>G</th>
-            </thead>
-            <tbody>
-                <tr>
-                  <td>
-                      {{ stock.total_neu|default:''}}
-                  </td>
-                  <td>
-                      {{ stock.total_b|default:''}}
-                  </td>
-                  <td>
-                      {{ stock.total_c|default:''}}
-                  </td>
-                  <td>
-                      {{ stock.total_d|default:''}}
-                  </td>
-                  <td>
-                      {{ stock.total_g|default:''}}
-                  </td>
-                </tr>
-            </tbody>
-          </table>
-        {% endif %}
-        </div>
-                <div class="col-md-11" style="padding-right: 0px;padding-left:0px;">
-                    {% if object.product and object.product.productimage_set.all %}
-                                <div class="panel panel-default">
-                                    <div class="panel-heading">
-                                        Weitere Bilder
-                                    </div>
-                                    <div class="panel-body">
-                                        <div class="col-md-12">
-                                            {% for image in object.product.productimage_set.all %}
-                                                <div class="col-md-2" style="padding-left: 0px;padding-top:25px;">
-                                                    <div class="panel panel-default">
-                                                        <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">
-                                                            <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
-                                                        </div>
-
-                                                    </div>
-                                                   <div class="modal fade">
-                                                         <!-- Modal -->
-                                                        <div class="modal-dialog">
-                                                            <div class="modal-content">
-                                                                <div class="modal-body">
-                                                                    <img src="{{ image.image.url|default:''}}"
-                                                                     class="img-responsive center-block">
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            {% endfor %}
+                {% if product %}
+                    {% if product.main_image %}
+                        <div class="col-md-3" style="padding-left: 0px;">
+                            <p>
+                                <img src="{{ product.main_image.url }}" class="img-responsive img-modal"
+                                     style="cursor:pointer;"/>
+                            </p>
+                            <div class="modal fade">
+                                 <!-- Modal -->
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-body">
+                                            <img src="{{ product.main_image.url|default:''}}"
+                                             class="img-responsive center-block">
                                         </div>
                                     </div>
                                 </div>
-                        {% endif %}
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
+                {% endif %}
+
+                <div class="col-md-6">
+                    {% if product %}
+                        {% if product.short_description %}
+                            <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
+                        {% endif %}
+                    {% endif %}
+                    {% if object.name %}
+                        <p><b>Person: </b>{{ object.name }}</p>
+                    {% endif %}
+                    {% if object.regal %}
+                        <p><b>Regal: </b>{{ object.regal }}</p>
+                    {% endif %}
+                    {% if object.scanner %}
+                        <p><b>Scanner: </b>{{ object.scanner }}</p>
+                    {% endif %}
+                    {% if object.karton %}
+                        <p><b>Karton: </b>{{ object.karton }}</p>
+                    {% endif %}
+                    {% if object.box %}
+                        <p><b>Box: </b>{{ object.box }}</p>
+                    {% endif %}
+                    {% if object.aufnahme_datum %}
+                        <p><b>Aufnahme Datum: </b>{{ object.aufnahme_datum }}</p>
+                    {% endif %}
+                    <br/>
+
+                    <p>Bestand Artikel auf <b><u>alle</u></b> Positionen: {{ total.available_total }}/{{ total.total }}</p>
+                    <table class="table table-bordered">
+                        <tr>
+                            {% for state, total in states_totals.items %}
+                                <th>{{ state }}</th>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            {% for state, total in states_totals.items %}
+                               <td>
+                                   {{ total.available_total }}/{{ total.total }}
+                               </td>
+                            {% endfor %}
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-11" style="padding-right: 0px;padding-left:0px;">
+                    {% if object.product and object.product.productimage_set.all %}
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Weitere Bilder
+                            </div>
+                            <div class="panel-body">
+                                <div class="col-md-12">
+                                    {% for image in object.product.productimage_set.all %}
+                                        <div class="col-md-2" style="padding-left: 0px;padding-top:25px;">
+                                            <div class="panel panel-default">
+                                                <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">
+                                                    <img src="{{  image.image.url }}" class="img-responsive center-block" style="max-height: 100px;">
+                                                </div>
+
+                                            </div>
+                                           <div class="modal fade">
+                                                 <!-- Modal -->
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-body">
+                                                            <img src="{{ image.image.url|default:''}}"
+                                                             class="img-responsive center-block">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
-
-        <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
-            <br/>
-            <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
         </div>
     </div>
 
+    <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
+        <br/>
+        {% if object.sku_instance.product.single_product != True %}
+            <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=object.id %}">Artikel ausbuchen</a>
+        {% else %}
+            <a class="btn btn-danger pull-right" href="{% url 'stock:single_delete' pk=object.id %}">
+                Artikel ausbuchen
+            </a>
+        {% endif %}
+    </div>
 
+    <script>
+        var modal_images = document.getElementsByClassName("img-modal");
+            for(var i = 0; i<modal_images.length; i++){
+                var modal_image = modal_images[i];
+                modal_image.onclick = function(){
+                    var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+                    $(modal_div).modal();
+                };
+            }
 
-<script>
-    var modal_images = document.getElementsByClassName("img-modal");
-        for(var i = 0; i<modal_images.length; i++){
-            var modal_image = modal_images[i];
-            modal_image.onclick = function(){
-                var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
-                $(modal_div).modal();
-            };
-        }
-
-</script>
+    </script>
 
 {% endblock %}
 

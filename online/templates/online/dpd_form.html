@@ -5,19 +5,19 @@
         <div class="col-md-12" style="padding:15px;">
             <div class="col-md-3"></div>
             <div class="col-md-6">
-                <p><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
-                <p><b>Channel: </b> {{ object.channel.name }}</p>
-                <p><b>Fremd ID: </b> {{ object.channel_order_id }}</p>
+                <p><b>Auftragsnummer: </b>{{ mission.mission_number }}</p>
+                <p><b>Channel: </b> {{ mission.channel.name }}</p>
+                <p><b>Fremd ID: </b> {{ mission.channel_order_id }}</p>
                 <hr/>
-                <p><b>Name: </b>{{ object.delivery_address.first_name_last_name }}</p>
-                {% if object.delivery_address.address_line_1 %}
-                    <p><b>Adresszeile 1: </b>{{ object.delivery_address.address_line_1 }}</p>
+                <p><b>Name: </b>{{ object.first_name_last_name }}</p>
+                {% if object.address_line_1 %}
+                    <p><b>Adresszeile 1: </b>{{ object.address_line_1 }}</p>
                 {% endif %}
-                {% if object.delivery_address.address_line_2 %}
-                    <p><b>Adresszeile 2: </b>{{ object.delivery_address.address_line_2 }}</p>
+                {% if object.address_line_2 %}
+                    <p><b>Adresszeile 2: </b>{{ object.address_line_2 }}</p>
                 {% endif %}
-                {% if object.delivery_address.address_line_3 %}
-                    <p><b>Adresszeile 3: </b>{{ object.delivery_address.address_line_3 }}</p>
+                {% if object.address_line_3 %}
+                    <p><b>Adresszeile 3: </b>{{ object.address_line_3 }}</p>
                 {% endif %}
             </div>
         </div>

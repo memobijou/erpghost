@@ -5,6 +5,7 @@ from celery import shared_task
 from adress.models import Adress
 from mission.models import Channel, Mission, ProductMission
 from product.models import Product
+from collections import OrderedDict
 
 
 class AmazonImportTask(Task):
@@ -25,6 +26,9 @@ class AmazonImportTask(Task):
 
         for i, row in enumerate(self.result):
             sku = self.column_from_row("sku", row)
+            shipping_price = self.column_from_row("shipping-price", row)
+            print(f"this is shipping-price: {shipping_price}")
+            print(f"this is sku: {sku}")
             product = Product.objects.filter(sku__sku__iexact=sku.strip()).first()
 
             print(f"booba: {product} - {str(i)}")
@@ -43,20 +47,27 @@ class AmazonImportTask(Task):
             instance_data = {"channel_order_id": self.column_from_row("order-id", row),
                              "is_online": True, "is_amazon_fba": False,
                              "purchased_date": dateutil.parser.parse(self.column_from_row("purchase-date", row),),
-                             "delivery_date_from": self.parse_date(
-                                 self.column_from_row("delivery-start-date", row),),
+                             "delivery_date_from": self.parse_date(self.column_from_row("delivery-start-date", row),),
                              "delivery_date_to": self.parse_date(self.column_from_row("delivery-end-date", row)),
                              "payment_date": self.parse_date(self.column_from_row("payments-date", row)),
                              "delivery_address_id": shipping_address_instance.pk,
-                             "channel_id": channel_instance.pk, "billing_address_id": billing_address_instance.pk}
+                             "channel_id": channel_instance.pk, "billing_address_id": billing_address_instance.pk,
+                             "online_transport_cost": shipping_price}
             print(f"bankimoon: {instance_data}")
             mission_instance = Mission.objects.filter(channel_order_id=self.column_from_row("order-id", row)).first()
+
             if mission_instance is None:
                 mission_instance = Mission(**instance_data)
                 mission_instance.save()
+
             productmission_data = {"product": product, "amount": quantity_purchased, "mission": mission_instance,
                                    "netto_price": item_price, "state": "Neu"}
-            productmission_instance = ProductMission.objects.filter(**productmission_data).first()
+
+            productmission_instance = ProductMission.objects.filter(product=product, mission=mission_instance,
+                                                                    state="Neu").first()
+
+            print(f"{sku} ------- {productmission_instance or 'No'}")
+
             if productmission_instance is None:
                 productmission_instance = ProductMission.objects.create(**productmission_data)
                 productmission_instance.save()
@@ -121,10 +132,13 @@ class AmazonImportTask(Task):
 
     def parse_date(self, date):
         if date != "":
-           date = dateutil.parser.parse(date)
-           return date
+            date = dateutil.parser.parse(date)
+            return date
 
     def column_from_row(self, column, row):
+        print(f"akhi: {self.header}")
+        if type(row) == OrderedDict:
+            return row[column]
         index = None
         for header_col in self.header:
             if header_col == column:

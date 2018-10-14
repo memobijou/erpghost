@@ -31,7 +31,7 @@ def decrypt_encrypted_string(encrypted_string):
 
 
 class DPDPDFView(UpdateView):
-    template_name = "online/dhl_form.html"
+    template_name = "online/dpd_form.html"
     form_class = DPDForm
 
     def __init__(self, **kwargs):
@@ -78,12 +78,13 @@ class DPDPDFView(UpdateView):
         #     return super().form_invalid(form)
         if parcel_label_number is not None:
             self.mission.tracking_number = parcel_label_number
-            self.mission.online_picklist.completed = True
-            self.mission.online_picklist.save()
+
             if self.mission.online_picklist is not None:
                 self.create_delivery_note(self.mission.online_picklist)
                 self.create_billing(self.mission.online_picklist)
                 self.book_out_stocks(self.mission.online_picklist)
+                self.mission.online_picklist.completed = True
+                self.mission.online_picklist.save()
             self.mission.save()
         return super().form_valid(form)
 
@@ -109,21 +110,25 @@ class DPDPDFView(UpdateView):
         BillingProductMission.objects.bulk_create(bulk_instances)
 
     def book_out_stocks(self, picklist):
-        for pick_row in picklist.picklistproducts_set.all():
-            product = pick_row.product_mission.product
-            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
-            stock = Stock.objects.get(Q(Q(lagerplatz=pick_row.position)
-                                        & Q(Q(ean_vollstaendig=product.ean,
-                                              zustand__iexact=pick_row.product_mission.state) |
-                                            Q(sku=product_sku.sku)))
-                                      )
-            stock.bestand -= pick_row.confirmed_amount
-            print(f"{stock} - {stock.bestand}")
-            if stock.bestand > 0:
-                stock.save()
-            else:
-                stock.delete()
-            print(f"SO 1: {stock}")
+        if picklist.completed is None:
+            picklist.completed = True
+            picklist.save()
+            for pick_row in picklist.picklistproducts_set.all():
+                product = pick_row.product_mission.product
+                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+                stock = Stock.objects.filter(
+                    Q(Q(lagerplatz=pick_row.position)
+                      & Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
+                          | Q(sku=product_sku.sku)))).first()
+
+                if stock is not None:
+                    stock.bestand -= pick_row.confirmed_amount
+                    print(f"{stock} - {stock.bestand}")
+                    if stock.bestand > 0:
+                        stock.save()
+                    else:
+                        stock.delete()
+                    print(f"SO 1: {stock}")
 
 
 class DPDLabelCreator:
@@ -146,10 +151,6 @@ class DPDLabelCreator:
         if parcel_label_number is not None and parcel_label_number != "":
             self.mission.tracking_number = parcel_label_number
             self.mission.save()
-            picklist = self.mission.online_picklist
-            if picklist is not None:
-                picklist.completed = True
-                picklist.save()
             return parcel_label_number
 
     def create_label_through_dpd_api(self):
@@ -169,7 +170,7 @@ class DPDLabelCreator:
                    <ns1:storeOrders>
                        <printOptions>
                             <printerLanguage>PDF</printerLanguage>
-                            <paperFormat>A4</paperFormat>
+                            <paperFormat>A6</paperFormat>
                        </printOptions>
                        <order>
                             <generalShipmentData>

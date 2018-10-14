@@ -21,10 +21,124 @@ class StockQuerySet(models.QuerySet):
 
     def delete(self):
         for obj in self:
-            if is_stock_reserved_for_delete(obj) is True:
+            if is_stock_reserved > 0:
                 pass
             else:
                 obj.delete()
+
+    def get_stocks(self):
+        from django.db.models import OuterRef, Sum, Subquery, Case, When, F
+        from django.db.models.functions import Coalesce
+        from mission.models import PartialMissionProduct
+        states = Sku.objects.values_list("state", flat=True).distinct("state")
+
+        total_condition = Q(Q(sku=OuterRef("sku"))
+                            | Q(product__ean=OuterRef("ean_vollstaendig"), state=OuterRef("zustand")))
+
+        get_sku_query = Sku.objects.filter(total_condition)[:1]
+
+        total_query = Sku.objects.filter(total_condition).annotate(
+            total=Coalesce(Sum("product__stock__bestand"), 0))[:1]
+
+        online_total_condition = Q(product__productmission__product=F("product"),
+                                   product__productmission__mission__is_online=True)
+
+        online_total_query = ProductMission.objects.filter(product=OuterRef("product")).annotate(
+            online_total=Sum(Case(When(online_total_condition, then="product__productmission__amount"), default=0)))[:1]
+
+        wholesale_total_condition = Q(product_mission__product__productmission__mission__is_online__isnull=True)
+
+        wholesale_total_query = PartialMissionProduct.objects.filter(
+            product_mission__product=OuterRef("product")).annotate(
+            wholesale_total=Sum(Case(When(wholesale_total_condition,
+                                then="product_mission__product__productmission__partialmissionproduct__amount"),
+                                     default=0
+                                     )))[:1]
+
+        queryset = self.all().annotate(state=F("sku_instance__state")).annotate(
+            total=Coalesce(Subquery(total_query.values("total"), output_field=models.IntegerField()), 0)).annotate(
+            online_total=Coalesce(Subquery(online_total_query.values("online_total"),
+                                  output_field=models.IntegerField()), 0)).annotate(
+            wholesale_total=Coalesce(Subquery(wholesale_total_query.values("wholesale_total"),
+                                     output_field=models.IntegerField()), 0)).annotate(
+            available_total=F("total")-F("online_total")-F("wholesale_total"))
+
+        for state in states:
+
+            queryset = queryset.annotate(
+                **{f"sku_{state}": Subquery(Sku.objects.filter(
+                    product=OuterRef("product"), state=state)[:1].values("sku"), output_field=models.CharField())})
+
+            current_total_condition = Q(Q(sku=OuterRef(f"sku_{state}")) |
+                                        Q(product__ean=OuterRef("ean_vollstaendig"), state=state))
+
+            current_total_query = Sku.objects.filter(current_total_condition).annotate(
+                total_current=Sum(Case(When(Q(Q(product__stock__zustand=state,
+                                                product__stock__ean_vollstaendig=F("product__ean"))
+                                              | Q(product__stock__sku=F("sku"))),
+                                            then="product__stock__bestand"), default=0)))[:1]
+
+            online_state_total_condition = Q(product__productmission__product=F("product"),
+                                             product__productmission__state=state,
+                                             product__productmission__mission__is_online=True)
+
+            online_state_total_query = ProductMission.objects.filter(
+                product=OuterRef("product"), state=state).annotate(
+                online_state_total=Sum(Case(When(online_state_total_condition,
+                                                 then="product__productmission__amount"), default=0)))[:1]
+
+            wholesale_state_total_condition = Q(
+                product_mission__product__productmission__product=F("product_mission__product"),
+                product_mission__product__productmission__state=state,
+                product_mission__product__productmission__mission__is_online__isnull=True)
+
+            wholesale_total_query = PartialMissionProduct.objects.filter(
+                product_mission__product=OuterRef("product"), product_mission__state=state).annotate(
+                wholesale_total=Sum(Case(When(wholesale_state_total_condition,
+                                              then="product_mission__product__productmission"
+                                                   "__partialmissionproduct__amount"), default=0
+                                         )))[:1]
+
+            queryset = queryset.annotate(
+                **{f"online_total_{state}": Coalesce(Subquery(online_state_total_query.values("online_state_total"),
+                                                     output_field=models.IntegerField()), 0)})
+
+            queryset = queryset.annotate(
+                **{f"total_{state}": Coalesce(Subquery(current_total_query.values("total_current"),
+                                              output_field=models.IntegerField()), 0)})
+
+            queryset = queryset.annotate(
+                **{f"wholesale_total_{state}": Coalesce(Subquery(wholesale_total_query.values("wholesale_total"),
+                                                        output_field=models.IntegerField()), 0)})
+
+            queryset = queryset.annotate(
+                **{f"available_total_{state}":
+                   F(f"total_{state}")-F(f"online_total_{state}")-F(f"wholesale_total_{state}")})
+
+        return queryset
+
+    def get_totals(self):
+        from django.db.models import OuterRef, Sum, Subquery, Case, When, F
+        from django.db.models.functions import Coalesce
+        subquery_online_total = Sku.objects.filter(pk=OuterRef("sku_instance__pk")).annotate(
+            online_total=Sum(Case(When(product__productmission__product=F("product"),
+                                       product__productmission__state=F("state"),
+                                       product__productmission__mission__is_online=True,
+                                       then="product__productmission__amount"), default=0)))[:1]
+
+        subquery_wholesale_total = Sku.objects.filter(pk=OuterRef("sku_instance__pk")).annotate(
+            wholesale_total=Sum(Case(When(product__productmission__product=F("product"),
+                                          product__productmission__state=F("state"),
+                                          product__productmission__mission__is_online__isnull=True,
+                                          then="product__productmission__partialmissionproduct__amount"),
+                                     default=0)))[:1]
+        queryset = self.all().annotate(
+            total=Sum("sku_instance__stock__bestand")).annotate(
+            online_total=Subquery(subquery_online_total.values("online_total"))).annotate(
+            wholesale_total=Subquery(subquery_wholesale_total.values("wholesale_total"))).annotate(
+            available_total=F("total")-F("online_total")-F("wholesale_total")
+        )
+        return queryset
 
 
 class CustomManger(models.Manager):
@@ -38,20 +152,34 @@ class StockObjectManager(CustomManger):
 
 
 def is_stock_reserved(stock):
-    total_reserved = PickListProducts.objects.get_total_of_stock(stock)
-    print(f"{stock.bestand} --- {total_reserved.get('total')}")
-    if stock.bestand < int(total_reserved.get("total") or 0):
-        return True
-    print(total_reserved)
+    total = PickListProducts.objects.get_stock_reserved_total(stock)
+    if total is not None:
+        total_reserved = total.get("total", 0) or 0
+    else:
+        total_reserved = 0
+    print(f"{total_reserved}")
+    return total_reserved
 
 
-def is_stock_reserved_for_delete(stock):
-    total_reserved = PickListProducts.objects.get_total_of_stock(stock)
-    if int(total_reserved.get("total") or 0) > 0:
-        return True
+def get_states_totals_and_total_from_ean_without_product(current_stock):
+    stocks = Stock.objects.filter(ean_vollstaendig=current_stock.ean_vollstaendig,
+                                  zustand__in=current_stock.states).values("ean_vollstaendig", "zustand").annotate(
+        total=Sum("bestand")
+    )
+    from collections import OrderedDict
+    states_totals = OrderedDict()
+    total = {"total": 0, "available_total": 0}
+    for stock in stocks:
+        states_totals[stock.get("zustand")] = {"total": stock.get("total"), "available_total": stock.get("total")}
+        total["total"] += stock.get("total")
+        total["available_total"] += stock.get("total")
+    return states_totals, total
 
 
 class Stock(models.Model):
+    class Meta:
+        ordering = ["-pk"]
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.states = ["Neu", "B", "C", "D", "G"]
@@ -79,6 +207,8 @@ class Stock(models.Model):
     aufnahme_datum = models.CharField(max_length=250, null=True, blank=True, verbose_name="Aufnahme Datum")
     ignore_unique = models.CharField(max_length=250, null=True, blank=True, choices=IGNORE_CHOICES,
                                      verbose_name="Block")
+    sku_instance = models.ForeignKey(Sku, null=True, blank=True, verbose_name="Sku Instanz",
+                                     on_delete=models.SET_NULL)
     missing_amount = models.IntegerField(blank=True, null=True, verbose_name="Fehlender Bestand")
     product = models.ForeignKey(Product, blank=True, null=True, on_delete=models.SET_NULL)
 
@@ -93,128 +223,26 @@ class Stock(models.Model):
         product = self.get_product()
         if product is not None:
             self.product = product
-        if kwargs.get("hard_save") is None:
-            if is_stock_reserved(self) is True:
+        sku = self.get_sku()
+        if sku is not None:
+            self.sku_instance = sku
+        if hard_save is None:
+            if is_stock_reserved(self) > self.bestand:
                 return
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False, hard_delete=None, *args, **kwargs):
         print(f"sdnfadsfndsajfndsa waaaaaarrummmm   +******")
-        if kwargs.get("hard_delete") is None:
-            if is_stock_reserved_for_delete(self) is True:
+        if hard_delete is None:
+            if is_stock_reserved(self) > 0:
+                print(f"NICHT GELÖSCHT!!!!")
                 return
+            print(f"GELÖSCHT")
         super().delete(*args, **kwargs)
 
     def clean(self):
-
-        if is_stock_reserved(self) is True:
-            c = Context({"unique_message": ""})
-            error_msg = "Dieser Bestand ist reserviert und kann nicht ausgebucht werden"
-            raise ValidationError(Template(f"<h3 style='color:red;'>{error_msg}</h3>").render(c))
-
         if self.lagerplatz is None:
             return
-
-        has_ean = self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
-        has_sku = self.sku is not None and self.sku != ""
-
-        if has_ean is True and has_sku is True:
-            only_ean_or_sku_or_title_html =\
-                "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN oder SKU</h3>"
-            c = Context({'unique_message': 'Your message'})
-            raise ValidationError(Template(only_ean_or_sku_or_title_html).render(c))
-
-        if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-            if self.zustand is None or self.zustand == "":
-                stock_html = "<h3 style='color:red;'>Wenn Sie eine EAN eingeben, müssen Sie einen Zustand" \
-                             " bestimmen.</h3>"
-                c = Context({'unique_message': 'Your message'})
-                raise ValidationError(Template(stock_html).render(c))
-
-        if self.sku is not None and self.sku != "":
-            if self.zustand is not None and self.zustand != "":
-                stock_html = \
-                    "<h3 style='color:red;'>Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen" \
-                    "</h3>"
-                c = Context({'unique_message': 'Your message'})
-                raise ValidationError(Template(stock_html).render(c))
-
-        if (self.sku is None or self.sku == "") and (self.ean_vollstaendig is None or self.ean_vollstaendig == ""):
-            stock_html =\
-                "<h3 style='color:red;'>Sie müssen entweder eine EAN oder eine SKU eingeben</h3>"
-            c = Context({'unique_message': 'Your message'})
-            raise ValidationError(Template(stock_html).render(c))
-
-        stocks = None
-
-        if self.ean_vollstaendig is not None and self.ean_vollstaendig != "":
-            skus_with_same_ean = []
-            products_with_ean = Product.objects.filter(ean=self.ean_vollstaendig)
-
-            for product_with_ean in products_with_ean:
-                sku_of_product_with_ean = product_with_ean.sku_set.filter(state=self.zustand).first().sku
-                stock_sku = Stock.objects.filter(sku=sku_of_product_with_ean)
-                if stock_sku.count() > 0:
-                    skus_with_same_ean.append(sku_of_product_with_ean)
-            stocks = Stock.objects.filter(Q(ean_vollstaendig=self.ean_vollstaendig, zustand=self.zustand,
-                                          lagerplatz=self.lagerplatz) | Q(sku__in=skus_with_same_ean,
-                                                                          lagerplatz=self.lagerplatz))\
-                .exclude(id=self.id)
-
-        elif self.sku is not None and self.sku != "":
-            if Product.objects.filter(sku__sku__exact=self.sku).count() == 0:
-                stock_html = \
-                    f"<h3 style='color:red;'>Bitte geben Sie eine gültige SKU ein. " \
-                    f"Die SKU {self.sku} existiert nicht im System." \
-                    f"</h3>"
-                c = Context({'unique_message': 'Your message'})
-                raise ValidationError(Template(stock_html).render(c))
-
-            product_with_sku = Product.objects.filter(sku__sku=self.sku).distinct().first()
-
-            ean_from_sku = None
-            state_from_sku = None
-
-            if product_with_sku is not None and product_with_sku != "":
-                ean_from_sku = product_with_sku.ean
-                state_from_sku = product_with_sku.sku_set.filter(sku=self.sku).first().state
-
-            stocks = Stock.objects.filter(Q(ean_vollstaendig=ean_from_sku, zustand=state_from_sku,
-                                            lagerplatz=self.lagerplatz) | Q(sku=self.sku, lagerplatz=self.lagerplatz))\
-                .exclude(id=self.id)
-        if stocks is not None and stocks.count() > 0 and "block" not in self.lagerplatz.lower():
-            stock_html = "<h1 style='color:red;'>Lagerbestand schon vorhanden</h1>" \
-                         "<div class='table-responsive'><table class='table table-bordered'>" \
-                         "<thead>" \
-                         "<tr>" \
-                         "<th></th><th>EAN</th><th>SKU</th><th>Lagerplatz</th><th>Zustand</th><th>IST Bestand</th>"\
-                         "</tr>" \
-                         "</thead>"\
-                         "<tbody>"
-
-            for stock in stocks:
-                if stock.ean_vollstaendig is not None:
-                    stock_ean = stock.ean_vollstaendig
-                else:
-                    stock_ean = ""
-
-                if stock.bestand is not None:
-                    stock_bestand = stock.bestand
-                else:
-                    stock_bestand = ""
-
-                stock_html = stock_html + f"<tr>" \
-                                          "<td><a href=" + "'{% " f"url 'stock:edit' pk={stock.id}" + " %}'" \
-                                          + ">Bearbeiten</a></td>" \
-                                          f"<td>{stock_ean or ''}</td>" \
-                                          f"<td>{stock.sku or ''}</td>" \
-                                          f"<td>{stock.lagerplatz}</td>" \
-                                          f"<td>{stock.zustand}</td>" \
-                                          f"<td>{stock_bestand}</td>" \
-                                          f"</tr>"
-            stock_html += "</tbody></table></div>"
-            c = Context({'unique_message': 'Your message'})
-            raise ValidationError(Template(stock_html).render(c))
 
     def get_total_stocks(self, product=None):
         if self.product is not None:
@@ -373,6 +401,16 @@ class Stock(models.Model):
             return [product]
         return products
 
+    def get_sku(self):
+        sku = None
+        if self.sku is not None and self.sku != "":
+            sku = Sku.objects.filter(sku=self.sku).first()
+
+        if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
+                and self.zustand is not None and self.zustand != ""):
+            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand).first()
+        return sku
+
     def get_product(self):
         product = None
         if self.sku is not None and self.sku != "":
@@ -491,9 +529,9 @@ class Stock(models.Model):
                         self.states.append(sku_state)
                         total[sku_state] = 0
 
-                    real_amount_total = PartialMissionProduct.objects.\
-                        filter(product_mission__product__sku__sku=sku_string, product_mission__state=sku_state)\
-                        .aggregate(Sum("amount")).get("amount__sum")
+                    real_amount_total = PartialMissionProduct.objects.filter(
+                        product_mission__product__sku__sku=sku_string, product_mission__state=sku_state
+                    ).aggregate(Sum("amount")).get("amount__sum")
 
                     pick_list_total = 0
 
@@ -616,7 +654,6 @@ class Stock(models.Model):
             online_total += mission_product.amount
 
         print(f"?? {online_total}")
-        print(f"subh assr: {online_missions_products} - {online_total}")
 
         if total is not None:
             total -= online_total
@@ -667,4 +704,4 @@ class Position(models.Model):
         return position
 
     class Meta:
-           ordering = ["prefix", "shelf", "level", "column"]
+        ordering = ["prefix", "shelf", "level", "column"]

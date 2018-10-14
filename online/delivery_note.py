@@ -347,18 +347,18 @@ class OnlineDeliveryNoteView(View):
 
         print(self.partial_delivery_note.deliverynoteproductmission_set.all())
 
-        for deliverynoteproductmission in self.partial_delivery_note.deliverynoteproductmission_set.all():
+        for mission_product in self.mission.productmission_set.all():
 
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(deliverynoteproductmission.product_mission.get_ean_or_sku(),
+                    Paragraph(mission_product.get_ean_or_sku(),
                               style=size_nine_helvetica),
-                    Paragraph(deliverynoteproductmission.product_mission.state,
+                    Paragraph(mission_product.state,
                               style=size_nine_helvetica),
-                    Paragraph(deliverynoteproductmission.product_mission.product.title or "",
+                    Paragraph(mission_product.product.title or "",
                               style=size_nine_helvetica),
-                    Paragraph(str(deliverynoteproductmission.amount),
+                    Paragraph(str(mission_product.amount),
                               style=right_align_paragraph_style),
                 ],
             )

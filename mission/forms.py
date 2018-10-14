@@ -132,19 +132,9 @@ class DeliveryForm(forms.Form):
 
 
 class PickForm(forms.Form):
-    missing_amount = forms.IntegerField(label="Fehlende Menge", required=False)
-    missing_amount.widget.attrs["placeholder"] = "Fehlende Menge"
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         for visible in self.visible_fields():
                 visible.field.widget.attrs["class"] = "form-control"
-
-    def clean_missing_amount(self):
-        missing_amount = self.cleaned_data.get("missing_amount")
-        print(f"karada: {missing_amount}")
-        if int(missing_amount) < 0:
-            raise forms.ValidationError(f"Die Menge darf nicht kleiner als 0 sein")
-        return missing_amount
 
 

@@ -1,0 +1,428 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils %}
+
+
+{% block content %}
+    <script src="{% static 'js/vendor/dymo2_0_2.js' %}" type="text/javascript" charset="UTF-8"> </script>
+
+    {% block create_navigation %}
+    {% endblock %}
+
+        <form id="filter_form" action="." class="">
+            <div class="col-md-12" style="padding-bottom: 25px;">
+                <div class="input-group">
+
+                    <input class="form-control" placeholder="Suche ..." name="q" value="{{ request.GET.q }}">
+
+                    <span class="input-group-btn">
+                        <button class="btn btn-info" type="submit">
+                            <span class="glyphicon glyphicon-search"></span>
+                        </button>
+                    </span>
+                </div>
+            </div>
+
+
+            <div class="col-md-12" style="padding-bottom: 15px;">
+                <buttton class="btn btn-default show_hide_filter_btn">Filter einblenden</buttton>
+            </div>
+            <div class="display_filter" style="display:none;">
+                <div class="col-md-12" style="">
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="EAN" name="ean" value="{{ request.GET.ean }}" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="SKU" value="{{ request.GET.sku }}" name="sku" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Artikelname" value="{{ request.GET.title }}" name="title" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Hersteller" value="{{ request.GET.manufacturer }}" name="manufacturer" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Markenname" value="{{ request.GET.brandname }}" name="brandname" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Herstellernummer" value="{{ request.GET.part_number }}" name="part_number" class="form-control" type="text">
+                    </div>
+
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Kurzbeschreibung" value="{{ request.GET.short_description }}" name="short_description" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Beschreibung" value="{{ request.GET.description }}" name="description" class="form-control" type="text">
+                    </div>
+                </div>
+
+                <div class="col-md-12" >
+                    <div class="checkbox">
+                        <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="up"
+                        {% if request.GET.order_by_amount == "up" %}
+                           checked
+                        {% endif %}
+                        class="fire_submit">Menge aufsteigend</label>
+                        <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="down"
+                        {% if request.GET.order_by_amount == "down" %}
+                                   checked
+                        {% endif %}
+                        class="fire_submit">Menge absteigend</label>
+                    </div>
+                </div>
+                <div class="col-md-12" style="padding-top:15px;padding-bottom:15px;">
+                    <button type="submit" class="btn btn-info" style="">Filter</button>
+                </div>
+            </div>
+        </form>
+
+
+
+        <div class="col-md-12">
+            {% include "snippets/paginate_by.html" %}
+        </div>
+
+
+    <div class="col-md-12">
+        <div class="table-responsive">
+            <table class="table table-bordered" style="background-color:white;">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th></th>
+                        <th>Bild</th>
+                        <th>EAN</th>
+                        <th>SKUs</th>
+                        <th>Artikelname</th>
+                        <th>Hersteller</th>
+                        <th>Marke</th>
+                        <th>Bestand</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for object, skus, states_totals, total in product_list %}
+                        <tr>
+                            <td class="col-md-1"><a href="{% url 'product:detail' pk=object.pk %}">Ansicht</a>
+                                <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
+                                <input type="checkbox" name="item" value="{{object.pk}}">
+                            </td>
+                            <td class="show_hide" style="cursor:pointer;">
+                                <a collapseid="collapse_{{ forloop.counter }}">
+                                    <span class="glyphicon glyphicon-chevron-down"></span>
+                                </a>
+                            </td>
+                            <td>
+                                {% if object.main_image %}
+                                    <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
+                                        <img src="{{ object.main_image.url|default:''}}"
+                                             class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
+                                    </div>
+                                    <div class="modal fade">
+                                     <!-- Modal -->
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-body">
+                                                    <img src="{{ object.main_image.url|default:''}}"
+                                                     class="img-responsive center-block">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ object.ean|default:"" }}
+                            </td>
+                            <td>
+                                {% for sku in skus %}
+                                    {{ sku }}<br/>
+                                {% endfor %}
+                            </td>
+                            <td>
+                                {{ object.title|default:"" }}
+                            </td>
+                            <td>
+                                {{ object.manufacturer|default:"" }}
+                            </td>
+                            <td>
+                                {{ object.brandname|default:"" }}
+                            </td>
+                            <td>
+                                <p><b>Gesamt:</b> {{ total.available_total }}/{{ total.total }}</p>
+                                <table class="table table-bordered">
+                                    <tr>
+                                        {% for state, total in states_totals.items %}
+                                            <th>{{ state }}</th>
+                                        {% endfor %}
+                                    </tr>
+                                    <tr>
+                                     {% for state, total in states_totals.items %}
+                                           <td>
+                                               {{ total.available_total }}/{{ total.total }}
+                                           </td>
+                                       {% endfor %}
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr id="collapse_{{ forloop.counter }}" class="collapse">
+                          <td colspan="12">
+                              <div class="panel panel-default">
+                                  <div class="panel-heading">
+                                      Labels drucken
+                                  </div>
+                                  <div class="panel-body">
+                                    <div class="col-md-12" style="padding-left: 0px;">
+                                      {% if object.ean != None and object.ean != "" %}
+                                          <div class="col-md-4" style="padding:10px;">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control amount_labels" placeholder="Anzahl Labels"
+                                                onkeydown="if (event.keyCode == 13) { return false;}" >
+                                                <div class="input-group-btn">
+                                                    <button class="btn btn-info dymo_print" type="button"
+                                                            dymo_value="{{ object.ean }}">{{ object.ean }}
+                                                        <span class="glyphicon glyphicon-print"></span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                          </div>
+                                      {% endif %}
+                                      {% for sku in object.sku_set.all %}
+                                          <div class="col-md-4" style="padding:10px;">
+                                                <div class="input-group">
+                                                    <input type="text" class="form-control amount_labels" placeholder="Anzahl Labels"
+                                                    onkeydown="if (event.keyCode == 13) { return false;}"
+                                                    >
+                                                    <div class="input-group-btn">
+                                                        <button class="btn btn-info dymo_print" type="button"
+                                                                dymo_value="{{ sku }}">{{ sku }}
+                                                            <span class="glyphicon glyphicon-print"></span>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                          </div>
+                                      {% endfor %}
+                                    </div>
+                                  </div>
+                              </div>
+
+                              {% if object.short_description %}
+                                  <p><b>Kurzbeschreibung: </b><br/> {{ object.short_description}}</p>
+                              {% endif %}
+                              {% if object.description %}
+                                  <p><b>Beschreibung: </b><br/> {{ object.description}}</p>
+                              {% endif %}
+                          </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+        <div class="col-md-12">
+            {% include "snippets/paginate_by.html" %}
+        </div>
+    </div>
+
+
+    <script>
+
+        var elements = document.getElementsByClassName("fire_submit");
+        var calendars = document.getElementsByClassName("datepicker");
+        var filter_btn = document.getElementById("filter_form");
+
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].onclick = function () {
+                for(var j=0; j<elements.length; j++){
+                    if(elements[j] != this){
+                        elements[j].checked = false;
+                    }
+                }
+                filter_btn.submit();
+            }
+        }
+
+        for (var i = 0; i < calendars.length; i++) {
+            var calendar = calendars[i];
+            calendar.onchange = function () {
+                filter_btn.submit();
+            }
+        }
+
+
+        // elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
+        // alert(elements[i].innerHTML );
+
+        // DISPLAY FILTER PART
+
+        var show_hide_filter_btn = document.getElementsByClassName("show_hide_filter_btn")[0];
+        var display_filter = document.getElementsByClassName("display_filter")[0];
+        show_hide_filter_btn.onclick = function(){
+            if(display_filter.style.display == "none"){
+                display_filter.style.display = "";
+                this.innerHTML = "Filter ausblenden"
+            }else{
+                display_filter.style.display = "none";
+                this.innerHTML = "Filter einblenden"
+            }
+        }
+    </script>
+
+
+<script>
+    var show_hide_elements = document.getElementsByClassName("show_hide");
+
+    for(var i = 0; i<show_hide_elements.length; i++){
+        var show_hide_element = show_hide_elements[i];
+
+
+        show_hide_element.onclick = function(e){
+           var a_element = this.getElementsByTagName("a")[0];
+
+           var show_or_hide_element = this.getElementsByTagName("span")[0];
+
+           flip_down_up(show_or_hide_element);
+
+           $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+
+
+
+        }
+    }
+
+    var flip_down_up = function(el){
+           if(el.className.includes("chevron-down")){
+               el.className = el.className.replace("chevron-down", "chevron-up");
+           }else{
+              el.className = el.className.replace("chevron-up", "chevron-down");
+           }
+    };
+
+
+    var modal_images = document.getElementsByClassName("img-modal");
+    for(var i = 0; i<modal_images.length; i++){
+        modal_images[i].onclick = function(){
+            var modal_div = this.parentElement.parentElement.getElementsByClassName("modal")[0];
+            $(modal_div).modal();
+        };
+    }
+
+
+
+            /* DYMO DYMO DYMO */
+
+        var labelXml =
+            '<?xml version="1.0" encoding="utf-8"?>\
+            <DieCutLabel Version="8.0" Units="twips">\
+              <PaperOrientation>Portrait</PaperOrientation>\
+              <Id>Small30334</Id>\
+              <PaperName>30334 2-1/4 in x 1-1/4 in</PaperName>\
+              <DrawCommands>\
+                <RoundRectangle X="0" Y="0" Width="3240" Height="1800" Rx="270" Ry="270"/>\
+              </DrawCommands>\
+              <ObjectInfo>\
+                <TextObject>\
+                  <Name>Text</Name>\
+                  <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
+                  <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>\
+                  <LinkedObjectName></LinkedObjectName>\
+                  <Rotation>Rotation0</Rotation>\
+                  <IsMirrored>False</IsMirrored>\
+                  <IsVariable>True</IsVariable>\
+                  <HorizontalAlignment>Center</HorizontalAlignment>\
+                  <VerticalAlignment>Top</VerticalAlignment>\
+                  <TextFitMode>ShrinkToFit</TextFitMode>\
+                  <UseFullFontHeight>True</UseFullFontHeight>\
+                  <Verticalized>False</Verticalized>\
+                  <StyledText>\
+                    <Element>\
+                      <String>artikel 12345</String>\
+                      <Attributes>\
+                        <Font Family="Helvetica" Size="13" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
+                        <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
+                      </Attributes>\
+                    </Element>\
+                  </StyledText>\
+                </TextObject>\
+                <Bounds X="58" Y="86" Width="3123.78" Height="1627"/>\
+              </ObjectInfo>\
+              <ObjectInfo>\
+                <BarcodeObject>\
+                  <Name>BARCODE</Name>\
+                  <ForeColor Alpha="255" Red="0" Green="0" Blue="0"/>\
+                  <BackColor Alpha="0" Red="255" Green="255" Blue="255"/>\
+                  <LinkedObjectName></LinkedObjectName>\
+                  <Rotation>Rotation0</Rotation>\
+                  <IsMirrored>False</IsMirrored>\
+                  <IsVariable>True</IsVariable>\
+                  <Text>F-001-001</Text>\
+                  <Type>Code128Auto</Type>\
+                  <Size>Small</Size>\
+                  <TextPosition>Bottom</TextPosition>\
+                  <TextFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
+                  <CheckSumFont Family="Arial" Size="8" Bold="False" Italic="False" Underline="False" Strikeout="False"/>\
+                  <TextEmbedding>None</TextEmbedding>\
+                  <ECLevel>0</ECLevel>\
+                  <HorizontalAlignment>Center</HorizontalAlignment>\
+                  <QuietZonesPadding Left="0" Right="0" Top="0" Bottom="0"/>\
+                </BarcodeObject>\
+                <Bounds X="57.6" Y="510" Width="3124.8" Height="1125"/>\
+              </ObjectInfo>\
+            </DieCutLabel>\
+            ';
+        var label = dymo.label.framework.openLabelXml(labelXml);
+
+        var printers = dymo.label.framework.getPrinters();
+        if (printers.length == 0)
+            throw "No DYMO printers are installed. Install DYMO printers.";
+
+        var printerName = "";
+        for (var i = 0; i < printers.length; ++i)
+        {
+            var printer = printers[i];
+            if (printer.printerType == "LabelWriterPrinter")
+            {
+                printerName = printer.name;
+                break;
+            }
+        }
+
+
+    var dymo_btns = document.getElementsByClassName("dymo_print");
+
+    for(i = 0; i<dymo_btns.length; i++){
+      dymo_btns[i].onclick = function(){
+          var amount_labels_input = this.parentElement.parentElement.getElementsByClassName("amount_labels")[0];
+          if(amount_labels_input.value == "" || amount_labels_input.value == "1"){
+              label.setObjectText("Text", this.getAttribute("dymo_value"));
+              label.setObjectText("BARCODE", this.getAttribute("dymo_value"));
+              label.print(printerName);
+          }else if(parseInt(amount_labels_input.value) > 1){
+              print_multiple_dymo_labels(this.getAttribute("dymo_value"), parseInt(amount_labels_input.value));
+          }
+
+      };
+    }
+
+    var print_multiple_dymo_labels = function(label_text, amount_labels){
+      var labelSet = new dymo.label.framework.LabelSetBuilder();
+      for(var i=0; i<amount_labels; i++){
+          var record = labelSet.addRecord();
+          record.setText("Text", label_text);
+          record.setText("BARCODE", label_text);
+      }
+      label.print(printerName, '', labelSet);
+
+    };
+
+</script>
+{% endblock %}

@@ -90,21 +90,24 @@ class DHLCreatePdfView(UpdateView):
         BillingProductMission.objects.bulk_create(bulk_instances)
 
     def book_out_stocks(self, picklist):
-        for pick_row in picklist.picklistproducts_set.all():
-            product = pick_row.product_mission.product
-            product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
-            stock = Stock.objects.get(Q(Q(lagerplatz=pick_row.position)
-                                        & Q(Q(ean_vollstaendig=product.ean,
-                                              zustand__iexact=pick_row.product_mission.state) |
-                                            Q(sku=product_sku.sku)))
-                                      )
-            stock.bestand -= pick_row.confirmed_amount
-            print(f"{stock} - {stock.bestand}")
-            if stock.bestand > 0:
-                stock.save()
-            else:
-                stock.delete()
-            print(f"SO 1: {stock}")
+        if picklist.completed is None:
+            picklist.completed = True
+            picklist.save()
+            for pick_row in picklist.picklistproducts_set.all():
+                product = pick_row.product_mission.product
+                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+                stock = Stock.objects.filter(
+                    Q(Q(lagerplatz=pick_row.position) &
+                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
+                        | Q(sku=product_sku.sku)))).first()
+                if stock is not None:
+                    stock.bestand -= pick_row.confirmed_amount
+                    print(f"{stock} - {stock.bestand}")
+                    if stock.bestand > 0:
+                        stock.save()
+                    else:
+                        stock.delete()
+                    print(f"SO 1: {stock}")
 
 
 class DHLLabelCreator:
@@ -158,10 +161,6 @@ class DHLLabelCreator:
             self.mission.tracking_number = shipment_number
             self.mission.shipped = True
             self.mission.save()
-            picklist = self.mission.online_picklist
-            if picklist is not None:
-                picklist.completed = True
-                picklist.save()
             return pdf_content, None
         else:
             errors = []

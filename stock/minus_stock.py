@@ -1,5 +1,7 @@
 from django.db.models import Q, Sum
 from django.views import generic
+
+from mission.models import Mission
 from sku.models import Sku
 from django.db.models import F
 from django.db.models import Count
@@ -53,10 +55,27 @@ class MinusStockListView(generic.ListView):
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Minusbestand"
+        self.context["object_list"] = self.get_object_list()
         print(f"khalti")
         return self.context
 
     def get_object_list(self):
         object_list = self.context.get("object_list")
-        missions = []
-        pass
+        missions_list = []
+        for obj in object_list:
+            available_total = obj.available_total
+            missions = []
+            for mission in Mission.objects.filter(
+                    productmission__product=obj.product, productmission__state=obj.state
+            ).order_by("purchased_date"):
+                for mission_product in mission.productmission_set.all():
+                    available_total += mission_product.amount
+
+                if available_total >= 1:
+                    break
+
+                if mission not in missions:
+                    missions.append(mission)
+
+            missions_list.append(missions)
+        return zip(object_list, missions_list)

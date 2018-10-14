@@ -266,7 +266,7 @@
               label.setObjectText("Text", this.getAttribute("dymo_value"));
               label.setObjectText("BARCODE", this.getAttribute("dymo_value"));
               label.print(printerName);
-          }else if(parseInt(amount_labels_input.value) > 1){
+          }else if(parst(amount_labels_input.value) > 1){
               print_multiple_dymo_labels(this.getAttribute("dymo_value"), parseInt(amount_labels_input.value));
           }
 

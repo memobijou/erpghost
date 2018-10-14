@@ -300,10 +300,10 @@ class BookOutForOnlinePositions(View):
                     if stock.bestand - bookout_amount <= 0:
                         refill_order_row.stock = None
                         refill_order_row.save()
-                        stock.delete()
+                        stock.delete(hard_delete=True)
                     else:
                         stock.bestand -= bookout_amount
-                        stock.save()
+                        stock.save(hard_save=True)
                     print(f"OK GO {bookout_amount}")
                     refill_order_row.booked_out = True
                     refill_order_row.save()

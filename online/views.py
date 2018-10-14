@@ -179,10 +179,6 @@ class OnlineDetailView(DetailView):
                 picklist_products.append(product_tuple)
         self.picklist_products = picklist_products
 
-
-
-
-
     def get_object(self):
         return self.object
 
@@ -371,25 +367,61 @@ class ImportMissionView(View):
             print(f"banana: {import_file.name}")
             file_ending = import_file.name.split(".")[-1]
             print(file_ending)
+            if file_ending.lower() == "csv":
+                from io import TextIOWrapper
+                data = TextIOWrapper(import_file.file, encoding="latin1")
+                self.result = self.get_csv_content(data)
+                print(f"babo: {self.result}")
+
             if file_ending.lower() == "txt":
-                file_content = import_file.read()
-                content = file_content.decode("ISO-8859-1")
-                print(f"before: {content}")
-                content_list = content.split("\r\n")
+                content_list = import_file.readlines()
+                for index, row in enumerate(content_list):
+                    content_list[index] = content_list[index].decode("ISO-8859-1")
+
+                self.header = []
+
+                columns = content_list[:1][0].split("\t")
+                for col in columns:
+                    self.header.append(col)
+
+                content_list = content_list[1:]
+
+                print(f"Header: {len(self.header)} {self.header}")
+                print(f"Content: {content_list}")
+
                 self.result = []
-                is_header = True
                 for row in content_list:
                     columns = row.split("\t")
                     columns_tuple = ()
                     for col in columns:
                         columns_tuple += (col,)
-
-                    if is_header is True:
-                        self.header = columns_tuple
-                        is_header = False
-                    else:
-                        self.result.append(columns_tuple)
+                    self.result.append(columns_tuple)
                 print(self.result)
                 for row in self.result:
                     if len(row) != len(self.header):
                         self.result.pop(self.result.index(row))
+
+    def get_csv_header(self, data):
+        import csv
+        csv_reader = csv.reader(data, delimiter=";")
+        self.header = []
+        for row in csv_reader:
+            if len(row) > 0:
+                self.header = row
+                break
+        tmp_header = []
+        for col in self.header:
+            tmp_header.append(col.replace("\t", ""))
+        self.header = tmp_header
+        return self.header
+
+    def get_csv_content(self, data):
+        import csv
+        self.header = self.get_csv_header(data)
+        csv_iterator = csv.DictReader(data, delimiter=';', fieldnames=self.header)
+
+        self.result = []
+        for row in csv_iterator:
+            print(f"DIGI: {row}")
+            self.result.append(row)
+        return self.result

@@ -1,3 +1,4 @@
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponseRedirect
@@ -11,7 +12,7 @@ from import_excel.funcs import get_table_header, compare_header_with_model_field
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
 from sku.models import Sku
 from stock.models import Stock
-from .models import Product, ProductImage, SingleProduct
+from .models import Product, ProductImage, SingleProduct, get_states_totals_and_total
 from order.models import ProductOrder
 from utils.utils import get_queries_as_json, set_field_names_onview, \
     handle_pagination, set_paginated_queryset_onview, filter_queryset_from_request, \
@@ -35,7 +36,110 @@ import imghdr
 from django.db.models import Case, When, Value, IntegerField, Sum
 
 
-class ProductListView(ListView):
+class ProductListView(LoginRequiredMixin, ListView):
+    template_name = "product/product_list.html"
+    paginate_by = 30
+    queryset = Product.objects.filter(single_product__isnull=True)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["title"] = "Artikel Übersicht"
+        object_list = context["object_list"]
+        context["product_list"] = self.get_product_list(object_list)
+        return context
+
+    def get_product_list(self, object_list):
+        product_list = []
+        for obj in object_list:
+            skus = obj.sku_set.all().order_by("state")
+            for sku in skus.get_totals():
+                print(f"{sku.state} : {sku.total} : {sku.available_total} {sku.online_total} {sku.wholesale_total}")
+            states_totals, total = get_states_totals_and_total(obj, skus)
+            product_list.append((obj, skus, states_totals, total))
+        return product_list
+
+    def get_queryset(self):
+        order_by_amount = self.request.GET.get("order_by_amount")
+        if order_by_amount == "down":
+            self.queryset = self.queryset.annotate(
+                total_stock=Sum("stock__bestand")).annotate(
+                nulls_last=Case(When(total_stock=None, then=Value(0)), output_field=IntegerField())
+            ).order_by("-nulls_last", "-total_stock")
+        elif order_by_amount == "up":
+            self.queryset = self.queryset.annotate(
+                total_stock=Sum("stock__bestand")).annotate(
+                nulls_last=Case(When(total_stock=None, then=Value(0)), output_field=IntegerField())
+            ).order_by("nulls_last", "total_stock")
+        ean, sku = self.request.GET.get("ean") or "", self.request.GET.get("sku") or ""
+        title, manufacturer = self.request.GET.get("title") or "", self.request.GET.get("manufacturer") or ""
+        brandname, part_number = self.request.GET.get("brandname") or "", self.request.GET.get("part_number") or ""
+        short_description  = self.request.GET.get("short_description") or ""
+        long_description = self.request.GET.get("description") or ""
+        q = self.request.GET.get("q") or ""
+
+        if ean is not None and ean != "":
+            ean = ean.strip()
+            self.queryset = self.queryset.filter(ean__icontains=ean)
+
+        if sku is not None and sku != "":
+            sku = sku.strip()
+            self.queryset = self.queryset.filter(sku__sku__icontains=sku)
+
+        if title is not None and title != "":
+            title = title.strip()
+            self.queryset = self.queryset.filter(title__icontains=title)
+
+        if manufacturer is not None and manufacturer != "":
+            manufacturer = manufacturer.strip()
+            self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
+
+        if brandname is not None and brandname != "":
+            brandname = brandname.strip()
+            self.queryset = self.queryset.filter(brandname__icontains=brandname)
+
+        if part_number is not None and part_number != "":
+            part_number = part_number.strip()
+            self.queryset = self.queryset.filter(part_number__icontains=part_number)
+
+        if short_description is not None and short_description != "":
+            short_description = short_description.strip()
+            self.queryset = self.queryset.filter(short_description__icontains=short_description)
+
+        if long_description is not None and long_description != "":
+            long_description = long_description.strip()
+            self.queryset = self.queryset.filter(description__icontains=long_description)
+
+        if q is not None and q != "":
+            q_list = q.split()
+            ean_q = Q()
+            title_q = Q()
+            short_description_q = Q()
+            long_description_q = Q()
+            sku_q = Q()
+            brandname_q = Q()
+            manufacturer_q = Q()
+            part_number_q = Q()
+
+            print(q_list)
+            for q_element in q_list:
+                q_element = q_element.strip()
+
+                ean_q &= Q(ean__icontains=q_element)
+                title_q &= Q(title__icontains=q_element)
+                short_description_q &= Q(short_description__icontains=q_element)
+                long_description_q &= Q(description__icontains=q_element)
+                sku_q &= Q(sku__sku__icontains=q_element)
+                brandname_q &= Q(brandname__icontains=q_element)
+                manufacturer_q &= Q(manufacturer__icontains=q_element)
+                part_number_q &= Q(part_number__icontains=q_element)
+
+            self.queryset = self.queryset.filter(Q(ean_q | title_q | short_description_q | long_description_q |
+                                                   sku_q | brandname_q | manufacturer_q | part_number_q))
+
+        return self.queryset.distinct()
+
+
+class ProductListViewDEAD(ListView):
     template_name = "product/product_list.html"
 
     def get_queryset(self):
@@ -246,11 +350,11 @@ class ProductUpdateView(UpdateView):
 
     def get_sku_instances(self):
         new_sku = Sku.objects.filter(product_id=self.object.pk, state="Neu").first()
-        B_sku = Sku.objects.filter(product_id=self.object.pk, state="B").first()
-        C_sku = Sku.objects.filter(product_id=self.object.pk, state="C").first()
-        D_sku = Sku.objects.filter(product_id=self.object.pk, state="D").first()
-        G_sku = Sku.objects.filter(product_id=self.object.pk, state="G").first()
-        return [new_sku, B_sku, C_sku, D_sku, G_sku]
+        b_sku = Sku.objects.filter(product_id=self.object.pk, state="B").first()
+        c_sku = Sku.objects.filter(product_id=self.object.pk, state="C").first()
+        d_sku = Sku.objects.filter(product_id=self.object.pk, state="D").first()
+        g_sku = Sku.objects.filter(product_id=self.object.pk, state="G").first()
+        return [new_sku, b_sku, c_sku, d_sku, g_sku]
 
     def update_sku_purchasing_prices(self):
         print(self.object)
@@ -652,42 +756,24 @@ class ProductDetailView(DetailView):
     def __init__(self):
         super().__init__()
         self.object = None
+        self.skus = None
         self.context = {}
 
     def get_object(self):
-        return Product.objects.get(pk=self.kwargs.get("pk"))
+        self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        return self.object
 
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Artikel Detailansicht"
-        self.context["stock"] = self.get_product_stocks()
-        self.context["product_skus"] = self.object.sku_set.all().order_by('pk')
+        self.skus = self.object.sku_set.all().order_by("state")
+        self.context["skus"] = self.skus
+        self.context["states_totals"], self.context["total"] = self.get_states_totals_and_total()
         return self.context
 
-    def get_product_stocks(self):
-        stock = None
-        query = self.get_object()
-        if query.ean is not None and query.ean != "":
-            stock = Stock.objects.filter(ean_vollstaendig=query.ean).first()
-        else:
-            for sku in query.sku_set.all():
-                stock = Stock.objects.filter(sku=sku.sku).first()
-                if stock is not None:
-                    break
-
-        stock_dict = {}
-
-        if stock is not None:
-            total = stock.get_available_stocks_of_total_stocks()
-            stock_dict["total"] = total.get('Gesamt')
-            stock_dict["total_neu"] = total.get("Neu")
-            stock_dict["total_b"] = total.get("B")
-            stock_dict["total_c"] = total.get("C")
-            stock_dict["total_d"] = total.get("D")
-            stock_dict["total_g"] = total.get("G")
-        else:
-            stock_dict["total"] = None
-        return stock_dict
+    def get_states_totals_and_total(self):
+        states_totals, total = get_states_totals_and_total(self.object, self.skus)
+        return states_totals, total
 
 
 class IncomeListView(ListAPIView):

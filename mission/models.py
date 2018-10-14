@@ -164,6 +164,7 @@ class ProductMissionManager(models.Manager):
             picklists_total=Sum(Case(When(product__productmission__product=F("product"),
                                           product__productmission__state=F("state"),
                                           product__productmission__picklistproducts__pick_list__completed__isnull=True,
+                                          product__productmission__mission__is_online=True,
                                           then="product__productmission__picklistproducts__amount"), default=0)))[:1]
 
         return self.all().annotate(sku=Subquery(subquery_sku.values("sku"))).annotate(
@@ -325,14 +326,22 @@ class IgnoreStocksPickList(models.Model):
 
 
 class PickListProductsManager(models.Manager):
-    def get_total_of_stock(self, stock):
-        sku = stock.sku
-        sku_subquery = Sku.objects.filter(state=OuterRef("product_mission__state"), sku=sku)[:1]
-        return self.annotate(sku_state=Subquery(sku_subquery.values("state"))).filter(
-            Q(Q(product_mission__product__ean=stock.ean_vollstaendig,
-              product_mission__state=stock.zustand) |
-              Q(sku_state=F("product_mission__state"), product_mission__product__sku=sku))
-            & Q(pick_list__completed__isnull=True, position=stock.lagerplatz)).aggregate(total=Sum("amount"))
+    def get_stock_reserved_total(self, stock):
+        from stock.models import Stock
+        if stock.pk is not None:
+            stock = Stock.objects.get(pk=stock.pk)  # sonst gibt er den stock der nicht gespeichert wurde
+            sku = None
+            state = None
+            sku_instance = stock.sku_instance
+            if sku_instance is not None:
+                sku = sku_instance.sku
+                state = sku_instance.state
+                print(f"omg: {sku} {state} - {stock.lagerplatz} - {stock.ean_vollstaendig} - {stock.zustand}")
+            return self.filter(
+                Q(Q(product_mission__product__ean=stock.ean_vollstaendig, product_mission__state=stock.zustand) |
+                  Q(product_mission__state__iexact=state, product_mission__product=sku_instance.product))
+                & Q(Q(Q(pick_list__completed__isnull=True) & Q(pick_list__isnull=False)),
+                    position=stock.lagerplatz)).aggregate(total=Sum("amount"))
 
 
 class PickListProducts(models.Model):

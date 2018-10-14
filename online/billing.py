@@ -100,7 +100,7 @@ class OnlineBillingView(View):
     def build_before_table(self):
         billing_address_object = self.mission.billing_address
 
-        billing_address_html_string = get_billing_address_html_string_from_object(billing_address_object)
+        delivery_address_html_string = get_delivery_address_html_string_from_object(self.mission.delivery_address)
 
         delivery_date = self.mission.delivery_date
 
@@ -117,7 +117,7 @@ class OnlineBillingView(View):
                  Paragraph("<br/>Lieferadresse: ", style=size_nine_helvetica),
             ],
             [
-                Paragraph(billing_address_html_string, style=size_nine_helvetica),
+                Paragraph(delivery_address_html_string, style=size_nine_helvetica),
             ],
             [
                 Paragraph(f"<br/>Lieferbedingungen: {terms_of_delivery or 'N/A'}<br/>", style=size_nine_helvetica),
@@ -173,8 +173,19 @@ class OnlineBillingView(View):
                               style=right_align_paragraph_style),
                 ],
             )
-
             pos += 1
+        data.append(
+            [
+                Paragraph(str(pos), style=size_nine_helvetica),
+                Paragraph("", style=size_nine_helvetica),
+                Paragraph(f"Transportkosten", style=size_nine_helvetica),
+                Paragraph("", style=right_align_paragraph_style),
+                Paragraph("",
+                          style=right_align_paragraph_style),
+                Paragraph(format_number_thousand_decimal_points(self.mission.online_transport_cost or 0),
+                          style=right_align_paragraph_style),
+            ],
+        )
         table = LongTable(data, splitByRow=True, colWidths=colwidths, repeatRows=1)
         table.setStyle(
             TableStyle([
@@ -192,15 +203,18 @@ class OnlineBillingView(View):
         horizontal_line_betrag = Drawing(20, 1)
         horizontal_line_betrag.add(Line(425, 0, 200, 0))
 
+        tax = total_netto*0.19+self.mission.online_transport_cost*0.19
+
         betrag_data = [
             [
                 Paragraph(f"Nettobetrag",
                           style=right_align_paragraph_style),
-                Paragraph(f"{format_number_thousand_decimal_points(total_netto)} €", style=right_align_paragraph_style),
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto+self.mission.online_transport_cost)} €",
+                          style=right_align_paragraph_style),
             ],
             [
                 Paragraph(f"+ Umsatzsteuer (19,00%)", style=right_align_paragraph_style),
-                Paragraph(f"{format_number_thousand_decimal_points(total_netto*0.19)} €",
+                Paragraph(f"{format_number_thousand_decimal_points(tax)} €",
                           style=right_align_paragraph_style),
             ],
             [
@@ -208,7 +222,7 @@ class OnlineBillingView(View):
             ],
             [
                 Paragraph(f"GESAMT", style=right_align_bold_paragraph_style),
-                Paragraph(f"{format_number_thousand_decimal_points(total_netto+(total_netto*0.19))} €",
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto+tax)} €",
                           style=right_align_bold_paragraph_style),
             ]
         ]
@@ -306,3 +320,17 @@ def get_billing_address_html_string_from_object(billing_address):
                                   f"{billing_address.zip} {billing_address.place}"
 
     return billing_address_string
+
+
+def get_delivery_address_html_string_from_object(delivery_address):
+    delivery_address_string = ""
+    if delivery_address is not None:
+        delivery_address_string = f"{delivery_address.first_name_last_name}<br/>"
+        if delivery_address.address_line_1 is not None and delivery_address.address_line_1 != "":
+            delivery_address_string += f"{delivery_address.address_line_1}<br/>"
+        if delivery_address.address_line_2 is not None and delivery_address.address_line_2 != "":
+            delivery_address_string += f"{delivery_address.address_line_2}<br/>"
+        if delivery_address.address_line_3 is not None and delivery_address.address_line_3 != "":
+            delivery_address_string += f"{delivery_address.address_line_3}<br/>"
+        delivery_address_string += f"{delivery_address.zip} {delivery_address.place}<br/>"
+    return delivery_address_string

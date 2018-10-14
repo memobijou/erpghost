@@ -5,6 +5,7 @@ from sku.models import Sku
 from supplier.models import Supplier
 from django.urls import reverse
 from django.db.models import Max
+from collections import OrderedDict
 
 
 class Manufacturer(models.Model):
@@ -36,6 +37,9 @@ class ProductObjectManager(CustomManger):
 
 
 class Product(models.Model):
+    class Meta:
+        ordering = ["-pk"]
+
     main_image = models.ImageField(verbose_name="Bild", null=True, blank=True)
 
     ean = models.CharField(blank=True, null=False, max_length=200, verbose_name="EAN")
@@ -48,7 +52,7 @@ class Product(models.Model):
     short_description = models.TextField(null=True, blank=True, default="", verbose_name="Kurzbeschreibung")
     description = models.TextField(null=True, blank=True, default="", verbose_name="Beschreibung")
 
-    single_product = models.ForeignKey("product.SingleProduct", null=True, blank=True)
+    single_product = models.NullBooleanField(verbose_name="Einzelartikel")
 
     height = models.FloatField(null=True, blank=True, default=None, verbose_name="Höhe")
     width = models.FloatField(null=True, blank=True, default=None, verbose_name="Breite")
@@ -74,12 +78,9 @@ class Product(models.Model):
 
         if self.main_sku is None or self.main_sku == "":
             generate_skus = True
-            self.main_sku = int(self.pk) + 1
+            self.main_sku = int(self.pk+1)
 
         super().save()
-
-        if self.single_product is not None and self.single_product != "":
-            return  # SKU will then be created from single_product form
 
         if generate_skus is True:
             bulk_instances = [Sku(product_id=self.pk, sku=f"N{self.main_sku}", state="Neu"),
@@ -115,8 +116,32 @@ class Product(models.Model):
             return self.sku_set.filter(state=state).first()
 
 
+def get_states_totals_and_total(product, skus):
+    total = {"total": 0, "available_total": 0}
+    states_totals = OrderedDict()
+
+    ean_skus = None
+    if product.ean is not None and product.ean != "":
+        ean_skus = Sku.objects.filter(product__ean=product.ean).get_totals().order_by("state")
+    else:
+        skus = skus.get_totals()
+
+    for sku in ean_skus or skus:
+        if sku.state not in states_totals:
+            states_totals[sku.state] = {}
+            states_totals[sku.state]["total"] = sku.total
+            states_totals[sku.state]["available_total"] = sku.available_total
+        else:
+            states_totals[sku.state]["total"] += sku.total
+            states_totals[sku.state]["available_total"] += sku.available_total
+
+        total["total"] += sku.total
+        total["available_total"] += sku.available_total
+    return states_totals, total
+
+
 class SingleProduct(models.Model):
-    ean = models.CharField(max_length=200, verbose_name="EAN", null=True, blank=True)
+    pass
 
 
 class ProductImage(models.Model):

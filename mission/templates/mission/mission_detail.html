@@ -119,7 +119,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                    {% for productmission, missing_amount, stock, delivery_amount, sent_amount in products_from_stock %}
+                                    {% for productmission, missing_amount, product_total, delivery_amount, sent_amount in products_from_stock %}
                                         {% if object.id == productmission.mission.id %}
                                         <tr>
                                             <td>
@@ -143,7 +143,7 @@
                                                 {{ sent_amount }}
                                             </td>
                                             <td>
-                                                {{ stock|default:'0' }}
+                                                {{ product_total|default:'0' }}
                                             </td>
                                             <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                             <td>

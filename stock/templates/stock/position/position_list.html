@@ -1,19 +1,13 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'stock/position/position_list_base.html' %}
 
-{% block content %}
-    <script src="{% static 'js/vendor/dymo.js' %}" type="text/javascript" charset="UTF-8"> </script>
-    <div>
-        <div class="col-md-12">
-            <a href="{% url 'stock:generate_positions' %}" class="btn btn-info pull-right">Lagerplätze anlegen</a>
-        </div>
-        {% include "stock/position/filter.html" %}
-        {% include "snippets/pagination.html" %}
+{% block create_positions_link %}
+    <a href="{% url 'stock:generate_positions' %}" class="btn btn-info pull-right">Lagerpositionen anlegen</a>
+{% endblock %}
 
+{% block delete_action %}
+    action="{% url 'stock:position_delete' %}"
+{% endblock %}
 
-        {% include "snippets/table.html"  with app="stock_position" %}
-
-
-    </div>
-
+{% block book_product_link %}
+    <a class="btn btn-info" href="{% url 'stock:position_book' pk=object.id %}">Artikel buchen</a>
 {% endblock %}

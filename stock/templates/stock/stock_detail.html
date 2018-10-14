@@ -14,9 +14,15 @@
 
     <div class="col-md-12" style="padding-right: 0px; padding-left: 0px;">
         {% if object and position %}
-            <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
-                Neuen Artikel zu Position buchen
-            </a>
+            {% if object.sku_instance.product.single_product != True %}
+                <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
+                    Neuen Artikel zu Position buchen
+                </a>
+            {% else %}
+                <a href="{% url 'stock:single_position_book' pk=position.id %}" class="btn btn-info pull-right">
+                    Neuen Artikel zu Position buchen
+                </a>
+            {% endif %}
         {% endif %}
         <br/><br/><br/>
     </div>

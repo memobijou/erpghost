@@ -5,9 +5,15 @@
     <div class="row">
         <div class="col-md-12">
             {% if instance and position %}
-                <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
-                    Neuen Artikel zu Position buchen
-                </a>
+                {% if instance.sku_instance.product.single_product != True %}
+                    <a href="{% url 'stock:position_book' pk=position.id %}" class="btn btn-info pull-right">
+                        Neuen Artikel zu Position buchen
+                    </a>
+                {% else %}
+                    <a href="{% url 'stock:single_position_book' pk=position.id %}" class="btn btn-info pull-right">
+                        Neuen Artikel zu Position buchen
+                    </a>
+                {% endif %}
             {% endif %}
             <br/><br/><br/>
         </div>
@@ -105,10 +111,18 @@
                 </form>
         </div>
         {% if instance.id %}
-                <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
-                    <br/>
+            <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
+                <br/>
+                {% if instance.sku_instance.product.single_product != True %}
                     <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=instance.id %}">Artikel ausbuchen</a>
-                </div>
+                {% else %}
+                    <a class="btn btn-danger pull-right" href="{% url 'stock:single_delete' pk=instance.id %}">
+                        Artikel ausbuchen
+                    </a>
+                {% endif %}
+            </div>
         {% endif %}
+
+
     </div>
 {% endblock %}

@@ -366,6 +366,8 @@ class StockDetailView(LoginRequiredMixin, DetailView):
             skus = self.object.sku_instance.product.sku_set.all().get_totals().order_by("state")
             states_totals, total = get_states_totals_and_total(self.object.sku_instance.product, skus)
             return states_totals, total
+        else:
+            return None, None
 
     def get_sku_state(self):
         product = self.object.get_product()
@@ -453,8 +455,10 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_product(self, form):
         product = None
-        ean = form.data.get("ean_vollstaendig").strip()
-        sku = form.data.get("sku").strip()
+        ean = form.data.get("ean_vollstaendig", "") or ""
+        ean = ean.strip()
+        sku = form.data.get("sku", "") or ""
+        sku = sku.strip()
         if sku is not None and sku != "":
             product = Product.objects.filter(sku__sku=sku).first()
 
@@ -617,14 +621,16 @@ class PositionListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Lagerplätze"
+        context["title"] = "Lagerpositionen"
         context["fields"] = self.build_header_fields(exclude=self.exclude_fields)
         context["filter_fields"] = self.build_filter_fields()
         return context
 
     def build_filter_fields(self):
         filter_fields = []
-        filter_fields.append(("position", "Lagerplatz", self.request.GET.get("position", "").strip()))
+        position = self.request.GET.get("position", "") or ""
+        position = position.strip()
+        filter_fields.append(("position", "Lagerplatz", position))
         return filter_fields
 
     def build_header_fields(self, exclude=list):
@@ -637,7 +643,9 @@ class PositionListView(LoginRequiredMixin, ListView):
         return fields
 
     def filter_model_from_get_request(self, model_class):
-        return filter_queryset_from_position_string(self.request.GET.get("position", "").strip(), model_class)
+        position = self.request.GET.get("position", "") or ""
+        position = position.strip()
+        return filter_queryset_from_position_string(position, model_class)
 
     def set_pagination(self, queryset):
         current_page = self.request.GET.get("page")
@@ -657,9 +665,26 @@ def filter_queryset_from_position_string(GET_value, model_class):
     return model_class.objects.filter(id__in=match_ids)
 
 
+class NoneSingleStockCreateForm(StockCreateForm):
+    def clean(self):
+        super().clean()
+        sku = self.cleaned_data.get("sku", "") or ""
+        sku = sku.strip()
+        if sku != "":
+            sku_instance = Sku.objects.filter(sku__iexact=sku).first()
+            if sku_instance is not None:
+                product = sku_instance.product
+                if product is not None:
+                    if product.single_product is True:
+                        self.add_error(None, "<h3 style='color:red;'>Die angegebene SKU ist ein Einzelartikel</h3>"
+                                             "<p style='color:red;'>Sie können diesen Artikel im Einzelhandel buchen"
+                                             "</p>")
+        return self.cleaned_data
+
+
 class BookProductToPositionView(LoginRequiredMixin, CreateView):
     template_name = "stock/form.html"
-    form_class = StockCreateForm
+    form_class = NoneSingleStockCreateForm
     login_url = "/login/"
 
     def get_context_data(self, **kwargs):
@@ -735,8 +760,10 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
     def get_product(self, form):
         product = None
 
-        ean = form.data.get("ean_vollstaendig").strip()
-        sku = form.data.get("sku").strip()
+        ean = form.data.get("ean_vollstaendig", "") or ""
+        ean = ean.strip()
+        sku = form.data.get("sku", "") or ""
+        sku = sku.strip()
 
         if sku is not None and sku != "":
             product = Product.objects.filter(sku__sku=sku).first()
@@ -761,7 +788,7 @@ class GeneratePositionsView(FormView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = "Lagerplätze generieren"
+        context["title"] = "Lagerpositionen generieren"
         context["level_position_forms"] = [GeneratePositionLevelsColumnsForm()]
         return context
 

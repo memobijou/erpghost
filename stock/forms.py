@@ -52,13 +52,13 @@ def validate_ean_has_multiple_products(ean, form):
 
 
 def stock_validation(instance, form):
-    bestand = form.data.get("bestand") or ""
+    bestand = form.data.get("bestand", "") or ""
     bestand = bestand.strip()
-    state = form.cleaned_data.get("zustand") or ""
+    state = form.cleaned_data.get("zustand", "") or ""
     state = state.strip()
-    ean = form.cleaned_data.get("ean_vollstaendig") or ""
+    ean = form.cleaned_data.get("ean_vollstaendig", "") or ""
     ean = ean.strip()
-    sku = form.cleaned_data.get("sku") or ""
+    sku = form.cleaned_data.get("sku", "") or ""
     sku = sku.strip()
 
     if instance.pk is not None and instance.sku_instance is not None:
@@ -121,7 +121,7 @@ def stock_validation(instance, form):
     if ean != "" and state != "":
         skus = Sku.objects.filter(product__ean=ean, state__iexact=state).values_list("sku", flat=True)
 
-    position = form.cleaned_data.get("lagerplatz") or ""
+    position = form.cleaned_data.get("lagerplatz", "") or ""
     position = position.strip()
 
     print(f"salami: {position}")

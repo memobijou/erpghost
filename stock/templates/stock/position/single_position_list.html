@@ -1,0 +1,13 @@
+{% extends 'stock/position/position_list_base.html' %}
+
+{% block create_positions_link %}
+
+    <a href="{% url 'stock:single_generate_positions' %}" class="btn btn-info pull-right">Lagerpositionen anlegen</a>
+
+{% endblock %}
+
+{% block delete_action %}action="{% url 'stock:single_position_delete' %}"{% endblock %}
+
+{% block book_product_link %}
+    <a class="btn btn-info" href="{% url 'stock:single_position_book' pk=object.id %}">Einzelartikel buchen</a>
+{% endblock %}

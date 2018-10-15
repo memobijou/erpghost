@@ -6,6 +6,7 @@ from .models import Stock, Stockdocument, is_stock_reserved
 from django.forms import ModelForm, CharField, FloatField, IntegerField
 from django import forms
 from django.urls import reverse_lazy
+import barcodenumber
 
 
 class StockdocumentForm(ModelForm):
@@ -60,6 +61,10 @@ def stock_validation(instance, form):
     ean = ean.strip()
     sku = form.cleaned_data.get("sku", "") or ""
     sku = sku.strip()
+
+    if ean != "":
+        if barcodenumber.check_code("ean13", ean) is False:
+            form.add_error("ean_vollstaendig", "Bitte geben Sie eine gültige EAN ein")
 
     if instance.pk is not None and instance.sku_instance is not None:
         stock_before_save = Stock.objects.get(pk=instance.pk)

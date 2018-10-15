@@ -41,8 +41,14 @@ class ProductListView(LoginRequiredMixin, ListView):
     paginate_by = 30
     queryset = Product.objects.filter(single_product__isnull=True)
 
+    def __init__(self):
+        self.context = {}
+        super().__init__()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context.update(self.context)
+        print(f"wwww: {context}")
         context["title"] = "Artikel Übersicht"
         object_list = context["object_list"]
         context["product_list"] = self.get_product_list(object_list)
@@ -59,7 +65,7 @@ class ProductListView(LoginRequiredMixin, ListView):
         return product_list
 
     def get_queryset(self):
-        order_by_amount = self.request.GET.get("order_by_amount")
+        order_by_amount = get_value_from_GET_or_session("order_by_amount", self.request)
         if order_by_amount == "down":
             self.queryset = self.queryset.annotate(
                 total_stock=Sum("stock__bestand")).annotate(
@@ -70,44 +76,39 @@ class ProductListView(LoginRequiredMixin, ListView):
                 total_stock=Sum("stock__bestand")).annotate(
                 nulls_last=Case(When(total_stock=None, then=Value(0)), output_field=IntegerField())
             ).order_by("nulls_last", "total_stock")
-        ean, sku = self.request.GET.get("ean") or "", self.request.GET.get("sku") or ""
-        title, manufacturer = self.request.GET.get("title") or "", self.request.GET.get("manufacturer") or ""
-        brandname, part_number = self.request.GET.get("brandname") or "", self.request.GET.get("part_number") or ""
-        short_description  = self.request.GET.get("short_description") or ""
-        long_description = self.request.GET.get("description") or ""
-        q = self.request.GET.get("q") or ""
 
-        if ean is not None and ean != "":
-            ean = ean.strip()
-            self.queryset = self.queryset.filter(ean__icontains=ean)
+        print(f"test: {self.request.GET.get('q')}")
 
-        if sku is not None and sku != "":
-            sku = sku.strip()
-            self.queryset = self.queryset.filter(sku__sku__icontains=sku)
+        q = get_value_from_GET_or_session("q", self.request)
 
-        if title is not None and title != "":
-            title = title.strip()
-            self.queryset = self.queryset.filter(title__icontains=title)
+        ean = get_value_from_GET_or_session("ean", self.request)
+        self.queryset = self.queryset.filter(ean__icontains=ean)
 
-        if manufacturer is not None and manufacturer != "":
-            manufacturer = manufacturer.strip()
-            self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
+        sku = get_value_from_GET_or_session("sku", self.request)
+        self.queryset = self.queryset.filter(sku__sku__icontains=sku)
 
-        if brandname is not None and brandname != "":
-            brandname = brandname.strip()
-            self.queryset = self.queryset.filter(brandname__icontains=brandname)
+        title = get_value_from_GET_or_session("title", self.request)
+        self.queryset = self.queryset.filter(title__icontains=title)
 
-        if part_number is not None and part_number != "":
-            part_number = part_number.strip()
-            self.queryset = self.queryset.filter(part_number__icontains=part_number)
+        manufacturer = get_value_from_GET_or_session("manufacturer", self.request)
+        self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
 
-        if short_description is not None and short_description != "":
-            short_description = short_description.strip()
-            self.queryset = self.queryset.filter(short_description__icontains=short_description)
+        brandname = get_value_from_GET_or_session("brandname", self.request)
+        self.queryset = self.queryset.filter(brandname__icontains=brandname)
 
-        if long_description is not None and long_description != "":
-            long_description = long_description.strip()
-            self.queryset = self.queryset.filter(description__icontains=long_description)
+        part_number = get_value_from_GET_or_session("part_number", self.request)
+        self.queryset = self.queryset.filter(part_number__icontains=part_number)
+
+        short_description = get_value_from_GET_or_session("short_description", self.request)
+        self.queryset = self.queryset.filter(short_description__icontains=short_description)
+
+        long_description = get_value_from_GET_or_session("description", self.request)
+        self.queryset = self.queryset.filter(description__icontains=long_description)
+
+        self.context = {"q_product": q, "ean_product": ean, "sku_product": sku, "title_product": title,
+                        "manufacturer_product": manufacturer, "brandname_product": brandname,
+                        "part_number_product": part_number, "short_description_product": short_description,
+                        "long_description_product": long_description, "order_by_amount": order_by_amount}
 
         if q is not None and q != "":
             q_list = q.split()
@@ -137,6 +138,19 @@ class ProductListView(LoginRequiredMixin, ListView):
                                                    sku_q | brandname_q | manufacturer_q | part_number_q))
 
         return self.queryset.distinct()
+
+
+def get_value_from_GET_or_session(value, request):
+    get_value = request.GET.get(value)
+    if get_value is not None:
+        request.session[f"product_{value}"] = get_value.strip()
+        return get_value
+    else:
+        if request.GET.get("q") is None:
+            return request.session.get(f"product_{value}", "") or ""
+        else:
+            request.session[f"product_{value}"] = ""
+            return ""
 
 
 class ProductListViewDEAD(ListView):

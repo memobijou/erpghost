@@ -13,7 +13,7 @@
             <div class="col-md-12" style="padding-bottom: 25px;">
                 <div class="input-group">
 
-                    <input class="form-control" placeholder="Suche ..." name="q" value="{{ request.GET.q }}">
+                    <input class="form-control" placeholder="Suche ..." name="q" value="{{ q_product }}"/>
 
                     <span class="input-group-btn">
                         <button class="btn btn-info" type="submit">
@@ -30,48 +30,48 @@
             <div class="display_filter" style="display:none;">
                 <div class="col-md-12" style="">
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="EAN" name="ean" value="{{ request.GET.ean }}" class="form-control" type="text">
+                        <input placeholder="EAN" name="ean" value="{{ ean_product }}" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="SKU" value="{{ request.GET.sku }}" name="sku" class="form-control" type="text">
+                        <input placeholder="SKU" value="{{ sku_product }}" name="sku" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Artikelname" value="{{ request.GET.title }}" name="title" class="form-control" type="text">
+                        <input placeholder="Artikelname" value="{{ title_product }}" name="title" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Hersteller" value="{{ request.GET.manufacturer }}" name="manufacturer" class="form-control" type="text">
+                        <input placeholder="Hersteller" value="{{ manufacturer_product }}" name="manufacturer" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Markenname" value="{{ request.GET.brandname }}" name="brandname" class="form-control" type="text">
+                        <input placeholder="Markenname" value="{{ brandname_product }}" name="brandname" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Herstellernummer" value="{{ request.GET.part_number }}" name="part_number" class="form-control" type="text">
+                        <input placeholder="Herstellernummer" value="{{ part_number_product }}" name="part_number" class="form-control" type="text">
                     </div>
 
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Kurzbeschreibung" value="{{ request.GET.short_description }}" name="short_description" class="form-control" type="text">
+                        <input placeholder="Kurzbeschreibung" value="{{ short_description_product }}" name="short_description" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Beschreibung" value="{{ request.GET.description }}" name="description" class="form-control" type="text">
+                        <input placeholder="Beschreibung" value="{{ long_description_product }}" name="description" class="form-control" type="text">
                     </div>
                 </div>
 
                 <div class="col-md-12" >
                     <div class="checkbox">
                         <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="up"
-                        {% if request.GET.order_by_amount == "up" %}
+                        {% if order_by_amount == "up" %}
                            checked
                         {% endif %}
                         class="fire_submit">Menge aufsteigend</label>
                         <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="down"
-                        {% if request.GET.order_by_amount == "down" %}
+                        {% if order_by_amount == "down" %}
                                    checked
                         {% endif %}
                         class="fire_submit">Menge absteigend</label>
@@ -259,6 +259,7 @@
         }
 
 
+
         // elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
         // alert(elements[i].innerHTML );
 
@@ -274,7 +275,30 @@
                 display_filter.style.display = "none";
                 this.innerHTML = "Filter einblenden"
             }
+        };
+
+        var inputs = document.getElementsByTagName("input");
+
+
+        for(i=0; i<inputs.length; i++){
+            var input = inputs[i];
+            if(input.value != null){
+                if(input.className == "fire_submit"){
+                    if(input.value && input.checked){
+                        display_filter.style.display = "";
+                        show_hide_filter_btn.innerHTML = "Filter ausblenden"
+                    }
+                }
+
+                if(input.className == "form-control" && input.value && input.name != "q" ){
+                    display_filter.style.display = "";
+                    show_hide_filter_btn.innerHTML = "Filter ausblenden"
+                }
+            }
+
         }
+
+
     </script>
 
 

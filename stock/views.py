@@ -35,8 +35,13 @@ class StockListView(LoginRequiredMixin, ListView):
     queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
     states = Sku.objects.all().values_list("state", flat=True).distinct("state")
 
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context.update(self.context)
         object_list = context["object_list"]
         context["stock_list"] = self.get_stock_list(object_list)
         context["title"] = "Lagerbestand"
@@ -56,33 +61,48 @@ class StockListView(LoginRequiredMixin, ListView):
         return result
 
     def get_queryset(self):
-        position, sku = self.request.GET.get("lagerplatz") or "", self.request.GET.get("sku") or ""
-        state, title = self.request.GET.get("zustand") or "", self.request.GET.get("title") or ""
-        ean = self.request.GET.get("ean_vollstaendig")
-        print(f"basa: {title} - {position} - {sku} - {state}")
-
-        if position is not None and position != "":
-            position = position.strip()
+        position = get_value_from_GET_or_session("lagerplatz", self.request)
+        if position != "":
             self.queryset = self.queryset.filter(lagerplatz__icontains=position)
 
-        if sku is not None and sku != "":
-            sku = sku.strip()
+        sku = get_value_from_GET_or_session("sku", self.request)
+        if sku != "":
             self.queryset = self.queryset.filter(Q(Q(sku_instance__sku__icontains=sku) | Q(sku__icontains=sku)))
 
-        if state is not None and state != "":
-            state = state.strip()
+        state = get_value_from_GET_or_session("zustand", self.request)
+        if state != "":
             self.queryset = self.queryset.filter(Q(Q(sku_instance__state=state) | Q(zustand=state)))
 
-        if title is not None and title != "":
-            title = title.strip()
+        title = get_value_from_GET_or_session("title", self.request)
+        if title != "":
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__title__icontains=title)
                                                    | Q(title__icontains=title)))
 
-        if ean is not None and ean != "":
-            ean = ean.strip()
+        ean = get_value_from_GET_or_session("ean_vollstaendig", self.request)
+        if ean != "":
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__ean=ean) | Q(ean_vollstaendig=ean)))
 
+        person = get_value_from_GET_or_session("name", self.request)
+        if person != "":
+            self.queryset = self.queryset.filter(name__icontains=person)
+
+        self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
+                        "stock_ean_vollstaendig": ean, "stock_name": person}
+        print(self.context)
         return self.queryset
+
+
+def get_value_from_GET_or_session(value, request):
+    get_value = request.GET.get(value)
+    if get_value is not None:
+        request.session[f"stock_{value}"] = get_value.strip()
+        return get_value
+    else:
+        if request.GET.get("q") is None:
+            return request.session.get(f"stock_{value}", "") or ""
+        else:
+            request.session[f"stock_{value}"] = ""
+            return ""
 
 
 class StockListViewDEAD(LoginRequiredMixin, ListView):

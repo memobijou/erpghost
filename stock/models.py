@@ -1,3 +1,4 @@
+import barcodenumber
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.core.exceptions import ValidationError
@@ -226,6 +227,15 @@ class Stock(models.Model):
         sku = self.get_sku()
         if sku is not None:
             self.sku_instance = sku
+
+        if barcodenumber.check_code("ean13", self.ean_vollstaendig) is True:
+            if self.ean_vollstaendig != "" and self.zustand != "":
+                product = Product.objects.filter(ean=self.ean_vollstaendig, single_product__isnull=True).first()
+                if product is None:
+                    product = Product.objects.create(ean=self.ean_vollstaendig or "")
+                    self.sku_instance = product.sku_set.filter(state=self.zustand,
+                                                               sku__icontains=product.main_sku).first()
+
         if hard_save is None:
             if is_stock_reserved(self) > self.bestand:
                 return

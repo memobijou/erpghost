@@ -171,6 +171,14 @@
                         </td>
                     </tr>
                 {% endfor %}
+                {% if not object_list %}
+                    <tr>
+                        <td colspan="12">
+                            <div class="text-center"><h1>Kein Ergebniss</h1></div>
+                            <br/>
+                        </td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
 

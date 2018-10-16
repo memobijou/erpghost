@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.7.2/Chart.bundle.min.js"></script>
     <div class="panel panel-deafult">
         <div class="panel-body">
             <div class="row" style="padding:5px;">
@@ -17,6 +18,62 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6" style="padding:0px;">
+                      <canvas id="area_chart" style="width:100%;"></canvas>
+                </div>
+                <div class="col-md-6">
+                      <canvas id="linechart" style="width:100%;"></canvas>
+                </div>
+                  <script>
+                        var ctx = document.getElementById("linechart").getContext('2d');
+                        var linechart = new Chart(ctx, {
+                           type: 'line',
+                           data: {
+                              labels: ["8/01", "8/2", "8/5", "8/6", "8/7", "8/8", "8/9", "8/11", "9/1"],
+                              datasets: [
+                              {
+                                 label: "Anzahl Bestellungen",
+                                 borderColor: '#3c8dbc',
+                                 fill: false,
+                                 data: [0, 4, 12, 23, 5, 21, 29, 22, 24]
+                              },
+                                {
+                                 label: "Brutto Umsatz",
+                                 borderColor: '#5bc0de',
+                                 fill: false,
+                                 data: [0, 2, 1, 12, 3, 6, 21, 20, 12]
+                              }
+                              ]
+                           },
+                           options: {
+                              responsive: false,
+                           }
+                        });
+
+                        var area_chart_el = document.getElementById("area_chart").getContext('2d');
+                        var area_chart = new Chart(area_chart_el, {
+                           type: 'line',
+                           data: {
+                              labels: ["8/01", "8/2", "8/5", "8/6", "8/7", "8/8", "8/9", "8/11", "9/1", ],
+                              datasets: [
+                              {
+                                label: "Online",
+                                fillColor : "rgba(172,194,132,0.4)",
+                                strokeColor : "#ACC26D",
+                                pointColor : "#fff",
+                                pointStrokeColor : "#9DB86D",
+                                data : [203,156,99,251,305,247]
+                              }
+                              ]
+                           },
+                           options: {
+                              responsive: false,
+                           }
+                        });
+
+                  </script>
             </div>
             <div class="row">
                 <div class="col-md-6">

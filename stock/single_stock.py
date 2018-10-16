@@ -7,7 +7,7 @@ from django.urls import reverse_lazy
 
 
 class SingleStockListView(StockListView):
-    queryset = Stock.objects.filter(product__single_product=True).order_by("-pk")
+    queryset = Stock.objects.filter(sku_instance__product__single_product=True).order_by("-pk")
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -27,8 +27,8 @@ class SingleStockCreateForm(StockCreateForm):
     zustand = None
 
     def clean(self, **kwargs):
-        cleaned_fields = super().clean()
-        sku = self.cleaned_data.get("sku", "").strip()
+        cleaned_data = super().clean()
+        sku = cleaned_data.get("sku", "").strip()
         if sku != "":
             sku_instance = Sku.objects.filter(sku__iexact=sku).first()
             if sku_instance is not None:
@@ -37,7 +37,7 @@ class SingleStockCreateForm(StockCreateForm):
                     if product.single_product is not True:
                         self.add_error(None, "<h3 style='color:red;'>Die angegebene SKU ist kein Einzelartikel</h3>"
                                              "<p style='color:red;'>Sie können den Artikel unter Lager einbuchen</p>")
-        return cleaned_fields
+        return cleaned_data
 
 
 class SingleBookProductToPositionView(BookProductToPositionView):

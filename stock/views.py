@@ -31,7 +31,7 @@ from stock.models import get_states_totals_and_total_from_ean_without_product
 
 
 class StockListView(LoginRequiredMixin, ListView):
-    paginate_by = 30
+    paginate_by = 15
     queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
     states = Sku.objects.all().values_list("state", flat=True).distinct("state")
 
@@ -61,29 +61,36 @@ class StockListView(LoginRequiredMixin, ListView):
         return result
 
     def get_queryset(self):
+        print(f"hallo:::: {self.queryset}")
         position = get_value_from_GET_or_session("lagerplatz", self.request)
         if position != "":
+            position = position.strip()
             self.queryset = self.queryset.filter(lagerplatz__icontains=position)
 
         sku = get_value_from_GET_or_session("sku", self.request)
         if sku != "":
+            sku = sku.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__sku__icontains=sku) | Q(sku__icontains=sku)))
 
         state = get_value_from_GET_or_session("zustand", self.request)
         if state != "":
+            state = state.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__state=state) | Q(zustand=state)))
 
         title = get_value_from_GET_or_session("title", self.request)
         if title != "":
+            title = title.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__title__icontains=title)
                                                    | Q(title__icontains=title)))
 
         ean = get_value_from_GET_or_session("ean_vollstaendig", self.request)
         if ean != "":
+            ean = ean.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__ean=ean) | Q(ean_vollstaendig=ean)))
 
         person = get_value_from_GET_or_session("name", self.request)
         if person != "":
+            person = person.strip()
             self.queryset = self.queryset.filter(name__icontains=person)
 
         self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
@@ -720,6 +727,7 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         object = form.save(commit=False)
+        print(f"nebi: {object.pk} - {object.sku_instance}")
         product = self.get_product(form)
 
         if product is not None:
@@ -773,8 +781,6 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         object.lagerplatz = self.current_position
 
         # object.id = Stock.objects.latest("id").id+1  # Kopfschuss
-        object.save()
-        print(f"wie oha:::: {object} - {object.pk}")
         return super().form_valid(form)
 
     def get_product(self, form):
@@ -791,7 +797,7 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         if ean is not None and ean != "":
             product = Product.objects.filter(ean=ean, single_product__isnull=True).first()
 
-        print(f"INWI: {ean} - {sku} - {product}")
+        print(f"INWI: {ean} - {sku} - {product.pk}")
         return product
 
     @property

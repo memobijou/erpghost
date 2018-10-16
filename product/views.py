@@ -38,7 +38,7 @@ from django.db.models import Case, When, Value, IntegerField, Sum
 
 class ProductListView(LoginRequiredMixin, ListView):
     template_name = "product/product_list.html"
-    paginate_by = 30
+    paginate_by = 15
     queryset = Product.objects.filter(single_product__isnull=True)
 
     def __init__(self):
@@ -65,6 +65,7 @@ class ProductListView(LoginRequiredMixin, ListView):
         return product_list
 
     def get_queryset(self):
+        print(f"hey ho: {self.queryset}")
         order_by_amount = get_value_from_GET_or_session("order_by_amount", self.request)
         if order_by_amount == "down":
             self.queryset = self.queryset.annotate(
@@ -82,28 +83,36 @@ class ProductListView(LoginRequiredMixin, ListView):
         q = get_value_from_GET_or_session("q", self.request)
 
         ean = get_value_from_GET_or_session("ean", self.request)
-        self.queryset = self.queryset.filter(ean__icontains=ean)
+        if ean != "":
+            self.queryset = self.queryset.filter(ean__icontains=ean)
 
         sku = get_value_from_GET_or_session("sku", self.request)
-        self.queryset = self.queryset.filter(sku__sku__icontains=sku)
+        if sku != "":
+            self.queryset = self.queryset.filter(sku__sku__icontains=sku)
 
         title = get_value_from_GET_or_session("title", self.request)
-        self.queryset = self.queryset.filter(title__icontains=title)
+        if title != "":
+            self.queryset = self.queryset.filter(title__icontains=title)
 
         manufacturer = get_value_from_GET_or_session("manufacturer", self.request)
-        self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
+        if manufacturer != "":
+            self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
 
         brandname = get_value_from_GET_or_session("brandname", self.request)
-        self.queryset = self.queryset.filter(brandname__icontains=brandname)
+        if brandname != "":
+            self.queryset = self.queryset.filter(brandname__icontains=brandname)
 
         part_number = get_value_from_GET_or_session("part_number", self.request)
-        self.queryset = self.queryset.filter(part_number__icontains=part_number)
+        if part_number != "":
+            self.queryset = self.queryset.filter(part_number__icontains=part_number)
 
         short_description = get_value_from_GET_or_session("short_description", self.request)
-        self.queryset = self.queryset.filter(short_description__icontains=short_description)
+        if short_description != "":
+            self.queryset = self.queryset.filter(short_description__icontains=short_description)
 
         long_description = get_value_from_GET_or_session("description", self.request)
-        self.queryset = self.queryset.filter(description__icontains=long_description)
+        if long_description != "":
+            self.queryset = self.queryset.filter(description__icontains=long_description)
 
         self.context = {"q_product": q, "ean_product": ean, "sku_product": sku, "title_product": title,
                         "manufacturer_product": manufacturer, "brandname_product": brandname,
@@ -136,7 +145,7 @@ class ProductListView(LoginRequiredMixin, ListView):
 
             self.queryset = self.queryset.filter(Q(ean_q | title_q | short_description_q | long_description_q |
                                                    sku_q | brandname_q | manufacturer_q | part_number_q))
-
+        print(f"banana: {self.queryset}")
         return self.queryset.distinct()
 
 

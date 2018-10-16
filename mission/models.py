@@ -329,19 +329,20 @@ class PickListProductsManager(models.Manager):
     def get_stock_reserved_total(self, stock):
         from stock.models import Stock
         if stock.pk is not None:
-            stock = Stock.objects.get(pk=stock.pk)  # sonst gibt er den stock der nicht gespeichert wurde
+            old_stock = Stock.objects.get(pk=stock.pk)  # sonst gibt er den stock der nicht gespeichert wurde
             sku = None
             state = None
-            sku_instance = stock.sku_instance
+            sku_instance = old_stock.sku_instance
             if sku_instance is not None:
                 sku = sku_instance.sku
                 state = sku_instance.state
-                print(f"omg: {sku} {state} - {stock.lagerplatz} - {stock.ean_vollstaendig} - {stock.zustand}")
+                print(f"omg: {sku} {state} - {stock.lagerplatz} - {old_stock.ean_vollstaendig} - {old_stock.zustand}")
             return self.filter(
-                Q(Q(product_mission__product__ean=stock.ean_vollstaendig, product_mission__state=stock.zustand) |
+                Q(Q(product_mission__product__ean=old_stock.ean_vollstaendig,
+                    product_mission__state=old_stock.zustand) |
                   Q(product_mission__state__iexact=state, product_mission__product=sku_instance.product))
                 & Q(Q(Q(pick_list__completed__isnull=True) & Q(pick_list__isnull=False)),
-                    position=stock.lagerplatz)).aggregate(total=Sum("amount"))
+                    position=old_stock.lagerplatz)).aggregate(total=Sum("amount"))
 
 
 class PickListProducts(models.Model):

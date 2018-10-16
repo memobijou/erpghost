@@ -153,7 +153,11 @@ class StockObjectManager(CustomManger):
 
 
 def is_stock_reserved(stock):
+    if stock.sku_instance is None:
+        return 0
+
     total = PickListProducts.objects.get_stock_reserved_total(stock)
+
     if total is not None:
         total_reserved = total.get("total", 0) or 0
     else:
@@ -228,13 +232,15 @@ class Stock(models.Model):
         if sku is not None:
             self.sku_instance = sku
 
-        if barcodenumber.check_code("ean13", self.ean_vollstaendig) is True:
-            if self.ean_vollstaendig != "" and self.zustand != "":
-                product = Product.objects.filter(ean=self.ean_vollstaendig, single_product__isnull=True).first()
-                if product is None:
-                    product = Product.objects.create(ean=self.ean_vollstaendig or "")
-                    self.sku_instance = product.sku_set.filter(state=self.zustand,
-                                                               sku__icontains=product.main_sku).first()
+        if self.ean_vollstaendig != "" and self.ean_vollstaendig is not None:
+            if barcodenumber.check_code("ean13", self.ean_vollstaendig) is True:
+                if self.ean_vollstaendig != "" and self.zustand != "":
+                    product = Product.objects.filter(ean=self.ean_vollstaendig, single_product__isnull=True).first()
+                    if product is None:
+                        product = Product.objects.create(ean=self.ean_vollstaendig or "")
+                        self.sku_instance = product.sku_set.filter(state=self.zustand,
+                                                                   sku__icontains=product.main_sku).first()
+        print(self.sku_instance.sku)
 
         if hard_save is None:
             if is_stock_reserved(self) > self.bestand:
@@ -414,11 +420,13 @@ class Stock(models.Model):
     def get_sku(self):
         sku = None
         if self.sku is not None and self.sku != "":
+            self.sku = self.sku.strip()
             sku = Sku.objects.filter(sku=self.sku).first()
 
         if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
                 and self.zustand is not None and self.zustand != ""):
             sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand).first()
+        print(f"hamouti: {sku.sku}")
         return sku
 
     def get_product(self):

@@ -2,6 +2,6 @@
 
 {% block stock_links %}
     <a href="{% url 'stock:detail' pk=object.pk %}">Ansicht</a>
-    <a href="{% url 'stock:edit' pk=object.pk %}">Bearbeiten</a>
+    <a href="{% url 'stock:single_edit' pk=object.pk %}">Bearbeiten</a>
     <input type="checkbox" name="item" style="cursor:pointer;" value="{{object.pk}}">
 {% endblock %}

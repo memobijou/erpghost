@@ -19,9 +19,8 @@ class ImportForm(forms.Form):
     excel_field = forms.FileField(label="Excel-Datei")
 
 
-def validate_ean_has_multiple_products(ean, form):
+def validate_ean_has_not_multiple_products(ean, state, form):
     if ean != "":
-        state = form.cleaned_data.get("zustand") or ""
         ean_products = Product.objects.filter(ean=ean, single_product__isnull=True)
         print(f"SOSO: {ean_products.count()}")
         if ean_products.count() > 1:
@@ -31,15 +30,19 @@ def validate_ean_has_multiple_products(ean, form):
                                  f"<th></th><th>Bild</th><th>EAN</th><th>SKU</th><th>Artikelname</th></tr>"
             for ean_product in ean_products:
                 img_tag = ""
-                sku_of_ean_product = ean_product.sku_set.filter(state__iexact=state).first()
+
+                if ean_product.main_image is not None and ean_product.main_image != "":
+                    img_tag = f"<img src='{ean_product.main_image.url}' class='img-responsive'" \
+                              f" style='max-height:80px;'/>"
+
+                sku_of_ean_product = ean_product.sku_set.filter(state__iexact=state,
+                                                                sku__icontains=ean_product.main_sku).first()
+
                 if sku_of_ean_product is not None:
                     sku_of_ean_product = sku_of_ean_product.sku
                 else:
                     sku_of_ean_product = ""
 
-                if ean_product.main_image is not None and ean_product.main_image != "":
-                    img_tag = f"<img src='{ean_product.main_image.url}' class='img-responsive'" \
-                              f" style='max-height:80px;'/>"
                 ean_products_error += f"<tr><td><a href=" \
                                       f"'{reverse_lazy('product:detail', kwargs={'pk': ean_product.pk})}'>" \
                                       f"Ansicht</a></td>" \
@@ -61,46 +64,32 @@ def stock_validation(instance, form):
     ean = ean.strip()
     sku = form.cleaned_data.get("sku", "") or ""
     sku = sku.strip()
+    position = instance.lagerplatz or form.cleaned_data.get("lagerplatz", "") or ""
+    position = position.strip()
+
+    print(f"barrani: {position}")
 
     if ean != "":
         if barcodenumber.check_code("ean13", ean) is False:
             form.add_error("ean_vollstaendig", "Bitte geben Sie eine gültige EAN ein")
 
-    if instance.pk is not None and instance.sku_instance is not None:
-        stock_before_save = Stock.objects.get(pk=instance.pk)
-        reserved_stock = is_stock_reserved(instance)
-        error_msg = f"<h3 style='color:red;'>Auf diesen Lagerplatz ist der Artikel {reserved_stock}x" \
-                    f" reserviert.</h3>"
-        if int(bestand or 0) < reserved_stock:
-            form.add_error(None, error_msg)
-        elif reserved_stock > 0:
-            if stock_before_save.zustand != state:
-                form.add_error(None, error_msg)
+    validate_stock_is_not_reserved(instance, bestand, state, form)
 
     states_sku = None
-    print(f"is going in safe")
-    if instance.sku_instance is not None and instance.sku_instance.product is not None:
-        print(f"before wtf: {ean}")
 
-        validate_ean_has_multiple_products(ean, form)
-
-        print(f"wtf {ean}")
+    if instance is not None and instance.sku_instance is not None and instance.sku_instance.product is not None:
         if state != "" and ean == "":
             if state != instance.sku_instance.state:
                 states_sku = instance.sku_instance.product.sku_set.filter(
                     state=state, sku__icontains=instance.sku_instance.product.main_sku).first()
-                if states_sku is not None:
-                    form.cleaned_data["sku"] = states_sku.sku
-                    form.cleaned_data["zustand"] = None
-                else:
-                    form.add_error("zustand", f"Keine SKU für diesen Artikel vorhanden mit dem Zustand {state}")
 
-        if (instance.sku_instance.product.single_product is not None
-                and instance.sku_instance.product.single_product != ""):
-            if bestand is not None and bestand != "":
-                if int(bestand) > 1:
-                    form.add_error("bestand", f"Der Bestand darf nicht größer als 1 sein, da "
-                                              f"dieser Artikel ein Einzelartikel ist.")
+        validate_ean_has_not_multiple_products(ean, state, form)
+
+        if validate_changed_state_of_sku_exists(instance, state, ean, form) is True:
+            form.cleaned_data["sku"] = states_sku.sku
+            form.cleaned_data["zustand"] = None
+
+        validate_single_product_stock_is_not_greater_than_one(instance, bestand, form)
 
     if sku == "" and ean == "":
         form.add_error(None, "<h3 style='color:red;'>Sie müssen entweder eine EAN oder eine SKU eingeben</h3>")
@@ -108,50 +97,92 @@ def stock_validation(instance, form):
     if sku != "" and ean != "":
         form.add_error(None, "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN oder SKU</h3>")
         return
+
     if sku != "":
         sku_instance = Sku.objects.filter(sku=sku).first()
         if sku_instance is None:
             form.add_error("sku", "Die angegebene SKU ist im Sytem nicht vorhanden.")
 
     if sku != "" and state != "":
+        # states_sku hat nur einen Wert, wenn der Zustand beim Updaten geändert wird
         if states_sku is None:
-            form.add_error("zustand", "Wenn Sie eine SKU angeben dürfen Sie keinen Zustand auswählen.")
+            form.add_error("zustand", "Wenn Sie beim Anlegen eine SKU angeben dürfen Sie keinen Zustand auswählen.")
 
     if ean != "":
         if state == "":
             form.add_error("zustand", "Wenn Sie eine EAN angeben, müssen Sie einen Zustand auswählen.")
 
+    sku_or_changed_sku = form.cleaned_data.get("sku", "") or ""
+    validate_stock_has_no_duplicates(ean, sku_or_changed_sku, state, position, form, instance)
+
+
+def validate_stock_is_not_reserved(instance, bestand, state, form):
+    if instance is not None and instance.pk is not None and instance.sku_instance is not None:
+        stock_before_save = Stock.objects.get(pk=instance.pk)
+        reserved_stock = is_stock_reserved(instance)
+        error_msg = f"<h3 style='color:red;'>Auf diesen Lagerplatz ist der Artikel {reserved_stock}x" \
+                    f" reserviert.</h3>"
+
+        if int(bestand or 0) < reserved_stock:
+            form.add_error(None, error_msg)
+        # wenn Zustand geändert wird und reservierte Menge größer 0 ist, dann darf der Zustand nicht geändert werden
+        elif reserved_stock > 0:
+            if stock_before_save.zustand != state:
+                form.add_error(None, error_msg)
+
+
+def validate_stock_has_no_duplicates(ean, sku, state, position, form, instance):
     skus = []
 
     if ean != "" and state != "":
         skus = Sku.objects.filter(product__ean=ean, state__iexact=state).values_list("sku", flat=True)
 
-    position = form.cleaned_data.get("lagerplatz", "") or ""
-    position = position.strip()
-
     print(f"salami: {position}")
     if position != "":
+        print(f"NACH: {state} - {sku} - {form.cleaned_data.get('sku') or ''} - {skus}")
         stocks = Stock.objects.filter(
             Q(Q(Q(ean_vollstaendig=ean, zustand=state) | Q(sku=sku) | Q(sku__in=skus)))
             & Q(lagerplatz=position)).exclude(Q(id=instance.id) | Q(lagerplatz__icontains="block"))
+
+        print(f"OKAY BAY: {stocks}")
+        # if instance.sku_instance is None:
+        #     stocks = stocks.exclude(Q(id=instance.id) | Q(lagerplatz__icontains="block"))
+
+        # if instance.sku_instance is not None and state != instance.sku_instance.state:
+        #     stocks = stocks.exclude(Q(Q(lagerplatz__icontains="block")))
+
         print(f"salami2: {stocks}")
         error_msg = f"<h1 style='color:red;'>Lagerbestand schon vorhanden</h1>" \
                     f"<div class='table-responsive'><table class='table table-bordered'>" \
                     f"<thead><tr>"\
-                    f"<th></th><th>EAN</th><th>SKU</th><th>Lagerplatz</th><th>Zustand</th><th>IST Bestand</th>"\
+                    f"<th></th><th>Bild</th><th>EAN</th><th>SKU</th><th>Lagerplatz</th><th>Zustand</th><th>" \
+                    f"IST Bestand</th>"\
                     f"</tr>" \
                     f"</thead>" \
                     f"<tbody>"
         for stock in stocks:
+            img_tag = ""
+
+            if (stock.sku_instance is not None and stock.sku_instance.product is not None
+                    and stock.sku_instance.product.main_image is not None
+                    and stock.sku_instance.product.main_image != ""):
+                img_tag = f"<img src='{stock.sku_instance.product.main_image.url}' class='img-responsive'" \
+                          f" style='max-height:80px;'/>"
+
+            stock_ean = (stock.ean_vollstaendig or stock.sku_instance.product.ean
+                         if stock.sku_instance is not None and stock.sku_instance.product is not None else '')
             error_msg += f"<tr>"
             error_msg += f"<td>" \
                          f"<p><a href='{reverse_lazy('stock:detail', kwargs={'pk': stock.id})}'>Ansicht</a></p>" \
                          f"<p><a href='{reverse_lazy('stock:edit', kwargs={'pk': stock.id})}'>Bearbeiten</a></p>" \
                          f"</td>" \
-                         f"<td>{stock.ean_vollstaendig or stock.product.ean or ''}</td>" \
-                         f"<td>{stock.sku or stock.sku_instance.sku or ''}</td>" \
+                         f"<td>{img_tag}</td>" \
+                         f"<td>" \
+                         f"{stock_ean}</td>" \
+                         f"<td>{stock.sku or stock.sku_instance.sku if stock.sku_instance is not None else ''}</td>" \
                          f"<td>{stock.lagerplatz or ''}</td>" \
-                         f"<td>{stock.zustand or ''}</td>" \
+                         f"<td>{stock.zustand or stock.sku_instance.state if stock.sku_instance is not None else ''}" \
+                         f"</td>" \
                          f"<td>{stock.bestand or ''}</td>"
             error_msg += f"</tr>"
 
@@ -159,6 +190,27 @@ def stock_validation(instance, form):
 
         if stocks.count() > 0:
             form.add_error(None, error_msg)
+
+
+def validate_changed_state_of_sku_exists(instance, state, ean, form):
+    print(f"wtf {ean}")
+    if state != "" and ean == "":
+        if state != instance.sku_instance.state:
+            states_sku = instance.sku_instance.product.sku_set.filter(
+                state=state, sku__icontains=instance.sku_instance.product.main_sku).first()
+            if states_sku is not None:
+                return True
+            else:
+                form.add_error("zustand", f"Keine SKU für diesen Artikel vorhanden mit dem Zustand {state}")
+
+
+def validate_single_product_stock_is_not_greater_than_one(instance, bestand, form):
+    if (instance.sku_instance.product.single_product is not None
+            and instance.sku_instance.product.single_product != ""):
+        if bestand is not None and bestand != "":
+            if int(bestand) > 1:
+                form.add_error("bestand", f"Der Bestand darf nicht größer als 1 sein, da "
+                                          f"dieser Artikel ein Einzelartikel ist.")
 
 
 class StockUpdateForm(ModelForm):

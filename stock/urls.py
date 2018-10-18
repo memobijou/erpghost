@@ -2,7 +2,7 @@ from django.conf.urls import url
 
 from stock.minus_stock import MinusStockListView
 from stock.single_stock import SingleStockListView, SingleStockDeleteView, SingleBookProductToPositionView, \
-    SinglePositionListView, SingleGeneratePositionsView, SinglePositionDeleteView
+    SinglePositionListView, SingleGeneratePositionsView, SinglePositionDeleteView, SingleStockUpdateView
 from .views import StockListView, StockDocumentDetailView, StockUpdateView, StockDetailView, \
     StockImportView, PositionListView, BookProductToPositionView, StockDeleteView, GeneratePositionsView, \
     PositionDeleteView, PositionListAPIView, StockCorrectView
@@ -14,6 +14,7 @@ urlpatterns = [
     url(r'^single_delete/(?P<pk>\d+)/$', SingleStockDeleteView.as_view(), name="single_delete"),
     url(r'^document/(?P<pk>\d+)/$', StockDocumentDetailView.as_view(), name="documentdetail"),
     url(r'^(?P<pk>\d+)/edit/$', StockUpdateView.as_view(), name="edit"),
+    url(r'^(?P<pk>\d+)/edit/single/$', SingleStockUpdateView.as_view(), name="single_edit"),
     url(r'^(?P<pk>\d+)/correct/$', StockCorrectView.as_view(), name="correct"),
     url(r'^(?P<pk>\d+)/$', StockDetailView.as_view(), name="detail"),
     url(r'^import/$', StockImportView.as_view(), name="import"),

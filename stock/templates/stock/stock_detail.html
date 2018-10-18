@@ -64,7 +64,11 @@
     <div class="col-md-12" style="padding:0">
         <div class="panel panel-default">
             <div class="panel-body">
-                <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
+                {% if object.sku_instance.product.single_product != True %}
+                    <a style="float:right;" href="{% url 'stock:edit' pk=object.id %}">Bearbeiten</a>
+                {% else %}
+                    <a style="float:right;" href="{% url 'stock:single_edit' pk=object.id %}">Bearbeiten</a>
+                {% endif %}
                 <div class="col-md-12" style="padding-left: 0px;">
                 {% if product %}
                     {% if product.title %}

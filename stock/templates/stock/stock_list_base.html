@@ -13,28 +13,44 @@
 
     </div>
 
-    <div class="col-md-12">
-        <form id="filter_form" action="." class="form-inline">
-            <input class="form-control" name="ean_vollstaendig" placeholder="EAN" value="{{ stock_ean_vollstaendig }}">
-
-            <input class="form-control" name="sku" placeholder="Sku" value="{{ stock_sku }}">
-
-            <input class="form-control" name="title" placeholder="Artikelname" value="{{ stock_title }}">
-            <select class="form-control" name="zustand">
-                <option value="" {% if stock_zustand == "" %} selected{% endif %}>Zustand auswählen</option>
-                {% for state in states %}
-                    <option value="{{ state }}" {% if stock_zustand == state %} selected{% endif %}>{{ state }}</option>
-                {% endfor %}
-            </select>
-
-            <input class="form-control" name="lagerplatz" placeholder="Lagerplatz" value="{{ stock_lagerplatz }}">
-
-            <input class="form-control" name="name" placeholder="Person" value="{{ stock_name }}">
-
-            <div style="padding-top:10px;padding-bottom:10px;">
-                <input class="btn btn-info" value="Filter" type="Submit">
+    <form id="filter_form" action=".">
+        <div class="col-md-12" style="padding-bottom: 25px;">
+            <div class="input-group">
+                <input class="form-control" placeholder="Suche ..." name="q" value="{{ stock_q }}"/>
+                <span class="input-group-btn">
+                    <button class="btn btn-info" type="submit">
+                        <span class="glyphicon glyphicon-search"></span>
+                    </button>
+                </span>
             </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="form-inline">
+                <input class="form-control" name="ean_vollstaendig" placeholder="EAN" value="{{ stock_ean_vollstaendig }}">
+
+                <input class="form-control" name="sku" placeholder="Sku" value="{{ stock_sku }}">
+
+                <input class="form-control" name="title" placeholder="Artikelname" value="{{ stock_title }}">
+                <select class="form-control" name="zustand">
+                    <option value="" {% if stock_zustand == "" %} selected{% endif %}>Zustand auswählen</option>
+                    {% for state in states %}
+                        <option value="{{ state }}" {% if stock_zustand == state %} selected{% endif %}>{{ state }}</option>
+                    {% endfor %}
+                </select>
+
+                <input class="form-control" name="lagerplatz" placeholder="Lagerplatz" value="{{ stock_lagerplatz }}">
+
+                <input class="form-control" name="name" placeholder="Person" value="{{ stock_name }}">
+
+                <div style="padding-top:10px;padding-bottom:10px;">
+                    <input class="btn btn-info" value="Filter" type="Submit">
+                </div>
+            </div>
+        </div>
     </form>
+
+    <div class="col-md-12">
         {% include 'snippets/paginate_by.html' %}
 
         <div class="table-responsive">
@@ -56,6 +72,7 @@
 
                 <tbody>
                     <form method="GET" {% block delete_action %}{% endblock %}>
+
                         <div class="text-right" style="padding-bottom:10px;">
                             <a class="btn btn-default">Ausbuchen</a>
                         </div>
@@ -63,9 +80,8 @@
                         {% for object, states_totals, total in stock_list %}
                             <tr>
                                 <td class="col-md-1">
-                                    <a href="{% url 'stock:detail' pk=object.pk %}">Ansicht</a>
-                                    <a href="{% url 'stock:edit' pk=object.pk %}">Bearbeiten</a>
-                                    <input type="checkbox" name="item" style="cursor:pointer;" value="{{object.pk}}">
+                                    {% block stock_links %}
+                                    {% endblock %}
                                 </td>
                                 <td class="show_hide" style="cursor:pointer;">
                                     <a collapseid="collapse_{{ forloop.counter }}">

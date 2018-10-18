@@ -686,7 +686,19 @@ class Stockdocument(models.Model):
         return reverse("stock:documentdetail", kwargs={"pk": self.id})
 
 
+class PositionManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        for obj in objs:
+            if obj.name is None or obj.name == "":
+                print(f"SAFEFFAAE: {obj.position}")
+                print(f"SAFEFFAAE2: {obj.name}")
+                obj.name = obj.position
+        super().bulk_create(objs)
+
+
 class Position(models.Model):
+    objects = PositionManager()
+
     name = models.CharField(blank=True, null=False, max_length=250, verbose_name="Position")
     prefix = models.CharField(blank=True, null=False, max_length=250, verbose_name="Prefix")
     shelf = models.IntegerField(blank=True, null=False, verbose_name="Regal")

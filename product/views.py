@@ -38,7 +38,7 @@ from django.db.models import Case, When, Value, IntegerField, Sum
 
 class ProductListView(LoginRequiredMixin, ListView):
     template_name = "product/product_list.html"
-    paginate_by = 15
+    paginate_by = 30
     queryset = Product.objects.filter(single_product__isnull=True)
 
     def __init__(self):
@@ -58,8 +58,6 @@ class ProductListView(LoginRequiredMixin, ListView):
         product_list = []
         for obj in object_list:
             skus = obj.sku_set.all().order_by("state")
-            for sku in skus.get_totals():
-                print(f"{sku.state} : {sku.total} : {sku.available_total} {sku.online_total} {sku.wholesale_total}")
             states_totals, total = get_states_totals_and_total(obj, skus)
             product_list.append((obj, skus, states_totals, total))
         return product_list

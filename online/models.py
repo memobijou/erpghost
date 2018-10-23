@@ -9,6 +9,11 @@ class Channel(models.Model):
     api_data = models.ForeignKey("client.ApiData", null=True, blank=True)
 
 
+class Offer(models.Model):
+    sku = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
+
+
 class RefillOrder(models.Model):
     refill_order_id = models.CharField(max_length=200, blank=True, null=True, verbose_name="Nachfüllauftrags ID")
     user = models.ForeignKey(get_user_model(), on_delete=models.deletion.SET_NULL, null=True, blank=True)

@@ -5,3 +5,25 @@
     <a href="{% url 'stock:edit' pk=object.pk %}">Bearbeiten</a>
     <input type="checkbox" name="item" style="cursor:pointer;" value="{{object.pk}}">
 {% endblock %}
+
+{% block q %}{{ stock_q }}{% endblock %}
+
+{% block ean %}{{ stock_ean_vollstaendig }}{% endblock %}
+
+{% block sku %}{{ stock_sku }}{% endblock %}
+
+{% block title %}{{ stock_title }}{% endblock %}
+
+{% block zustand_empty %}{% if stock_zustand == "" %} selected{% endif %}{% endblock %}
+
+{% block zustand %}{% if stock_zustand == state %} selected{% endif %}{% endblock %}
+
+{% block position %}{{ stock_lagerplatz }}{% endblock %}
+
+{% block person %}{{ stock_name }}{% endblock %}
+
+{% block clear_filter %}<a style="color:red;" href="{% url 'stock:list' %}?clear_filter=1">
+    <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen</a>{% endblock %}
+
+
+{% block delete_action %}action='{% url 'stock:delete_items' %}'{% endblock %}

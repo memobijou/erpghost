@@ -16,7 +16,7 @@
     <form id="filter_form" action=".">
         <div class="col-md-12" style="padding-bottom: 25px;">
             <div class="input-group">
-                <input class="form-control" placeholder="Suche ..." name="q" value="{{ stock_q }}"/>
+                <input class="form-control" placeholder="Suche ..." name="q" value="{% block q %}{% endblock %}"/>
                 <span class="input-group-btn">
                     <button class="btn btn-info" type="submit">
                         <span class="glyphicon glyphicon-search"></span>
@@ -26,27 +26,45 @@
         </div>
 
         <div class="col-md-12">
-            <div class="form-inline">
-                <input class="form-control" name="ean_vollstaendig" placeholder="EAN" value="{{ stock_ean_vollstaendig }}">
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <input class="form-control" name="ean_vollstaendig" placeholder="EAN"
+                           value="{% block ean %}{% endblock %}">
+                </div>
 
-                <input class="form-control" name="sku" placeholder="Sku" value="{{ stock_sku }}">
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <input class="form-control" name="sku" placeholder="Sku" value="{% block sku %}{% endblock %}">
+                </div>
 
-                <input class="form-control" name="title" placeholder="Artikelname" value="{{ stock_title }}">
-                <select class="form-control" name="zustand">
-                    <option value="" {% if stock_zustand == "" %} selected{% endif %}>Zustand auswählen</option>
-                    {% for state in states %}
-                        <option value="{{ state }}" {% if stock_zustand == state %} selected{% endif %}>{{ state }}</option>
-                    {% endfor %}
-                </select>
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <input class="form-control" name="title" placeholder="Artikelname" value="{% block title %}{% endblock %}">
+                </div>
 
-                <input class="form-control" name="lagerplatz" placeholder="Lagerplatz" value="{{ stock_lagerplatz }}">
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <select class="form-control" name="zustand">
+                        <option value="" {% block zustand_empty %}{% endblock %}>Zustand auswählen</option>
+                        {% for state in states %}
+                            <option value="{{ state }}" {% block zustand %}{% endblock %}>{{ state }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                <input class="form-control" name="name" placeholder="Person" value="{{ stock_name }}">
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <input class="form-control" name="lagerplatz" placeholder="Lagerplatz" value="{% block position %}{% endblock %}">
+                </div>
 
-                <div style="padding-top:10px;padding-bottom:10px;">
+                <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                    <input class="form-control" name="name" placeholder="Person"
+                           value="{% block person %}{% endblock %}">
+                </div>
+                <div class="col-md-12" style="padding:15px 5px 0px 0px;">
+                    <div class="text-right">
+                        {% block clear_filter %}
+                        {% endblock %}
+                    </div>
+                </div>
+                <div class="col-md-12" style="padding:15px 5px 0px 0px;">
                     <input class="btn btn-info" value="Filter" type="Submit">
                 </div>
-            </div>
         </div>
     </form>
 
@@ -74,7 +92,7 @@
                     <form method="GET" {% block delete_action %}{% endblock %}>
 
                         <div class="text-right" style="padding-bottom:10px;">
-                            <a class="btn btn-default">Ausbuchen</a>
+                            <button class="btn btn-default" type="Submit">Ausbuchen</button>
                         </div>
 
                         {% for object, states_totals, total in stock_list %}

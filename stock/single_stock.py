@@ -5,21 +5,48 @@ from django.views.generic import RedirectView
 from sku.models import Sku
 from stock.forms import StockUpdateForm, StockCreateForm
 from stock.models import Stock
-from stock.views import StockListView, StockDeleteView, StockUpdateView, BookProductToPositionView, PositionListView, \
-    GeneratePositionsView, PositionDeleteView
+from stock.views import StockDeleteView, StockUpdateView, BookProductToPositionView, PositionListView, \
+    GeneratePositionsView, PositionDeleteView, StockListBaseView, StockDeleteQuerySetView
 from django.urls import reverse_lazy
 from django import forms
 from stock.models import Position
 
 
-class SingleStockListView(StockListView):
+class SingleStockListView(StockListBaseView):
     queryset = Stock.objects.filter(sku_instance__product__single_product=True).order_by("-pk")
     template_name = "stock/single_stock_list.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.GET.get("clear_filter", "") or "" == "1":
+            filter_values = {"single_stock_lagerplatz": None, "single_stock_sku": None, "single_stock_zustand": None,
+                             "single_stock_title": None, "single_stock_ean_vollstaendig": None,
+                             "single_stock_name": None, "single_stock_q": None}
+            for name, value in filter_values.items():
+                self.request.session[name] = value
+        return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Lagerbestand Einzelhandel"
         return context
+
+    def set_filter_and_search_values_in_context(self, position, sku, state, title, ean, person, q):
+        self.context = {"single_stock_lagerplatz": position, "single_stock_sku": sku, "single_stock_zustand": state,
+                        "single_stock_title": title, "single_stock_ean_vollstaendig": ean, "single_stock_name": person,
+                        "single_stock_q": q}
+        print("UND ???????")
+
+    def get_value_from_GET_or_session(self, value, request):
+        get_value = request.GET.get(value)
+        if get_value is not None:
+            request.session[f"single_stock_{value}"] = get_value.strip()
+            return get_value
+        else:
+            if request.GET.get("q") is None:
+                return request.session.get(f"single_stock_{value}", "") or ""
+            else:
+                request.session[f"single_stock_{value}"] = ""
+                return ""
 
 
 class SingleStockDeleteView(StockDeleteView):
@@ -73,17 +100,6 @@ class SingleStockUpdateView(StockUpdateView):
         return render(request, self.template_name, context)
 
 
-class SingleStockUpdateRedirectView(RedirectView):
-
-    permanent = False
-    query_string = True
-    pattern_name = 'article-detail'
-
-    def get_redirect_url(self, *args, **kwargs):
-        stock = Stock.objects.filter(pk=self.kwargs.get("pk"))
-        return super().get_redirect_url(*args, **kwargs)
-
-
 class SingleBookProductToPositionView(BookProductToPositionView):
     form_class = SingleStockCreateForm
 
@@ -103,3 +119,7 @@ class SingleGeneratePositionsView(GeneratePositionsView):
 
 class SinglePositionDeleteView(PositionDeleteView):
     success_url = reverse_lazy("stock:single_position_list")
+
+
+class SingleStockDeleteQuerySetView(StockDeleteQuerySetView):
+    success_url = reverse_lazy("stock:single_list")

@@ -10,3 +10,37 @@
             <br/><br/><br/>
         </div>
 {% endblock %}
+
+{% block clear_filter %}<a style="color:red;" href="{% url 'product:single_list' %}?clear_filter=1">
+    <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen</a>{% endblock %}
+
+
+{% block product_q %}value="{{ single_product_q }}"{% endblock %}
+
+{% block product_ean %}value="{{ single_product_ean }}"{% endblock %}
+
+{% block product_sku %}value="{{ single_product_sku }}"{% endblock %}
+
+{% block product_title %}value="{{ single_product_title }}"{% endblock %}
+
+{% block product_manufacturer %}value="{{ single_product_manufacturer }}"{% endblock %}
+
+{% block product_brandname %}value="{{ single_product_brandname }}"{% endblock %}
+
+{% block product_part_number %}value="{{ single_product_part_number }}"{% endblock %}
+
+{% block product_short_description %}value="{{ single_product_short_description }}"{% endblock %}
+
+{% block product_long_description %}value="{{ single_product_long_description }}"{% endblock %}
+
+{% block product_order_by_amount_up %}
+    {% if single_product_order_by_amount == "up" %}
+       checked
+    {% endif %}
+{% endblock %}
+
+{% block product_order_by_amount_down %}
+    {% if single_product_order_by_amount == "down" %}
+       checked
+    {% endif %}
+{% endblock %}

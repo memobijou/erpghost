@@ -5,6 +5,7 @@ from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django_celery_results.models import TaskResult
 from import_excel.funcs import get_table_header, check_excel_for_duplicates
+from mission.models import PickListProducts
 from sku.models import Sku
 from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
@@ -30,9 +31,8 @@ from stock.models import get_states_totals_and_total_from_ean_without_product
 # Create your views here.
 
 
-class StockListView(LoginRequiredMixin, ListView):
+class StockListBaseView(LoginRequiredMixin, ListView):
     paginate_by = 15
-    queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
     states = Sku.objects.all().values_list("state", flat=True).distinct("state")
 
     def __init__(self):
@@ -62,38 +62,38 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         print(f"hallo:::: {self.queryset}")
-        position = get_value_from_GET_or_session("lagerplatz", self.request)
+        position = self.get_value_from_GET_or_session("lagerplatz", self.request)
         if position != "":
             position = position.strip()
             self.queryset = self.queryset.filter(lagerplatz__icontains=position)
 
-        sku = get_value_from_GET_or_session("sku", self.request)
+        sku = self.get_value_from_GET_or_session("sku", self.request)
         if sku != "":
             sku = sku.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__sku__icontains=sku) | Q(sku__icontains=sku)))
 
-        state = get_value_from_GET_or_session("zustand", self.request)
+        state = self.get_value_from_GET_or_session("zustand", self.request)
         if state != "":
             state = state.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__state=state) | Q(zustand=state)))
 
-        title = get_value_from_GET_or_session("title", self.request)
+        title = self.get_value_from_GET_or_session("title", self.request)
         if title != "":
             title = title.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__title__icontains=title)
                                                    | Q(title__icontains=title)))
 
-        ean = get_value_from_GET_or_session("ean_vollstaendig", self.request)
+        ean = self.get_value_from_GET_or_session("ean_vollstaendig", self.request)
         if ean != "":
             ean = ean.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__ean=ean) | Q(ean_vollstaendig=ean)))
 
-        person = get_value_from_GET_or_session("name", self.request)
+        person = self.get_value_from_GET_or_session("name", self.request)
         if person != "":
             person = person.strip()
             self.queryset = self.queryset.filter(name__icontains=person)
 
-        q = get_value_from_GET_or_session("q", self.request)
+        q = self.get_value_from_GET_or_session("q", self.request)
         position_q = Q()
         sku_q = Q()
         state_q = Q()
@@ -103,35 +103,56 @@ class StockListView(LoginRequiredMixin, ListView):
 
         if q != "":
             q_list = q.split()
-            for q in q_list:
-                q = q.strip()
-                position_q &= Q(lagerplatz__icontains=q)
-                sku_q &= Q(Q(Q(sku_instance__sku__icontains=q) | Q(sku__icontains=q)))
-                state_q &= Q(Q(sku_instance__state=q) | Q(zustand=q))
-                title_q &= Q(Q(sku_instance__product__title__icontains=q) | Q(title__icontains=q))
-                ean_q &= Q(Q(sku_instance__product__ean=q) | Q(ean_vollstaendig=q))
-                person_q &= Q(name__icontains=q)
+            for q_value in q_list:
+                q_value = q_value.strip()
+                position_q &= Q(lagerplatz__icontains=q_value)
+                sku_q &= Q(Q(Q(sku_instance__sku__icontains=q_value) | Q(sku__icontains=q_value)))
+                state_q &= Q(Q(sku_instance__state=q_value) | Q(zustand=q_value))
+                title_q &= Q(Q(sku_instance__product__title__icontains=q_value) | Q(title__icontains=q_value))
+                ean_q &= Q(Q(sku_instance__product__ean=q_value) | Q(ean_vollstaendig=q_value))
+                person_q &= Q(name__icontains=q_value)
 
         self.queryset = self.queryset.filter(position_q | sku_q | title_q | ean_q | person_q)
-
-        self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
-                        "stock_ean_vollstaendig": ean, "stock_name": person, "stock_q": q}
+        self.set_filter_and_search_values_in_context(position, sku, state, title, ean, person, q)
         print(self.context)
         return self.queryset
 
+    def get_value_from_GET_or_session(self, name, request):
+        pass
+
+    def set_filter_and_search_values_in_context(self, position, sku, state, title, ean, person, q):
+        pass
 
 
-def get_value_from_GET_or_session(value, request):
-    get_value = request.GET.get(value)
-    if get_value is not None:
-        request.session[f"stock_{value}"] = get_value.strip()
-        return get_value
-    else:
-        if request.GET.get("q") is None:
-            return request.session.get(f"stock_{value}", "") or ""
+class StockListView(StockListBaseView):
+    paginate_by = 15
+    queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
+    states = Sku.objects.all().values_list("state", flat=True).distinct("state")
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.GET.get("clear_filter", "") or "" == "1":
+            filter_values = {"stock_lagerplatz": None, "stock_sku": None, "stock_zustand": None,
+                             "stock_title": None,
+                             "stock_ean_vollstaendig": None, "stock_name": None, "stock_q": None}
+            for name, value in filter_values.items():
+                self.request.session[name] = value
+        return super().dispatch(request, *args, **kwargs)
+
+    def set_filter_and_search_values_in_context(self, position, sku, state, title, ean, person, q):
+        self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
+                        "stock_ean_vollstaendig": ean, "stock_name": person, "stock_q": q}
+
+    def get_value_from_GET_or_session(self, value, request):
+        get_value = request.GET.get(value)
+        if get_value is not None:
+            request.session[f"stock_{value}"] = get_value.strip()
+            return get_value
         else:
-            request.session[f"stock_{value}"] = ""
-            return ""
+            if request.GET.get("q") is None:
+                return request.session.get(f"stock_{value}", "") or ""
+            else:
+                request.session[f"stock_{value}"] = ""
+                return ""
 
 
 class StockListViewDEAD(LoginRequiredMixin, ListView):
@@ -521,6 +542,49 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
         print(f"INWI: {ean} - {sku} - {product}")
         return product
+
+
+class StockDeleteQuerySetView(DeleteView):
+    model = Stock
+    success_url = reverse_lazy("stock:list")
+    template_name = "stock/confirm_delete.html"
+
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+        self.exclude_stocks = None
+
+    def get_context_data(self, **kwargs):
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Bestände ausbuchen"
+        self.context["exclude_stocks"] = self.exclude_stocks
+        return self.context
+
+    def get_object(self, queryset=None):
+        # die excluden die reserviert sind
+        # die excludeten auch nochmal anzeigen in View
+        exclude_stocks = []
+        stocks = Stock.objects.filter(id__in=self.request.GET.getlist('item'))
+        for stock in stocks:
+            skus = (stock.sku_instance.product.sku_set.all()
+                    if stock.sku_instance is not None and stock.sku_instance.product is not None
+                    else stock.zustand or "")
+            state = (stock.sku_instance.state if stock.sku_instance is not None else stock.zustand or "")
+            states_totals, total = get_states_totals_and_total(stock.sku_instance.product, skus)
+            print(f"hehe: {states_totals[state]}")
+
+            reserved_amount_position = PickListProducts.objects.get_stock_reserved_total(stock).get("total", 0) or 0
+
+            print(f" WHAT THE: {reserved_amount_position}")
+
+            available_total = states_totals[state].get("available_total", "") or 0
+            if available_total - int(stock.bestand) < 0 or reserved_amount_position > 0:
+                print(f"Der Artikel kann maximal {available_total} ausgebucht werden.")
+                exclude_stocks.append((stock, available_total, reserved_amount_position))
+
+        stocks = stocks.exclude(id__in=[stock.pk for stock, _, _ in exclude_stocks])
+        self.exclude_stocks = exclude_stocks
+        return stocks
 
 
 class StockDeleteView(DeleteView):

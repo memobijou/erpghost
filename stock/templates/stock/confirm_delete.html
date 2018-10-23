@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="post">{% csrf_token %}
+                {% if object %}
+                    <div class="col-md-12">
+                        <div class="col-md-2"></div>
+                        <div class="col-md-8">
+                            <h4><b>Sie haben vor folgende Bestände auszubuchen</b></h4>
+                        </div>
+                        <div class="col-md-2"></div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="col-md-2"></div>
+                        <div class="col-md-8">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <th>Bild</th>
+                                    <th>EAN</th>
+                                    <th>Artikelname</th>
+                                    <th>SKU</th>
+                                    <th>Zustand</th>
+                                    <th>Lagerposition</th>
+                                    <th>Bestand</th>
+                                </thead>
+                                <tbody>
+                                    {% if object %}
+                                        {% for obj in object %}
+                                            <tr>
+                                                <td>
+                                                    {% if obj.sku_instance.product.main_image %}
+                                                        <img src="{{ obj.sku_instance.product.main_image.url }}"
+                                                        style="max-height:80px;" class="img-responsive"
+                                                        />
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {{ obj.ean_vollstaendig|default:obj.sku_instance.product.ean|default:"" }}
+                                                </td>
+                                                <td>
+                                                    {{ obj.sku_instance.product.title|default:obj.title|default:"" }}
+                                                </td>
+                                                <td>{{ obj.sku|default:obj.sku_instance.sku|default:"" }}</td>
+                                                <td>{{ obj.zustand|default:obj.sku_instance.state|default:"" }}</td>
+                                                <td>{{ obj.lagerplatz }}</td>
+                                                <td>{{ obj.bestand }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="12">
+                                                <div class="text-center">
+                                                    <h3>Es können keine Bestände ausgebucht werden</h3>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-2"></div>
+                    </div>
+                {% endif %}
+
+                {% if exclude_stocks %}
+                    <div class="col-md-12">
+                        <div class="col-md-2"></div>
+                        <div class="col-md-8">
+                            <h4><b>Folgende Bestände sind reserviert und können nicht ausgebucht werden</b></h4>
+                        </div>
+                        <div class="col-md-2"></div>
+                    </div>
+
+                    <div class="col-md-12">
+                        <div class="col-md-2"></div>
+                        <div class="col-md-8">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <th>Bild</th>
+                                    <th>EAN</th>
+                                    <th>Artikelname</th>
+                                    <th>SKU</th>
+                                    <th>Zustand</th>
+                                    <th>Lagerposition</th>
+                                    <th>Bestand</th>
+                                </thead>
+                                <tbody>
+                                    {% for obj, available_total, reserved_amount_position in exclude_stocks %}
+                                        <tr>
+                                            <td>
+                                                {% if obj.sku_instance.product.main_image %}
+                                                    <img src="{{ obj.sku_instance.product.main_image.url }}"
+                                                    style="max-height:80px;" class="img-responsive"
+                                                    />
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ obj.ean_vollstaendig|default:obj.sku_instance.product.ean|default:"" }}
+                                            </td>
+                                            <td>
+                                                {{ obj.sku_instance.product.title|default:obj.title|default:"" }}
+                                            </td>
+                                            <td>{{ obj.sku|default:obj.sku_instance.sku|default:"" }}</td>
+                                            <td>{{ obj.zustand|default:obj.sku_instance.state|default:"" }}</td>
+                                            <td>{{ obj.lagerplatz }}</td>
+                                            <td>
+                                                <p><b>IST Bestand: </b>{{ obj.bestand }}</p>
+                                                <p><b>Verfügbar: </b>{{ available_total }}</p>
+                                                {% if reserved_amount_position > 0 %}
+                                                    <p><b style="color:red;">Reservierte Menge auf Position: {{ reserved_amount_position }}</b></p>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="col-md-2"></div>
+                    </div>
+                {% endif %}
+                {% if object %}
+                <div class="col-md-12">
+                    <div class="text-center">
+                        <input type="submit" class="btn btn-danger btn-lg" value="Bestände ausbuchen">
+                    </div>
+                </div>
+                {% endif %}
+                <br/><br/>
+            </form>
+        </div>
+    </div>
+{% endblock %}

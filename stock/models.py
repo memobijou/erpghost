@@ -19,13 +19,13 @@ class StockQuerySet(models.QuerySet):
             clone = clone.annotate(**expressions)
         clone._fields = fields
         return clone
-
-    def delete(self):
-        for obj in self:
-            if is_stock_reserved > 0:
-                pass
-            else:
-                obj.delete()
+    #
+    # def delete(self):
+    #     for obj in self:
+    #         if is_stock_reserved(obj) > 0:
+    #             pass
+    #         else:
+    #             obj.delete()
 
     def get_stocks(self):
         from django.db.models import OuterRef, Sum, Subquery, Case, When, F
@@ -240,7 +240,6 @@ class Stock(models.Model):
                         product = Product.objects.create(ean=self.ean_vollstaendig or "")
                         self.sku_instance = product.sku_set.filter(state=self.zustand,
                                                                    sku__icontains=product.main_sku).first()
-        print(self.sku_instance.sku)
 
         if hard_save is None:
             if is_stock_reserved(self) > self.bestand:
@@ -426,7 +425,6 @@ class Stock(models.Model):
         if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
                 and self.zustand is not None and self.zustand != ""):
             sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand).first()
-        print(f"hamouti: {sku.sku}")
         return sku
 
     def get_product(self):

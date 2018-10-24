@@ -241,9 +241,9 @@ class Stock(models.Model):
                         self.sku_instance = product.sku_set.filter(state=self.zustand,
                                                                    sku__icontains=product.main_sku).first()
 
-        if hard_save is None:
-            if is_stock_reserved(self) > self.bestand:
-                return
+        # if hard_save is None:
+        #     if is_stock_reserved(self) > self.bestand:
+        #         return
         super().save(*args, **kwargs)
 
     def delete(self, using=None, keep_parents=False, hard_delete=None, *args, **kwargs):

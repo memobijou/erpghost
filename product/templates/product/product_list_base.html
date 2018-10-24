@@ -111,121 +111,131 @@
                 </thead>
 
                 <tbody>
-                    {% for object, skus, states_totals, total in product_list %}
-                        <tr>
-                            <td class="col-md-1"><a href="{% url 'product:detail' pk=object.pk %}">Ansicht</a>
-                                <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
-                                <input type="checkbox" name="item" value="{{object.pk}}">
-                            </td>
-                            <td class="show_hide" style="cursor:pointer;">
-                                <a collapseid="collapse_{{ forloop.counter }}">
-                                    <span class="glyphicon glyphicon-chevron-down"></span>
-                                </a>
-                            </td>
-                            <td>
-                                {% if object.main_image %}
-                                    <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
-                                        <img src="{{ object.main_image.url|default:''}}"
-                                             class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
-                                    </div>
-                                    <div class="modal fade">
-                                     <!-- Modal -->
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-body">
-                                                    <img src="{{ object.main_image.url|default:''}}"
-                                                     class="img-responsive center-block">
+                    {% if product_list %}
+                        {% for object, skus, states_totals, total in product_list %}
+                            <tr>
+                                <td class="col-md-1"><a href="{% url 'product:detail' pk=object.pk %}">Ansicht</a>
+                                    <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
+                                    <input type="checkbox" name="item" value="{{object.pk}}">
+                                </td>
+                                <td class="show_hide" style="cursor:pointer;">
+                                    <a collapseid="collapse_{{ forloop.counter }}">
+                                        <span class="glyphicon glyphicon-chevron-down"></span>
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if object.main_image %}
+                                        <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
+                                            <img src="{{ object.main_image.url|default:''}}"
+                                                 class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
+                                        </div>
+                                        <div class="modal fade">
+                                         <!-- Modal -->
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-body">
+                                                        <img src="{{ object.main_image.url|default:''}}"
+                                                         class="img-responsive center-block">
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {{ object.ean|default:"" }}
-                            </td>
-                            <td>
-                                {% for sku in skus %}
-                                    {{ sku }}<br/>
-                                {% endfor %}
-                            </td>
-                            <td>
-                                {{ object.title|default:"" }}
-                            </td>
-                            <td>
-                                {{ object.manufacturer|default:"" }}
-                            </td>
-                            <td>
-                                {{ object.brandname|default:"" }}
-                            </td>
-                            <td>
-                                <p><b>Gesamt:</b> {{ total.available_total }}/{{ total.total }}</p>
-                                <table class="table table-bordered">
-                                    <tr>
-                                        {% for state, total in states_totals.items %}
-                                            <th>{{ state }}</th>
-                                        {% endfor %}
-                                    </tr>
-                                    <tr>
-                                     {% for state, total in states_totals.items %}
-                                           <td>
-                                               {{ total.available_total }}/{{ total.total }}
-                                           </td>
-                                       {% endfor %}
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                        <tr id="collapse_{{ forloop.counter }}" class="collapse">
-                          <td colspan="12">
-                              <div class="panel panel-default">
-                                  <div class="panel-heading">
-                                      Labels drucken
-                                  </div>
-                                  <div class="panel-body">
-                                    <div class="col-md-12" style="padding-left: 0px;">
-                                      {% if object.ean != None and object.ean != "" %}
-                                          <div class="col-md-4" style="padding:10px;">
-                                            <div class="input-group">
-                                                <input type="text" class="form-control amount_labels" placeholder="Anzahl Labels"
-                                                onkeydown="if (event.keyCode == 13) { return false;}" >
-                                                <div class="input-group-btn">
-                                                    <button class="btn btn-info dymo_print" type="button"
-                                                            dymo_value="{{ object.ean }}">{{ object.ean }}
-                                                        <span class="glyphicon glyphicon-print"></span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                          </div>
-                                      {% endif %}
-                                      {% for sku in object.sku_set.all %}
-                                          <div class="col-md-4" style="padding:10px;">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ object.ean|default:"" }}
+                                </td>
+                                <td>
+                                    {% for sku in skus %}
+                                        {{ sku }}<br/>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {{ object.title|default:"" }}
+                                </td>
+                                <td>
+                                    {{ object.manufacturer|default:"" }}
+                                </td>
+                                <td>
+                                    {{ object.brandname|default:"" }}
+                                </td>
+                                <td>
+                                    <p><b>Gesamt:</b> {{ total.available_total }}/{{ total.total }}</p>
+                                    <table class="table table-bordered">
+                                        <tr>
+                                            {% for state, total in states_totals.items %}
+                                                <th>{{ state }}</th>
+                                            {% endfor %}
+                                        </tr>
+                                        <tr>
+                                         {% for state, total in states_totals.items %}
+                                               <td>
+                                                   {{ total.available_total }}/{{ total.total }}
+                                               </td>
+                                           {% endfor %}
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr id="collapse_{{ forloop.counter }}" class="collapse">
+                              <td colspan="12">
+                                  <div class="panel panel-default">
+                                      <div class="panel-heading">
+                                          Labels drucken
+                                      </div>
+                                      <div class="panel-body">
+                                        <div class="col-md-12" style="padding-left: 0px;">
+                                          {% if object.ean != None and object.ean != "" %}
+                                              <div class="col-md-4" style="padding:10px;">
                                                 <div class="input-group">
                                                     <input type="text" class="form-control amount_labels" placeholder="Anzahl Labels"
-                                                    onkeydown="if (event.keyCode == 13) { return false;}"
-                                                    >
+                                                    onkeydown="if (event.keyCode == 13) { return false;}" >
                                                     <div class="input-group-btn">
                                                         <button class="btn btn-info dymo_print" type="button"
-                                                                dymo_value="{{ sku }}">{{ sku }}
+                                                                dymo_value="{{ object.ean }}">{{ object.ean }}
                                                             <span class="glyphicon glyphicon-print"></span>
                                                         </button>
                                                     </div>
                                                 </div>
-                                          </div>
-                                      {% endfor %}
-                                    </div>
+                                              </div>
+                                          {% endif %}
+                                          {% for sku in object.sku_set.all %}
+                                              <div class="col-md-4" style="padding:10px;">
+                                                    <div class="input-group">
+                                                        <input type="text" class="form-control amount_labels" placeholder="Anzahl Labels"
+                                                        onkeydown="if (event.keyCode == 13) { return false;}"
+                                                        >
+                                                        <div class="input-group-btn">
+                                                            <button class="btn btn-info dymo_print" type="button"
+                                                                    dymo_value="{{ sku }}">{{ sku }}
+                                                                <span class="glyphicon glyphicon-print"></span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                              </div>
+                                          {% endfor %}
+                                        </div>
+                                      </div>
                                   </div>
-                              </div>
 
-                              {% if object.short_description %}
-                                  <p><b>Kurzbeschreibung: </b><br/> {{ object.short_description}}</p>
-                              {% endif %}
-                              {% if object.description %}
-                                  <p><b>Beschreibung: </b><br/> {{ object.description}}</p>
-                              {% endif %}
-                          </td>
+                                  {% if object.short_description %}
+                                      <p><b>Kurzbeschreibung: </b><br/> {{ object.short_description}}</p>
+                                  {% endif %}
+                                  {% if object.description %}
+                                      <p><b>Beschreibung: </b><br/> {{ object.description}}</p>
+                                  {% endif %}
+                              </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="12">
+                                <div class="text-center">
+                                    <h3>Keine Ergebnisse</h3>
+                                </div>
+                            </td>
                         </tr>
-                    {% endfor %}
+                    {% endif %}
                 </tbody>
 
             </table>

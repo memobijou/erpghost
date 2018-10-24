@@ -13,7 +13,7 @@
             <div class="col-md-12" style="padding-bottom: 25px;">
                 <div class="input-group">
 
-                    <input class="form-control" placeholder="Suche ..." name="q" value="{{ q_product }}"/>
+                    <input class="form-control" placeholder="Suche ..." name="q" {%  block product_q %}{% endblock %}/>
 
                     <span class="input-group-btn">
                         <button class="btn btn-info" type="submit">
@@ -30,54 +30,57 @@
             <div class="display_filter" style="display:none;">
                 <div class="col-md-12" style="">
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="EAN" name="ean" value="{{ ean_product }}" class="form-control" type="text">
+                        <input placeholder="EAN" name="ean" {% block product_ean %}{% endblock %} class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="SKU" value="{{ sku_product }}" name="sku" class="form-control" type="text">
+                        <input placeholder="SKU" {% block product_sku %}{% endblock %} name="sku" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Artikelname" value="{{ title_product }}" name="title" class="form-control" type="text">
+                        <input placeholder="Artikelname" {% block product_title %}{% endblock %} name="title" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Hersteller" value="{{ manufacturer_product }}" name="manufacturer" class="form-control" type="text">
+                        <input placeholder="Hersteller" {% block product_manufacturer %}{% endblock %} name="manufacturer" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Markenname" value="{{ brandname_product }}" name="brandname" class="form-control" type="text">
+                        <input placeholder="Markenname" {% block product_brandname %}{% endblock %} name="brandname" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Herstellernummer" value="{{ part_number_product }}" name="part_number" class="form-control" type="text">
+                        <input placeholder="Herstellernummer" {% block product_part_number %}{% endblock %} name="part_number" class="form-control" type="text">
                     </div>
 
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Kurzbeschreibung" value="{{ short_description_product }}" name="short_description" class="form-control" type="text">
+                        <input placeholder="Kurzbeschreibung" {% block product_short_description %}{% endblock %} name="short_description" class="form-control" type="text">
                     </div>
 
                     <div class="col-md-2" style="padding:15px 5px 0px 0px;">
-                        <input placeholder="Beschreibung" value="{{ long_description_product }}" name="description" class="form-control" type="text">
+                        <input placeholder="Beschreibung" {% block product_long_description %}{% endblock %} name="description" class="form-control" type="text">
                     </div>
                 </div>
 
                 <div class="col-md-12" >
                     <div class="checkbox">
                         <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="up"
-                        {% if order_by_amount == "up" %}
-                           checked
-                        {% endif %}
+                        {% block product_order_by_amount_up %}
+                        {% endblock %}
                         class="fire_submit">Menge aufsteigend</label>
                         <label class="radio-inline"><input type="checkbox" name="order_by_amount" value="down"
-                        {% if order_by_amount == "down" %}
-                                   checked
-                        {% endif %}
+
+                        {% block product_order_by_amount_down %}
+                        {% endblock %}
                         class="fire_submit">Menge absteigend</label>
                     </div>
+                    <div class="text-right">
+                        {% block clear_filter %}
+                        {% endblock %}
+                    </div>
                 </div>
-                <div class="col-md-12" style="padding-top:15px;padding-bottom:15px;">
+                <div class="col-md-12" style="">
                     <button type="submit" class="btn btn-info" style="">Filter</button>
                 </div>
             </div>

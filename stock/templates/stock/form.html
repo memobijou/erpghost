@@ -45,8 +45,8 @@
                          {% endif %}
                     {% elif instance.sku %}
                          <b>SKU: </b> <span> {{ instance.sku }} </span>
-                        {% if instance.product %}
-                           - <b>EAN: </b> <span> {{ instance.product.ean }} </span>
+                        {% if instance.sku_instance.product.ean %}
+                           - <b>EAN: </b> <span> {{ instance.sku_instance.product.ean }} </span>
                         {% endif %}
                     {% elif instance.title %}
                          <b>keine EAN oder SKU vorhanden</b>

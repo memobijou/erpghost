@@ -5,13 +5,14 @@ from django.views.generic import FormView
 from django.views.generic import ListView, CreateView, DetailView, UpdateView
 from django_celery_results.models import TaskResult
 from import_excel.funcs import get_table_header, check_excel_for_duplicates
+from mission.models import PickListProducts
 from sku.models import Sku
 from stock.funcs import get_records_as_list_with_dicts
 from import_excel.models import TaskDuplicates
 from product.models import Product, get_states_totals_and_total
 from .models import Stock, Stockdocument
 from stock.forms import StockdocumentForm, StockUpdateForm, ImportForm, StockCreateForm, GeneratePositionsForm, \
-    GeneratePositionLevelsColumnsForm, StockCorrectForm, validate_ean_has_multiple_products
+    GeneratePositionLevelsColumnsForm, StockCorrectForm, validate_ean_has_not_multiple_products
 from tablib import Dataset
 from django.core.urlresolvers import reverse_lazy
 from django.http import HttpResponseRedirect
@@ -30,9 +31,8 @@ from stock.models import get_states_totals_and_total_from_ean_without_product
 # Create your views here.
 
 
-class StockListView(LoginRequiredMixin, ListView):
+class StockListBaseView(LoginRequiredMixin, ListView):
     paginate_by = 15
-    queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
     states = Sku.objects.all().values_list("state", flat=True).distinct("state")
 
     def __init__(self):
@@ -62,54 +62,97 @@ class StockListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         print(f"hallo:::: {self.queryset}")
-        position = get_value_from_GET_or_session("lagerplatz", self.request)
+        position = self.get_value_from_GET_or_session("lagerplatz", self.request)
         if position != "":
             position = position.strip()
             self.queryset = self.queryset.filter(lagerplatz__icontains=position)
 
-        sku = get_value_from_GET_or_session("sku", self.request)
+        sku = self.get_value_from_GET_or_session("sku", self.request)
         if sku != "":
             sku = sku.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__sku__icontains=sku) | Q(sku__icontains=sku)))
 
-        state = get_value_from_GET_or_session("zustand", self.request)
+        state = self.get_value_from_GET_or_session("zustand", self.request)
         if state != "":
             state = state.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__state=state) | Q(zustand=state)))
 
-        title = get_value_from_GET_or_session("title", self.request)
+        title = self.get_value_from_GET_or_session("title", self.request)
         if title != "":
             title = title.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__title__icontains=title)
                                                    | Q(title__icontains=title)))
 
-        ean = get_value_from_GET_or_session("ean_vollstaendig", self.request)
+        ean = self.get_value_from_GET_or_session("ean_vollstaendig", self.request)
         if ean != "":
             ean = ean.strip()
             self.queryset = self.queryset.filter(Q(Q(sku_instance__product__ean=ean) | Q(ean_vollstaendig=ean)))
 
-        person = get_value_from_GET_or_session("name", self.request)
+        person = self.get_value_from_GET_or_session("name", self.request)
         if person != "":
             person = person.strip()
             self.queryset = self.queryset.filter(name__icontains=person)
 
-        self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
-                        "stock_ean_vollstaendig": ean, "stock_name": person}
+        q = self.get_value_from_GET_or_session("q", self.request)
+        position_q = Q()
+        sku_q = Q()
+        state_q = Q()
+        title_q = Q()
+        ean_q = Q()
+        person_q = Q()
+
+        if q != "":
+            q_list = q.split()
+            for q_value in q_list:
+                q_value = q_value.strip()
+                position_q &= Q(lagerplatz__icontains=q_value)
+                sku_q &= Q(Q(Q(sku_instance__sku__icontains=q_value) | Q(sku__icontains=q_value)))
+                state_q &= Q(Q(sku_instance__state=q_value) | Q(zustand=q_value))
+                title_q &= Q(Q(sku_instance__product__title__icontains=q_value) | Q(title__icontains=q_value))
+                ean_q &= Q(Q(sku_instance__product__ean=q_value) | Q(ean_vollstaendig=q_value))
+                person_q &= Q(name__icontains=q_value)
+
+        self.queryset = self.queryset.filter(position_q | sku_q | title_q | ean_q | person_q)
+        self.set_filter_and_search_values_in_context(position, sku, state, title, ean, person, q)
         print(self.context)
         return self.queryset
 
+    def get_value_from_GET_or_session(self, name, request):
+        pass
 
-def get_value_from_GET_or_session(value, request):
-    get_value = request.GET.get(value)
-    if get_value is not None:
-        request.session[f"stock_{value}"] = get_value.strip()
-        return get_value
-    else:
-        if request.GET.get("q") is None:
-            return request.session.get(f"stock_{value}", "") or ""
+    def set_filter_and_search_values_in_context(self, position, sku, state, title, ean, person, q):
+        pass
+
+
+class StockListView(StockListBaseView):
+    paginate_by = 15
+    queryset = Stock.objects.exclude(product__single_product=True).order_by("-pk")
+    states = Sku.objects.all().values_list("state", flat=True).distinct("state")
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.GET.get("clear_filter", "") or "" == "1":
+            filter_values = {"stock_lagerplatz": None, "stock_sku": None, "stock_zustand": None,
+                             "stock_title": None,
+                             "stock_ean_vollstaendig": None, "stock_name": None, "stock_q": None}
+            for name, value in filter_values.items():
+                self.request.session[name] = value
+        return super().dispatch(request, *args, **kwargs)
+
+    def set_filter_and_search_values_in_context(self, position, sku, state, title, ean, person, q):
+        self.context = {"stock_lagerplatz": position, "stock_sku": sku, "stock_zustand": state, "stock_title": title,
+                        "stock_ean_vollstaendig": ean, "stock_name": person, "stock_q": q}
+
+    def get_value_from_GET_or_session(self, value, request):
+        get_value = request.GET.get(value)
+        if get_value is not None:
+            request.session[f"stock_{value}"] = get_value.strip()
+            return get_value
         else:
-            request.session[f"stock_{value}"] = ""
-            return ""
+            if request.GET.get("q") is None:
+                return request.session.get(f"stock_{value}", "") or ""
+            else:
+                request.session[f"stock_{value}"] = ""
+                return ""
 
 
 class StockListViewDEAD(LoginRequiredMixin, ListView):
@@ -372,6 +415,7 @@ class StockDetailView(LoginRequiredMixin, DetailView):
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Stock, pk=self.kwargs.get("pk"))
         if self.object is not None:
+            print(f"wie: {self.object.lagerplatz}")
             self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
         return super().dispatch(request, *args, **kwargs)
 
@@ -382,7 +426,6 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
         context["product"] = self.get_product()
-        context["stock"] = self.get_product_stocks()
         context["position"] = self.position
         context["sku_state"] = self.get_sku_state()
         context["states_totals"], context["total"] = self.get_states_totals_and_total()
@@ -436,9 +479,8 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         return stock_dict
 
 
-class StockUpdateView(LoginRequiredMixin, UpdateView):
+class StockUpdateBaseView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = StockUpdateForm
     login_url = "/login/"
 
     def __init__(self):
@@ -447,14 +489,8 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         self.instance = None
         self.position = None
 
-    def dispatch(self, request, *args, **kwargs):
-        self.object = Stock.objects.get(id=self.kwargs.get("pk"))
-        if self.object is not None:
-            self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
-        self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
-        return super().dispatch(request, *args, **kwargs)
-
     def get_object(self):
+        print(f"wa: {self.object.pk}")
         return self.object
 
     def get_context_data(self, **kwargs):
@@ -470,7 +506,7 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         form = super().get_form(form_class=None)
 
         if self.object.pk is not None:
-            print(f"ben ben: {self.object}")
+            print(f"ben ben: {self.object.pk}")
 
             state = self.object.get_state()
 
@@ -494,6 +530,65 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
         print(f"INWI: {ean} - {sku} - {product}")
         return product
+
+
+class StockUpdateView(StockUpdateBaseView):
+    form_class = StockUpdateForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Stock.objects.get(id=self.kwargs.get("pk"))
+
+        if self.object is not None:
+            self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
+        self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
+        print(f"hää: {self.instance.sku_instance.product.single_product}")
+        if (self.instance.sku_instance is not None and self.instance.sku_instance.product is not None and
+                self.instance.sku_instance.product.single_product is True):
+            return HttpResponseRedirect(reverse_lazy("stock:single_edit", kwargs={"pk": self.instance.pk}))
+        return super().dispatch(request, *args, **kwargs)
+
+
+class StockDeleteQuerySetView(DeleteView):
+    model = Stock
+    success_url = reverse_lazy("stock:list")
+    template_name = "stock/confirm_delete.html"
+
+    def __init__(self):
+        super().__init__()
+        self.context = {}
+        self.exclude_stocks = None
+
+    def get_context_data(self, **kwargs):
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Bestände ausbuchen"
+        self.context["exclude_stocks"] = self.exclude_stocks
+        return self.context
+
+    def get_object(self, queryset=None):
+        # die excluden die reserviert sind
+        # die excludeten auch nochmal anzeigen in View
+        exclude_stocks = []
+        stocks = Stock.objects.filter(id__in=self.request.GET.getlist('item'))
+        for stock in stocks:
+            skus = (stock.sku_instance.product.sku_set.all()
+                    if stock.sku_instance is not None and stock.sku_instance.product is not None
+                    else stock.zustand or "")
+            state = (stock.sku_instance.state if stock.sku_instance is not None else stock.zustand or "")
+            states_totals, total = get_states_totals_and_total(stock.sku_instance.product, skus)
+            print(f"hehe: {states_totals[state]}")
+
+            reserved_amount_position = PickListProducts.objects.get_stock_reserved_total(stock).get("total", 0) or 0
+
+            print(f" WHAT THE: {reserved_amount_position}")
+
+            available_total = states_totals[state].get("available_total", "") or 0
+            if available_total - int(stock.bestand) < 0 or reserved_amount_position > 0:
+                print(f"Der Artikel kann maximal {available_total} ausgebucht werden.")
+                exclude_stocks.append((stock, available_total, reserved_amount_position))
+
+        stocks = stocks.exclude(id__in=[stock.pk for stock, _, _ in exclude_stocks])
+        self.exclude_stocks = exclude_stocks
+        return stocks
 
 
 class StockDeleteView(DeleteView):
@@ -714,6 +809,16 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
     form_class = NoneSingleStockCreateForm
     login_url = "/login/"
 
+    def __init__(self):
+        super().__init__()
+        self.current_position = None
+        self.object = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.current_position = Position.objects.filter(pk=self.kwargs.get("pk")).first()
+        self.current_position = self.current_position.name if self.current_position is not None else None
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Artikel zu Position buchen'
@@ -726,50 +831,61 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         }
 
     def form_valid(self, form):
-        object = form.save(commit=False)
-        print(f"nebi: {object.pk} - {object.sku_instance}")
+        self.object = form.save(commit=False)
         product = self.get_product(form)
 
         if product is not None:
             print(f"before gate: {product.single_product}")
             if product.single_product is None or product.single_product == "":
-                ean = form.data.get("ean_vollstaendig")
-                print(f"gate: {ean}")
-                validate_ean_has_multiple_products(ean, form)
+                ean = (self.object.ean_vollstaendig or "").strip()
+                state = (self.object.zustand or "").strip()
+
+                validate_ean_has_not_multiple_products(ean, state, form)
+
             if product.single_product is not None and product.single_product != "":
-                stock = Stock.objects.filter(Q(Q(product=product) | Q(sku_instance__product=product)))
+                stock = Stock.objects.filter(sku_instance__product=product, sku_instance__product__single_product=True)
+
                 print(f"wie {stock.count()}")
                 if stock.count() > 0:
                     stock = stock.first()
-                    sku = ""
-                    if stock.sku_instance is not None:
-                        sku = stock.sku_instance.sku
 
-                    title = ""
-                    if stock.product is not None:
-                        ean = stock.product.ean
-                        title = stock.product.title
-                    elif stock.sku_instance is not None:
-                        ean = stock.sku_instance.product.ean
-                    else:
-                        ean = form.cleaned_data.get("ean_vollstaendig") or ""
+                    stock_has_sku_instance_and_product = (stock.sku_instance is not None
+                                                          and stock.sku_instance.product is not None)
 
-                    if title == "":
-                        title = stock.title or ""
+                    sku = (stock.sku_instance.sku if stock_has_sku_instance_and_product
+                           else self.object.sku or "").strip()
+
+                    ean = (stock.sku_instance.product.ean if stock_has_sku_instance_and_product else '').strip()
+
+                    state = (stock.sku_instance.state if stock_has_sku_instance_and_product
+                             else self.object.zustand or "").strip()
+
+                    title = (stock.product.title if stock_has_sku_instance_and_product else stock.title or '').strip()
+
+                    img_tag = ""
+
+                    if (stock_has_sku_instance_and_product and stock.sku_instance.product.main_image is not None
+                            and stock.sku_instance.product.main_image != ""):
+                        img_tag = f"<img src='{stock.sku_instance.product.main_image.url}' class='img-responsive'" \
+                                  f" style='max-height:80px;'/>"
 
                     form.add_error(None, f"<h3 style='color:red;'>Dieser Artikel ist bereits eingebucht</h3>"
                                          f"<p style='color:red;' class='help-block'>"
                                          f"Einzelartikel können nur einmal auf einer Lagerposition eingebucht werden"
                                          f"</p>"
                                          f"<p><table class='table table-bordered'>"
-                                         f"<tr><th></th><th>EAN</th><th>SKU</th><th>Artikelname</th>"
-                                         f"<th>Lagerplatz</th></tr><tr><td><a href="
+                                         f"<tr><th></th><th>Bild</th><th>EAN</th><th>SKU</th>"
+                                         f"<th>Zustand</th><th>Artikelname</th>"
+                                         f"<th>Lagerplatz</th></tr><tr><td><p><a href="
                                          f"'{reverse_lazy('stock:detail', kwargs={'pk': stock.pk})}'>"
-                                         f"Ansicht</a></p></td>"
-                                         f"<td>{ean}</td><td>{sku}</td>"
+                                         f"Ansicht</a></p><a href="
+                                         f"'{reverse_lazy('stock:edit', kwargs={'pk': stock.pk})}'>Bearbeiten</a><p>"
+                                         f"</p></td>"
+                                         f"<td>{img_tag}</td><td>{ean}</td>"
+                                         f"<td>{sku}</td><td>{ state }</td>"
                                          f"<td>{title}</td>"
                                          f"<td>{stock.lagerplatz}</td><tr/></table>")
-                bestand = form.data.get("bestand")
+                bestand = self.object.bestand
                 if bestand is not None and bestand != "":
                     if int(bestand) > 1:
                         form.add_error("bestand", f"Der Bestand darf nicht größer als 1 sein, da "
@@ -778,15 +894,15 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
         if form.is_valid() is False:
             return super().form_invalid(form)
 
-        object.lagerplatz = self.current_position
+        if self.current_position is not None:
+            self.object.lagerplatz = self.current_position
 
-        # object.id = Stock.objects.latest("id").id+1  # Kopfschuss
         return super().form_valid(form)
 
     def get_product(self, form):
         product = None
 
-        ean = form.data.get("ean_vollstaendig", "") or ""
+        ean = form.cleaned_data.get("ean_vollstaendig", "") or ""
         ean = ean.strip()
         sku = form.data.get("sku", "") or ""
         sku = sku.strip()
@@ -799,12 +915,6 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
 
         print(f"INWI: {ean} - {sku} - {product.pk}")
         return product
-
-    @property
-    def current_position(self):
-        position = Position.objects.get(id=self.kwargs.get("pk")).position
-        print(f"???? {position}")
-        return position
 
 
 class GeneratePositionsView(FormView):

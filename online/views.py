@@ -11,7 +11,7 @@ from online.models import Channel
 from adress.models import Adress
 from mission.models import Mission, ProductMission, PartialMissionProduct, PickListProducts
 from online.tasks_import import AmazonImportTask, amazon_import_task
-from product.models import Product
+from product.models import Product, get_states_totals_and_total
 from stock.models import Stock
 from utils.utils import get_filter_fields, get_verbose_names, set_object_ondetailview
 from django.core.paginator import Paginator
@@ -123,7 +123,9 @@ class OnlineListView(generic.ListView):
             search_filter |= Q(tracking_number__icontains=search_value)
             search_filter |= Q(online_picklist__online_delivery_note__delivery_note_number__icontains=search_value)
             search_filter |= Q(channel__name__icontains=search_value)
-            search_filter |= Q(productmission__product__ean=search_value)
+            search_filter |= Q(productmission__sku__product__ean__icontains=search_value)
+            search_filter |= Q(productmission__sku__sku__iexact=search_value)
+
         q_filter &= search_filter
 
         queryset = Mission.objects.filter(q_filter).annotate(
@@ -185,8 +187,8 @@ class OnlineDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Auftrag " + context["object"].mission_number
-        set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],
-                                exclude_relations=[], exclude_relation_fields={"products": ["id"]})
+        # set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],
+        #                         exclude_relations=[], exclude_relation_fields={"products": ["id"]})
         context["fields"] = self.build_fields()
         context["products_from_stock"] = self.get_detail_products()
         context["is_delivery_address_national"] = self.is_delivery_address_national()
@@ -235,39 +237,26 @@ class OnlineDetailView(DetailView):
         detail_products = []
 
         for product_mission in self.mission_products:
-            product_stock = self.get_product_stock(product_mission)
+            sku = product_mission.sku
+            product = None
+            if sku is not None:
+                product = sku.product
+            skus = None
+            if product is not None:
+                skus = product.sku_set.all()
 
-            amount = product_mission.amount
-
-            missing_amount = product_mission.amount
-
-            reserved_amount_sum = 0
-
-            sent_amount_sum = 0
-
-            partial_products = PartialMissionProduct.objects.filter(product_mission=product_mission)
-
-            for partial_product in partial_products:
-                reserved_amount_sum += partial_product.amount
-                sent_amount_sum += partial_product.real_amount()
-
-            sent_amount = sent_amount_sum
-
-            missing_amount -= reserved_amount_sum
-
-            reserved_amount = amount-missing_amount
-
-            if missing_amount == 0:
-                missing_amount = ""
-
-            detail_products.append((product_mission,  missing_amount,  product_stock, reserved_amount, sent_amount))
+            states_totals, total = get_states_totals_and_total(product, skus)
+            total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
+                           f"{states_totals.get(sku.state).get('total')}"
+            detail_products.append((product_mission,  total_result))
         return detail_products
 
     def get_product_stock(self, product_mission):
-        product = product_mission.product
-        state = product_mission.state
+        product = product_mission.sku.product
+        state = product_mission.sku.state
+        sku_instance = product_mission.sku
 
-        if product.ean is not None and product.ean != "":
+        if product is not None and product.ean is not None and product.ean != "":
             stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
             if stock is not None:
                 if state is None:
@@ -275,15 +264,14 @@ class OnlineDetailView(DetailView):
                 else:
                     return stock.get_total_stocks().get(state)
 
-        for sku_instance in product.sku_set.all():
-            if sku_instance is not None:
-                if sku_instance.sku is not None and sku_instance.sku != "":
-                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
-                    if stock is not None:
-                        if state is None:
-                                return stock.get_total_stocks().get("Gesamt")
-                        else:
-                                return stock.get_total_stocks().get(state)
+        if sku_instance is not None:
+            if sku_instance.sku is not None and sku_instance.sku != "":
+                stock = Stock.objects.filter(sku=sku_instance.sku).first()
+                if stock is not None:
+                    if state is None:
+                        return stock.get_total_stocks().get("Gesamt")
+                    else:
+                        return stock.get_total_stocks().get(state)
 
     def get_available_product_stock(self, product_mission):
         product = product_mission.product

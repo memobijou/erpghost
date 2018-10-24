@@ -36,10 +36,8 @@ import imghdr
 from django.db.models import Case, When, Value, IntegerField, Sum
 
 
-class ProductListView(LoginRequiredMixin, ListView):
-    template_name = "product/product_list.html"
-    paginate_by = 15
-    queryset = Product.objects.filter(single_product__isnull=True)
+class ProductListBaseView(LoginRequiredMixin, ListView):
+    paginate_by = 30
 
     def __init__(self):
         self.context = {}
@@ -58,15 +56,13 @@ class ProductListView(LoginRequiredMixin, ListView):
         product_list = []
         for obj in object_list:
             skus = obj.sku_set.all().order_by("state")
-            for sku in skus.get_totals():
-                print(f"{sku.state} : {sku.total} : {sku.available_total} {sku.online_total} {sku.wholesale_total}")
             states_totals, total = get_states_totals_and_total(obj, skus)
             product_list.append((obj, skus, states_totals, total))
         return product_list
 
     def get_queryset(self):
         print(f"hey ho: {self.queryset}")
-        order_by_amount = get_value_from_GET_or_session("order_by_amount", self.request)
+        order_by_amount = self.get_value_from_GET_or_session("order_by_amount", self.request)
         if order_by_amount == "down":
             self.queryset = self.queryset.annotate(
                 total_stock=Sum("stock__bestand")).annotate(
@@ -80,44 +76,48 @@ class ProductListView(LoginRequiredMixin, ListView):
 
         print(f"test: {self.request.GET.get('q')}")
 
-        q = get_value_from_GET_or_session("q", self.request)
+        q = self.get_value_from_GET_or_session("q", self.request)
 
-        ean = get_value_from_GET_or_session("ean", self.request)
+        ean = self.get_value_from_GET_or_session("ean", self.request)
         if ean != "":
             self.queryset = self.queryset.filter(ean__icontains=ean)
 
-        sku = get_value_from_GET_or_session("sku", self.request)
+        sku = self.get_value_from_GET_or_session("sku", self.request)
         if sku != "":
             self.queryset = self.queryset.filter(sku__sku__icontains=sku)
 
-        title = get_value_from_GET_or_session("title", self.request)
+        title = self.get_value_from_GET_or_session("title", self.request)
         if title != "":
             self.queryset = self.queryset.filter(title__icontains=title)
 
-        manufacturer = get_value_from_GET_or_session("manufacturer", self.request)
+        manufacturer = self.get_value_from_GET_or_session("manufacturer", self.request)
         if manufacturer != "":
             self.queryset = self.queryset.filter(manufacturer__icontains=manufacturer)
 
-        brandname = get_value_from_GET_or_session("brandname", self.request)
+        brandname = self.get_value_from_GET_or_session("brandname", self.request)
         if brandname != "":
             self.queryset = self.queryset.filter(brandname__icontains=brandname)
 
-        part_number = get_value_from_GET_or_session("part_number", self.request)
+        part_number = self.get_value_from_GET_or_session("part_number", self.request)
         if part_number != "":
             self.queryset = self.queryset.filter(part_number__icontains=part_number)
 
-        short_description = get_value_from_GET_or_session("short_description", self.request)
+        short_description = self.get_value_from_GET_or_session("short_description", self.request)
         if short_description != "":
             self.queryset = self.queryset.filter(short_description__icontains=short_description)
 
-        long_description = get_value_from_GET_or_session("description", self.request)
+        long_description = self.get_value_from_GET_or_session("description", self.request)
         if long_description != "":
             self.queryset = self.queryset.filter(description__icontains=long_description)
 
-        self.context = {"q_product": q, "ean_product": ean, "sku_product": sku, "title_product": title,
-                        "manufacturer_product": manufacturer, "brandname_product": brandname,
-                        "part_number_product": part_number, "short_description_product": short_description,
-                        "long_description_product": long_description, "order_by_amount": order_by_amount}
+        self.context = {"product_q": q, "product_ean": ean, "product_sku": sku, "product_title": title,
+                        "product_manufacturer": manufacturer, "product_brandname": brandname,
+                        "product_part_number": part_number, "product_short_description": short_description,
+                        "product_long_description": long_description, "product_order_by_amount": order_by_amount}
+
+        self.context = self.set_filter_and_search_values_in_context(q, ean, sku, title, manufacturer, brandname,
+                                                                    part_number, short_description, long_description,
+                                                                    order_by_amount)
 
         if q is not None and q != "":
             q_list = q.split()
@@ -148,18 +148,54 @@ class ProductListView(LoginRequiredMixin, ListView):
         print(f"banana: {self.queryset}")
         return self.queryset.distinct()
 
+    def get_value_from_GET_or_session(self, value, request):
+        pass
 
-def get_value_from_GET_or_session(value, request):
-    get_value = request.GET.get(value)
-    if get_value is not None:
-        request.session[f"product_{value}"] = get_value.strip()
-        return get_value
-    else:
-        if request.GET.get("q") is None:
-            return request.session.get(f"product_{value}", "") or ""
+    def set_filter_and_search_values_in_context(self, q, ean, sku, title, manufacturer, brandname, part_number,
+                                                short_description, long_descripton, order_by_amount):
+        pass
+
+
+class ProductListView(ProductListBaseView):
+    template_name = "product/product_list.html"
+    paginate_by = 30
+    queryset = Product.objects.filter(single_product__isnull=True)
+
+    def __init__(self):
+        self.context = {}
+        super().__init__()
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.GET.get("clear_filter", "") or "" == "1":
+            filter_values = {"product_q": None, "product_ean": None, "product_sku": None, "product_title": None,
+                             "product_manufacturer": None, "product_brandname": None,
+                             "product_part_number": None, "product_short_description": None,
+                             "product_long_description": None, "product_order_by_amount": None}
+            print(f"bibi: {filter_values}")
+            for name, value in filter_values.items():
+                request.session[name] = value
+        return super().dispatch(request, *args, **kwargs)
+
+    def set_filter_and_search_values_in_context(self, q, ean, sku, title, manufacturer, brandname, part_number,
+                                                short_description, long_descripton, order_by_amount):
+        self.context = {"product_q": q, "product_ean": ean, "product_sku": sku, "product_title": title,
+                        "product_manufacturer": manufacturer, "product_brandname": brandname,
+                        "product_part_number": part_number, "product_short_description": short_description,
+                        "product_long_description": long_descripton, "product_order_by_amount": order_by_amount}
+        print("UND ???????")
+        return self.context
+
+    def get_value_from_GET_or_session(self, value, request):
+        get_value = request.GET.get(value)
+        if get_value is not None:
+            request.session[f"product_{value}"] = get_value.strip()
+            return get_value
         else:
-            request.session[f"product_{value}"] = ""
-            return ""
+            if request.GET.get("q") is None:
+                return request.session.get(f"product_{value}", "") or ""
+            else:
+                request.session[f"product_{value}"] = ""
+                return ""
 
 
 class ProductListViewDEAD(ListView):
@@ -780,6 +816,7 @@ class ProductDetailView(DetailView):
         super().__init__()
         self.object = None
         self.skus = None
+        self.online_skus = None
         self.context = {}
 
     def get_object(self):
@@ -789,8 +826,10 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Artikel Detailansicht"
-        self.skus = self.object.sku_set.all().order_by("state")
+        self.skus = self.object.sku_set.filter(main_sku=True).order_by("state")
+        self.online_skus = self.object.sku_set.filter(main_sku__isnull=True).order_by("state")
         self.context["skus"] = self.skus
+        self.context["online_skus"] = self.online_skus
         self.context["states_totals"], self.context["total"] = self.get_states_totals_and_total()
         return self.context
 

@@ -19,13 +19,13 @@ class StockQuerySet(models.QuerySet):
             clone = clone.annotate(**expressions)
         clone._fields = fields
         return clone
-
-    def delete(self):
-        for obj in self:
-            if is_stock_reserved > 0:
-                pass
-            else:
-                obj.delete()
+    #
+    # def delete(self):
+    #     for obj in self:
+    #         if is_stock_reserved(obj) > 0:
+    #             pass
+    #         else:
+    #             obj.delete()
 
     def get_stocks(self):
         from django.db.models import OuterRef, Sum, Subquery, Case, When, F
@@ -240,7 +240,6 @@ class Stock(models.Model):
                         product = Product.objects.create(ean=self.ean_vollstaendig or "")
                         self.sku_instance = product.sku_set.filter(state=self.zustand,
                                                                    sku__icontains=product.main_sku).first()
-        print(self.sku_instance.sku)
 
         if hard_save is None:
             if is_stock_reserved(self) > self.bestand:
@@ -255,10 +254,6 @@ class Stock(models.Model):
                 return
             print(f"GELÖSCHT")
         super().delete(*args, **kwargs)
-
-    def clean(self):
-        if self.lagerplatz is None:
-            return
 
     def get_total_stocks(self, product=None):
         if self.product is not None:
@@ -421,12 +416,11 @@ class Stock(models.Model):
         sku = None
         if self.sku is not None and self.sku != "":
             self.sku = self.sku.strip()
-            sku = Sku.objects.filter(sku=self.sku).first()
+            sku = Sku.objects.filter(sku=self.sku, main_sku=True).first()
 
         if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
                 and self.zustand is not None and self.zustand != ""):
-            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand).first()
-        print(f"hamouti: {sku.sku}")
+            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand, main_sku=True).first()
         return sku
 
     def get_product(self):
@@ -686,7 +680,19 @@ class Stockdocument(models.Model):
         return reverse("stock:documentdetail", kwargs={"pk": self.id})
 
 
+class PositionManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        for obj in objs:
+            if obj.name is None or obj.name == "":
+                print(f"SAFEFFAAE: {obj.position}")
+                print(f"SAFEFFAAE2: {obj.name}")
+                obj.name = obj.position
+        super().bulk_create(objs)
+
+
 class Position(models.Model):
+    objects = PositionManager()
+
     name = models.CharField(blank=True, null=False, max_length=250, verbose_name="Position")
     prefix = models.CharField(blank=True, null=False, max_length=250, verbose_name="Prefix")
     shelf = models.IntegerField(blank=True, null=False, verbose_name="Regal")

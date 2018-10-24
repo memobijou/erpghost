@@ -6,7 +6,19 @@ from django.db import models
 
 class Channel(models.Model):
     name = models.CharField(null=True, blank=True, max_length=200, verbose_name="Channel")
+    market = models.CharField(null=True, blank=True, max_length=200, verbose_name="Marktplatz")
     api_data = models.ForeignKey("client.ApiData", null=True, blank=True)
+    client = models.ForeignKey("client.Client", null=True, blank=True, verbose_name="Mandant",
+                               on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f'{self.market or ""} - {self.name or ""}'
+
+
+class Offer(models.Model):
+    sku = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
+    asin = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
 
 
 class RefillOrder(models.Model):

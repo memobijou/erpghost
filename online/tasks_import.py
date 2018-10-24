@@ -4,8 +4,9 @@ from celery import shared_task
 
 from adress.models import Adress
 from mission.models import Channel, Mission, ProductMission
-from product.models import Product
 from collections import OrderedDict
+
+from sku.models import Sku
 
 
 class AmazonImportTask(Task):
@@ -29,11 +30,9 @@ class AmazonImportTask(Task):
             shipping_price = self.column_from_row("shipping-price", row)
             print(f"this is shipping-price: {shipping_price}")
             print(f"this is sku: {sku}")
-            product = Product.objects.filter(sku__sku__iexact=sku.strip()).first()
+            sku_instance = Sku.objects.filter(sku__iexact=sku.strip()).first()
 
-            print(f"booba: {product} - {str(i)}")
-
-            if product is None:
+            if sku_instance is None:
                 continue
 
             shipping_address_instance = self.get_shipping_address_instance(row)
@@ -44,12 +43,17 @@ class AmazonImportTask(Task):
             quantity_purchased = int(self.column_from_row("quantity-purchased", row))
             item_price = float(self.column_from_row("item-price", row))
 
+            delivery_date_from = self.parse_date(self.column_from_row('earliest-delivery-date', row))
+
+            delivery_date_to = self.parse_date(self.column_from_row("latest-delivery-date", row))
+
             instance_data = {"channel_order_id": self.column_from_row("order-id", row),
                              "is_online": True, "is_amazon_fba": False,
                              "purchased_date": dateutil.parser.parse(self.column_from_row("purchase-date", row),),
-                             "delivery_date_from": self.parse_date(self.column_from_row("delivery-start-date", row),),
-                             "delivery_date_to": self.parse_date(self.column_from_row("delivery-end-date", row)),
-                             "payment_date": self.parse_date(self.column_from_row("payments-date", row)),
+                             "delivery_date_from":
+                                 self.parse_date(self.column_from_row('earliest-delivery-date', row)),
+                             "delivery_date_to": delivery_date_to,
+                             "payment_date": delivery_date_from,
                              "delivery_address_id": shipping_address_instance.pk,
                              "channel_id": channel_instance.pk, "billing_address_id": billing_address_instance.pk,
                              "online_transport_cost": shipping_price}
@@ -60,11 +64,10 @@ class AmazonImportTask(Task):
                 mission_instance = Mission(**instance_data)
                 mission_instance.save()
 
-            productmission_data = {"product": product, "amount": quantity_purchased, "mission": mission_instance,
-                                   "netto_price": item_price, "state": "Neu"}
+            productmission_data = {"sku": sku_instance, "amount": quantity_purchased, "mission": mission_instance,
+                                   "netto_price": item_price}
 
-            productmission_instance = ProductMission.objects.filter(product=product, mission=mission_instance,
-                                                                    state="Neu").first()
+            productmission_instance = ProductMission.objects.filter(sku=sku_instance, mission=mission_instance).first()
 
             print(f"{sku} ------- {productmission_instance or 'No'}")
 

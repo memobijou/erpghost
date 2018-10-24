@@ -28,8 +28,9 @@ class AcceptRefillStockView(View):
         super().__init__(**kwargs)
         self.online_prefixes = OnlinePositionPrefix.objects.all()
         self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
-                                               productmission__product__ean__isnull=False,
+                                               productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
+        print(f"batta: {self.missions}")
         self.missions_products = self.get_missions_products()
         self.missions_products_stocks = self.get_missions_products_stocks()
         self.refill_data = self.get_refill_data()
@@ -84,12 +85,15 @@ class AcceptRefillStockView(View):
         refill_totals = {}
         current_stock_totals = {}
         used_stocks = {}
+        print(f"apple: {self.missions_products}")
         for mission_product in self.missions_products:
             if added_to_refill_data_count == 10:
                 break
 
-            print(f"WHAT: {mission_product.product.ean} - {mission_product.amount}")
-            product, product_sku, stocks = mission_product.product, mission_product.sku, []
+            product, product_sku, stocks = mission_product.sku.product, mission_product.sku.sku, []
+            skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
+            print(f"BENZA: {skus}")
+            print(f"hmar: {product_sku}")
             total_stock = mission_product.total
             mission_product_stocks = (mission_product, stocks)
 
@@ -101,13 +105,16 @@ class AcceptRefillStockView(View):
 
             if product_sku not in current_stock_totals:
                 current_stock_totals[product_sku] = 0
-
+            print(f"whhaaat: {self.missions_products_stocks}")
             for stock in self.missions_products_stocks:
+                print(f"{stock.sku in skus}")
+                print(f"{stock.ean_vollstaendig} --- {skus}")
+
                 if stock not in used_stocks:
                     used_stocks[stock] = 0
 
-                if (stock.ean_vollstaendig == product.ean and stock.zustand == mission_product.state) or (
-                            stock.sku == product_sku):
+                if (stock.ean_vollstaendig == product.ean and stock.zustand == mission_product.sku.state) or (
+                            stock.sku == product_sku) or (stock.sku in skus):
 
                     if current_mission_product_amount == mission_product.amount:
                         continue
@@ -164,10 +171,12 @@ class AcceptRefillStockView(View):
             return
 
         for mission_product in self.missions_products:
-            product = mission_product.product
-            product_sku = mission_product.sku
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state)
-                                 | Q(sku=product_sku))
+            product = mission_product.sku.product
+            product_sku = mission_product.sku.sku
+            skus = mission_product.sku.product.sku_set.filter(
+                state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.sku.state)
+                                 | Q(sku=product_sku) | Q(sku__in=skus))
 
         exclude_condition = Q()
         for online_prefix in self.online_prefixes:
@@ -197,7 +206,7 @@ class RefillStockView(View):
 
     def get_refill_order_rows(self):
         self.refill_order_rows = self.refillorder.refillorderoutbookstock_set.all()
-        distinct_pks = self.refill_order_rows.distinct("product_mission__product", "position"
+        distinct_pks = self.refill_order_rows.distinct("product_mission__sku", "position"
                                                        ).values_list("pk", flat=True)
         self.order_by_position(query_condition=Q(pk__in=distinct_pks))
         self.refill_order_rows = self.add_bookout_amount_to_rows()
@@ -244,7 +253,7 @@ class RefillStockView(View):
         for row in self.refill_order_rows:
             total = 0
             for outbook_stock in refill_order_outbook_stocks:
-                if (outbook_stock.product_mission.product == row.product_mission.product
+                if (outbook_stock.product_mission.sku == row.product_mission.sku
                         and outbook_stock.position == row.position):
                     total += outbook_stock.amount
             bookout_amounts.append(total)
@@ -275,12 +284,12 @@ class BookOutForOnlinePositions(View):
         self.product = self.get_product()
         self.refill_order = self.object.refill_order
         self.refill_order_rows = self.refill_order.refillorderoutbookstock_set.filter(
-            product_mission__product=self.product, position=self.object.position)
+            product_mission__sku__product=self.product, position=self.object.position)
         self.book_out_amount = self.refill_order_rows.aggregate(Sum("amount"))["amount__sum"] or 0
         return super().dispatch(request, *args, **kwargs)
 
     def get_product(self):
-        self.product = self.object.product_mission.product
+        self.product = self.object.product_mission.sku.product
         return self.product
 
     def get(self, request, *args, **kwargs):
@@ -373,10 +382,10 @@ class ProductsForBookInView(View):
     def get_products(self):
         products = []
         for refillorderoutbookstock in self.refill_order.refillorderoutbookstock_set.all().distinct(
-                "product_mission__product"):
-            product = refillorderoutbookstock.product_mission.product
+                "product_mission__sku"):
+            product = refillorderoutbookstock.product_mission.sku.product
             inbook_stocks = self.refill_order.refillorderinbookstock_set.filter(product=product)
-            state = refillorderoutbookstock.product_mission.state
+            state = refillorderoutbookstock.product_mission.sku.state
             if (product, inbook_stocks, state) not in products:
                 products.append((product, inbook_stocks, state))
         return products
@@ -473,7 +482,7 @@ class BookProductInPosition(View):
     def get_booked_out_amount(self):
         booked_out_amount = 0
         for outbook_stock in self.refill_order.refillorderoutbookstock_set.filter(
-                product_mission__product=self.product):
+                product_mission__sku__product=self.product):
             booked_out_amount += outbook_stock.amount
         return booked_out_amount
 
@@ -524,8 +533,8 @@ class FinishRefillOrderView(View):
         self.refill_order_result = {}
         for outbook_product in self.refill_order.refillorderoutbookstock_set.all():
             bookout_amount = outbook_product.amount
-            product = outbook_product.product_mission.product
-            state = outbook_product.product_mission.state
+            product = outbook_product.product_mission.sku.product
+            state = outbook_product.product_mission.sku.state
             if (product, state) not in self.refill_order_result:
                 self.refill_order_result[(product, state)] = {}
 

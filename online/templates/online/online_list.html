@@ -134,6 +134,7 @@
                                         <thead>
                                             <th></th>
                                             <th>EAN</th>
+                                            <th>SKU</th>
                                             <th>Zustand</th>
                                             <th>Menge</th>
                                             <th>Einzelpreis (Netto)</th>
@@ -143,15 +144,18 @@
                                             {% for mission_product in object.productmission_set.all %}
                                                 <tr>
                                                     <td>
-                                                        {% if mission_product.product.main_image %}
-                                                            <img src="{{ mission_product.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                                        {% if mission_product.sku.product.main_image %}
+                                                            <img src="{{ mission_product.sku.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
                                                         {% endif %}
                                                     </td>
                                                     <td>
-                                                        <p>{{ mission_product.product.ean }}</p>
+                                                        <p>{{ mission_product.sku.product.ean|default:"" }}</p>
                                                     </td>
                                                     <td>
-                                                        <p>{{ mission_product.state }}</p>
+                                                        <p>{{ mission_product.sku.sku|default:"" }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <p>{{ mission_product.sku.state|default:"" }}</p>
                                                     </td>
                                                     <td>
                                                         <p>{{ mission_product.amount }}</p>

@@ -10,14 +10,14 @@
                         <tr>
                             <td>
                                 <div class="col-md-3">
-                                    {% if  mission_product.product.main_image %}
+                                    {% if  mission_product.sku.product.main_image %}
                                         <img class="img-responsive" style="max-height:80px;"
-                                             src="{{ mission_product.product.main_image.url }}"/>
+                                             src="{{ mission_product.sku.product.main_image.url }}"/>
                                     {% endif %}
                                 </div>
                                 <div class="col-md-9">
-                                    <p><b>EAN: </b>{{ mission_product.product.ean }}</p>
-                                    <p><b>Zustand: </b>{{ mission_product.state }}</p>
+                                    <p><b>EAN: </b>{{ mission_product.sku.product.ean|default:"" }}</p>
+                                    <p><b>Zustand: </b>{{ mission_product.sku.state }}</p>
                                     <p><b>Menge: </b>{{ mission_product.amount }}</p>
                                     <p><b>Auftrag: </b>{{ mission_product.mission }}</p>
 

@@ -10,6 +10,7 @@ from online.refill import AcceptRefillStockView, BookOutForOnlinePositions, Refi
 from .views import OnlineListView, OnlineDetailView, ImportMissionView
 from .dpd import DPDPDFView, DPDGetLabelView
 from .dhl import DHLCreatePdfView, DhlGetLabelView, DhlDeleteLabelView
+from online.import_offers import ImportOffersView
 
 
 urlpatterns = [
@@ -46,5 +47,6 @@ urlpatterns = [
     url(r'^finish_refill_order/$', FinishRefillOrderView.as_view(), name="finish_refill_order"),
     url(r'^online_redirect/$', OnlineRedirectView.as_view(), name="online_redirect"),
     url(r'^import_mission/$', ImportMissionView.as_view(), name="import_mission"),
+    url(r'^import_offers/$', ImportOffersView.as_view(), name="import_offers"),
 ]
 

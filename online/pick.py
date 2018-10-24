@@ -32,7 +32,7 @@ class AcceptOnlinePickList(generic.CreateView):
     def __init__(self):
         super().__init__()
         self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
-                                               productmission__product__ean__isnull=False,
+                                               productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
         print(f"jo: {self.missions.count()}")
         self.picklist_data = None
@@ -79,6 +79,9 @@ class AcceptOnlinePickList(generic.CreateView):
 
         print(f"banana: {product_missions}")
 
+        for p in product_missions:
+            print(f"x: {p.mission} {p.total}")
+
         exclude_missions_pks = product_missions.filter(
             Q(Q(total__lte=0) | Q(online_total__lte=0))).values_list("mission__pk", flat=True)
 
@@ -112,8 +115,6 @@ class AcceptOnlinePickList(generic.CreateView):
             mission.save()
 
             for pick_row in pick_rows:
-                print(f"DDD: {mission} - {pick_row.get('position')} - {pick_row.get('mission_product').product.ean}"
-                      f" - {pick_row.get('amount')}")
                 pick_row_instance = PickListProducts.objects.create(
                     pick_list=picklist_instance, amount=pick_row.get("amount"), position=pick_row.get("position"),
                     product_mission=pick_row.get("mission_product")
@@ -124,17 +125,20 @@ class AcceptOnlinePickList(generic.CreateView):
     def get_picklist_data(self):
         picklist_data = OrderedDict()
 
+        print(f"hello: {self.missions_products}")
+
         for mission_product in self.missions_products:
             print(f"wie: {mission_product.picklists_total}")
             picklist_stocks = []
             total = 0
 
-            product = mission_product.product
-            product_sku = mission_product.sku
-
+            product_sku = mission_product.sku.sku
+            product = mission_product.sku.product
+            skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
+            print(f"wA: {self.stocks}")
             for stock in self.stocks:
-                if ((product_sku == stock.sku) or (product.ean == stock.ean_vollstaendig
-                                                   and stock.zustand == mission_product.state)):
+                if ((stock.sku in skus) or (product.ean == stock.ean_vollstaendig
+                                            and stock.zustand == mission_product.sku.state)):
                     if stock in self.used_stocks:
                         stock_bestand = stock.bestand-self.used_stocks[stock]
                     else:
@@ -142,9 +146,7 @@ class AcceptOnlinePickList(generic.CreateView):
 
                     stock_bestand -= mission_product.picklists_total or 0
 
-                    print(f"why:?:{mission_product.product.ean} {mission_product.amount} - {stock_bestand} ::: "
-                          f"{stock.bestand} - "
-                          f"{self.used_stocks.get(stock, 'nothing')}")
+                    print(f"? {stock_bestand}")
 
                     if stock_bestand <= 0:
                         continue
@@ -168,10 +170,12 @@ class AcceptOnlinePickList(generic.CreateView):
                 continue
 
             if len(picklist_stocks) > 0:
-                if (mission_product.product, mission_product.state, product_sku) not in picklist_data:
-                    picklist_data[(mission_product.product, mission_product.state, product_sku)] = picklist_stocks
+                if (mission_product.sku.product, mission_product.sku.state, product_sku) not in picklist_data:
+                    picklist_data[(mission_product.sku.product, mission_product.sku.state,
+                                   product_sku)] = picklist_stocks
                 else:
-                    picklist_data[(mission_product.product, mission_product.state, product_sku)].extend(picklist_stocks)
+                    picklist_data[(mission_product.sku.product, mission_product.sku.state,
+                                   product_sku)].extend(picklist_stocks)
 
                 for pick_row in picklist_stocks:
                     pick_row_stock = pick_row.get("stock")
@@ -197,11 +201,12 @@ class AcceptOnlinePickList(generic.CreateView):
         query_condition = Q()
 
         for mission_product in self.missions_products:
-            product = mission_product.product
-            product_sku = mission_product.sku
-
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.state) |
-                                 Q(sku=product_sku))
+            product_sku = mission_product.sku.sku
+            product = mission_product.sku.product
+            skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
+            print(f"WHY: {skus}")
+            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.sku.state) |
+                                 Q(sku__in=skus))
 
         if len(query_condition) == 0:
             return
@@ -210,6 +215,8 @@ class AcceptOnlinePickList(generic.CreateView):
             query_condition &= Q(lagerplatz__istartswith=online_prefix.prefix)
 
         stocks = list(Stock.objects.filter(query_condition))
+
+        print(f"babo: {stocks}")
 
         stocks = order_stocks_by_position(stocks, query_condition=query_condition)
         print(f"Hey stocks: {stocks}")
@@ -265,7 +272,7 @@ class PickOrderView(generic.UpdateView):
         self.picklists = list(self.pickorder.picklist_set.all().values_list("pk", flat=True))
         self.all_picked_rows = PickListProducts.objects.filter(pick_list__in=self.picklists)
         picked_rows_pks = PickListProducts.objects.filter(pick_list__in=self.picklists).distinct(
-            "product_mission__product", "position").values_list("pk", flat=True)
+            "product_mission__sku", "position").values_list("pk", flat=True)
         self.picked_rows = PickListProducts.objects.filter(
             Q(Q(pk__in=picked_rows_pks)))
         print(f"wie: {self.picked_rows}")
@@ -279,7 +286,7 @@ class PickOrderView(generic.UpdateView):
         total = 0
         if self.object is not None:
             for pick_row in self.all_picked_rows:
-                if (pick_row.product_mission.product == self.object.product_mission.product
+                if (pick_row.product_mission.sku == self.object.product_mission.sku
                         and pick_row.position == self.object.position):
                     total += pick_row.amount
         return total
@@ -289,7 +296,7 @@ class PickOrderView(generic.UpdateView):
         for pick_row in self.picked_rows:
             total = 0
             for pr in self.all_picked_rows:
-                if pick_row.product_mission.product == pr.product_mission.product and pick_row.position == pr.position:
+                if pick_row.product_mission.sku == pr.product_mission.sku and pick_row.position == pr.position:
                     total += pr.amount
             pick_amounts_list.append(total)
 
@@ -329,15 +336,14 @@ class PickOrderView(generic.UpdateView):
         if self.object is not None:
             if self.object.picked is True:
                 for pick_row in self.all_picked_rows:
-                    if (self.object.product_mission.product == pick_row.product_mission.product
+                    if (self.object.product_mission.sku == pick_row.product_mission.sku
                             and self.object.position == pick_row.position):
                         pick_row.picked = None
                         pick_row.save()
             else:
                 for pick_row in self.all_picked_rows:
-                    if (self.object.product_mission.product == pick_row.product_mission.product
+                    if (self.object.product_mission.sku == pick_row.product_mission.sku
                             and self.object.position == pick_row.position):
-                        print(f"akhira: {pick_row.product_mission.product.ean}")
                         print(pick_row)
                         print(pick_row.picked)
                         pick_row.picked = True
@@ -534,7 +540,7 @@ class PackingView(View):
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.get(pk=self.kwargs.get("pk"))
         self.mission = self.picklist.mission_set.first()
-        self.pick_rows = self.picklist.picklistproducts_set.all().distinct("product_mission__product")
+        self.pick_rows = self.picklist.picklistproducts_set.all().distinct("product_mission__sku")
         self.add_packing_amounts_to_pick_rows()
         return super().dispatch(request, *args, **kwargs)
 
@@ -545,7 +551,7 @@ class PackingView(View):
             total = 0
             confirmed_total = 0
             for pr in self.picklist.picklistproducts_set.all():
-                if pr.product_mission.product == pick_row.product_mission.product:
+                if pr.product_mission.sku == pick_row.product_mission.sku:
                     total += pr.amount or 0
                     confirmed_total += pr.confirmed_amount or 0
             packing_amounts_list.append(total)
@@ -570,7 +576,7 @@ class PackingView(View):
         if form.is_valid() is True:
             ean = form.cleaned_data.get("ean")
             pick_row = self.picklist.picklistproducts_set.filter(
-                product_mission__product__ean=ean, confirmed=None).first()
+                product_mission__sku__product__ean=ean, confirmed=None).first()
             if pick_row is None:
                 context["form"].add_error(None, f"Artikel mit EAN {ean} in Auftrag nicht vorhanden")
                 return render(request, "online/packing/packing.html", context)
@@ -645,7 +651,8 @@ class FinishPackingView(View):
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.get(pk=self.kwargs.get("pk"))
         self.mission = self.picklist.mission_set.first()
-        self.client = Client.objects.get(pk=self.request.session.get("client"))
+        first_product = self.mission.productmission_set.first()
+        self.client = first_product.sku.channel.client
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -743,11 +750,11 @@ class FinishPackingView(View):
             self.picklist.completed = True
             self.picklist.save()
             for pick_row in self.picklist.picklistproducts_set.all():
-                product = pick_row.product_mission.product
-                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+                product = pick_row.product_mission.sku.product
+                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.sku.state).first()
                 stock = Stock.objects.filter(
                     Q(Q(lagerplatz__iexact=pick_row.position) &
-                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
+                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.sku.state)
                         | Q(sku=product_sku.sku)))).first()
                 if stock is not None:
                     stock.bestand -= pick_row.confirmed_amount

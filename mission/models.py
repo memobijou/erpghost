@@ -41,7 +41,7 @@ class Mission(models.Model):
     delivery_date_to = models.DateField(null=True, blank=True, verbose_name="Lieferdatum bis")
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
     channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
-    products = models.ManyToManyField(Product, through="ProductMission")
+    skus = models.ManyToManyField(Sku, through="ProductMission")
     customer = models.ForeignKey(Customer, null=True, blank=True, related_name='mission', verbose_name="Kunde",
                                  on_delete=models.SET_NULL)
     customer_order_number = models.CharField(max_length=200, null=True, blank=True,
@@ -144,30 +144,30 @@ class ProductMissionManager(models.Manager):
         online_prefixes = OnlinePositionPrefix.objects.all()
         online_prefixes_condition = Q()
         for prefix in online_prefixes:
-            online_prefixes_condition |= Q(product__stock__lagerplatz__istartswith=prefix.prefix)
+            online_prefixes_condition |= Q(stock__lagerplatz__istartswith=prefix.prefix)
 
-        stock_condition = Q(Q(product__stock__sku=F("sku")) |
-                            Q(product__stock__ean_vollstaendig=F("product__ean"), product__stock__zustand=F("state")))
+        stock_condition = Q(Q(stock__sku_instance__product=F("product"),
+                              stock__sku_instance__state=F("state")) |
+                            Q(stock__ean_vollstaendig=F("product__ean"),
+                              stock__zustand=F("state")))
 
-        subquery_sku = Sku.objects.filter(product=OuterRef("product"), state=OuterRef("state")).annotate(
-            total=Sum(Case(When(stock_condition, then="product__stock__bestand"), default=0))).annotate(
+        subquery_sku = Sku.objects.filter(product=OuterRef("sku__product"), state=OuterRef("sku__state")).annotate(
+            total=Sum(Case(When(stock_condition, then="stock__bestand"), default=0))).annotate(
             online_total=Sum(Case(When(Q(stock_condition & online_prefixes_condition),
-                                       then="product__stock__bestand"), default=0)))[:1]
+                                       then="stock__bestand"), default=0)))[:1]
 
-        subquery_mission_total = Sku.objects.filter(product=OuterRef("product"), state=OuterRef("state")).annotate(
-            mission_total=Sum(Case(When(product__productmission__state=F("state"),
-                                        product__productmission__mission__is_online=True,
-                                        product__productmission__mission__online_picklist__completed__isnull=True,
-                                        then="product__productmission__amount"), default=0)))[:1]
+        subquery_mission_total = Sku.objects.filter(sku=OuterRef("sku__sku")).annotate(
+            mission_total=Sum(Case(When(productmission__mission__is_online=True,
+                                        productmission__mission__online_picklist__completed__isnull=True,
+                                        then="productmission__amount"), default=0)))[:1]
 
         subquery_picklists_total = ProductMission.objects.filter(pk=OuterRef("pk")).annotate(
-            picklists_total=Sum(Case(When(product__productmission__product=F("product"),
-                                          product__productmission__state=F("state"),
-                                          product__productmission__picklistproducts__pick_list__completed__isnull=True,
-                                          product__productmission__mission__is_online=True,
-                                          then="product__productmission__picklistproducts__amount"), default=0)))[:1]
+            picklists_total=Sum(Case(When(sku__productmission__sku=F("sku"),
+                                          sku__productmission__picklistproducts__pick_list__completed__isnull=True,
+                                          sku__productmission__mission__is_online=True,
+                                          then="sku__productmission__picklistproducts__amount"), default=0)))[:1]
 
-        return self.all().annotate(sku=Subquery(subquery_sku.values("sku"))).annotate(
+        return self.all().annotate(
             total=Subquery(subquery_sku.values("total"), output_field=models.IntegerField())).annotate(
             mission_total=Subquery(subquery_mission_total.values("mission_total"),
                                    output_field=models.IntegerField())).annotate(
@@ -181,7 +181,7 @@ class ProductMission(models.Model):
     class Meta:
         ordering = ['pk']
 
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Artikel")
+    sku = models.ForeignKey(Sku, on_delete=models.CASCADE, verbose_name="Sku", null=True)
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
     state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
@@ -191,9 +191,6 @@ class ProductMission(models.Model):
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
     objects = ProductMissionManager()
-
-    def __str__(self):
-        return str(self.product) + " : " + str(self.mission) + " : " + str(self.amount)
 
     @property
     def real_amount(self):
@@ -205,13 +202,10 @@ class ProductMission(models.Model):
     def get_ean_or_sku(self):
         ean_or_sku = None
 
-        if self.product.ean is not None and self.product.ean != "":
-            ean_or_sku = self.product.ean
+        if self.sku.product.ean is not None and self.sku.product.ean != "":
+            ean_or_sku = self.sku.product.ean
         else:
-            sku_instance = self.product.sku_set.filter(state=self.state).first()
-            if sku_instance is not None:
-                ean_or_sku = sku_instance.sku
-
+            ean_or_sku = self.sku.sku
         return ean_or_sku
 
     # def save(self, *args, **kwargs):
@@ -338,9 +332,9 @@ class PickListProductsManager(models.Manager):
                 state = sku_instance.state
                 print(f"omg: {sku} {state} - {stock.lagerplatz} - {old_stock.ean_vollstaendig} - {old_stock.zustand}")
             return self.filter(
-                Q(Q(product_mission__product__ean=old_stock.ean_vollstaendig,
-                    product_mission__state=old_stock.zustand) |
-                  Q(product_mission__state__iexact=state, product_mission__product=sku_instance.product))
+                Q(Q(product_mission__sku__product__ean=old_stock.ean_vollstaendig,
+                    product_mission__sku__state=old_stock.zustand) |
+                  Q(product_mission__sku__state__iexact=state, product_mission__sku__product=sku_instance.product))
                 & Q(Q(Q(pick_list__completed__isnull=True) & Q(pick_list__isnull=False)),
                     position=old_stock.lagerplatz)).aggregate(total=Sum("amount"))
 

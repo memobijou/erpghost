@@ -8,6 +8,7 @@
         <p style="font-size:15px;"><b>Fremd ID: </b>{{ object.channel_order_id }}</p>
         <p><b>Kunde: </b>{{object.customer|default:"N/A"}}</p>
         <p>
+            {{ object.delivery_date_from }}
             <b>Lieferdatum: </b>{{ object.delivery_date_from|default:"N/A"}}-{{ object.delivery_date_to|default:"N/A"}}
         </p>
         <p>
@@ -72,12 +73,12 @@
                 {% for mission_product, picklist_products in picklist_products %}
                     <tr>
                         <td>
-                            {% if mission_product.product.main_image %}
-                                <img src="{{ mission_product.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                            {% if mission_product.sku.product.main_image %}
+                                <img src="{{ mission_product.sku.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
                             {% endif %}
-                            <p><b>EAN: </b>{{mission_product.product.ean}}</p>
-                            <p><b>Zustand: </b>{{mission_product.state}}</p>
-                            <p><b>Artikelname: </b>{{mission_product.product.title|default:""}}</p>
+                            <p><b>EAN: </b>{{mission_product.sku.product.ean}}</p>
+                            <p><b>Zustand: </b>{{mission_product.sku.state}}</p>
+                            <p><b>Artikelname: </b>{{mission_product.sku.product.title|default:""}}</p>
                             <p><b>Auftragsmenge: </b>{{ mission_product.amount }}</p>
                         </td>
                         <td>

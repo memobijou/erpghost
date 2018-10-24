@@ -426,7 +426,6 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(*args, **kwargs)
         context["title"] = f"Inventar {context.get('object').lagerplatz}"
         context["product"] = self.get_product()
-        context["stock"] = self.get_product_stocks()
         context["position"] = self.position
         context["sku_state"] = self.get_sku_state()
         context["states_totals"], context["total"] = self.get_states_totals_and_total()
@@ -480,9 +479,8 @@ class StockDetailView(LoginRequiredMixin, DetailView):
         return stock_dict
 
 
-class StockUpdateView(LoginRequiredMixin, UpdateView):
+class StockUpdateBaseView(LoginRequiredMixin, UpdateView):
     template_name = "stock/form.html"
-    form_class = StockUpdateForm
     login_url = "/login/"
 
     def __init__(self):
@@ -491,18 +489,8 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         self.instance = None
         self.position = None
 
-    def dispatch(self, request, *args, **kwargs):
-        self.object = Stock.objects.get(id=self.kwargs.get("pk"))
-        if self.object is not None:
-            self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
-        self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
-        print(f"hää: {self.instance.sku_instance.product.single_product}")
-        if (self.instance.sku_instance is not None and self.instance.sku_instance.product is not None and
-                self.instance.sku_instance.product.single_product is True):
-            return HttpResponseRedirect(reverse_lazy("stock:single_edit", kwargs={"pk": self.instance.pk}))
-        return super().dispatch(request, *args, **kwargs)
-
     def get_object(self):
+        print(f"wa: {self.object.pk}")
         return self.object
 
     def get_context_data(self, **kwargs):
@@ -518,7 +506,7 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
         form = super().get_form(form_class=None)
 
         if self.object.pk is not None:
-            print(f"ben ben: {self.object}")
+            print(f"ben ben: {self.object.pk}")
 
             state = self.object.get_state()
 
@@ -542,6 +530,22 @@ class StockUpdateView(LoginRequiredMixin, UpdateView):
 
         print(f"INWI: {ean} - {sku} - {product}")
         return product
+
+
+class StockUpdateView(StockUpdateBaseView):
+    form_class = StockUpdateForm
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Stock.objects.get(id=self.kwargs.get("pk"))
+
+        if self.object is not None:
+            self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
+        self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
+        print(f"hää: {self.instance.sku_instance.product.single_product}")
+        if (self.instance.sku_instance is not None and self.instance.sku_instance.product is not None and
+                self.instance.sku_instance.product.single_product is True):
+            return HttpResponseRedirect(reverse_lazy("stock:single_edit", kwargs={"pk": self.instance.pk}))
+        return super().dispatch(request, *args, **kwargs)
 
 
 class StockDeleteQuerySetView(DeleteView):

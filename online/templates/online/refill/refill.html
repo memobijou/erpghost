@@ -20,8 +20,8 @@
                             </div>
                             <div class="col-md-6">
                                 <div style="padding-top:60px;">
-                                    <p style="font-size:20px;"><b>EAN: </b>{{ refill_object.0.product_mission.product.ean }}</p>
-                                    <p style="font-size:20px;"><b>Zustand: </b>{{ refill_object.0.product_mission.state }}</p>
+                                    <p style="font-size:20px;"><b>EAN: </b>{{ refill_object.0.product_mission.sku.product.ean }}</p>
+                                    <p style="font-size:20px;"><b>Zustand: </b>{{ refill_object.0.product_mission.sku.state }}</p>
                                     <p style="font-size:20px;"><b>Lagerplatz: </b>{{ refill_object.0.position }}</p>
                                     <p style="font-size:25px;"><a href="{% url 'online:book_out' pk=refill_object.0.pk %}">
                                     {{ refill_object.1 }}x Ausbuchen</a></p>
@@ -46,8 +46,8 @@
                             </td>
                             <td>
                                 <div>
-                                    <p><b>EAN: </b>{{ outbook_stock.product_mission.product }}</p>
-                                    <p><b>Zustand: </b>{{ outbook_stock.product_mission.state }}</p>
+                                    <p><b>EAN: </b>{{ outbook_stock.product_mission.sku.product }}</p>
+                                    <p><b>Zustand: </b>{{ outbook_stock.product_mission.sku.state }}</p>
                                     <p><b>Lagerplatz:</b> {{ outbook_stock.position }}</p>
                                     <p><b>Auszubuchende Menge:</b> {{ bookout_amount }} </p>
                                         {% if outbook_stock.booked_out == True %}

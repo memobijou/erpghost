@@ -816,6 +816,7 @@ class ProductDetailView(DetailView):
         super().__init__()
         self.object = None
         self.skus = None
+        self.online_skus = None
         self.context = {}
 
     def get_object(self):
@@ -825,8 +826,10 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Artikel Detailansicht"
-        self.skus = self.object.sku_set.all().order_by("state")
+        self.skus = self.object.sku_set.filter(main_sku=True).order_by("state")
+        self.online_skus = self.object.sku_set.filter(main_sku__isnull=True).order_by("state")
         self.context["skus"] = self.skus
+        self.context["online_skus"] = self.online_skus
         self.context["states_totals"], self.context["total"] = self.get_states_totals_and_total()
         return self.context
 

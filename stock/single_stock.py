@@ -6,7 +6,7 @@ from sku.models import Sku
 from stock.forms import StockUpdateForm, StockCreateForm
 from stock.models import Stock
 from stock.views import StockDeleteView, StockUpdateView, BookProductToPositionView, PositionListView, \
-    GeneratePositionsView, PositionDeleteView, StockListBaseView, StockDeleteQuerySetView
+    GeneratePositionsView, PositionDeleteView, StockListBaseView, StockDeleteQuerySetView, StockUpdateBaseView
 from django.urls import reverse_lazy
 from django import forms
 from stock.models import Position
@@ -84,11 +84,13 @@ class SingleStockUpdateForm(StockUpdateForm):
                                 required=False)
 
 
-class SingleStockUpdateView(StockUpdateView):
+class SingleStockUpdateView(StockUpdateBaseView):
     form_class = SingleStockUpdateForm
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Stock.objects.get(id=self.kwargs.get("pk"))
+        print(f"wie {self.object.pk}")
+
         if self.object is not None:
             self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
         self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
@@ -96,8 +98,8 @@ class SingleStockUpdateView(StockUpdateView):
                 self.instance.sku_instance.product.single_product is not True):
             print(f"hää 3: {self.instance.sku_instance.product.single_product}")
             return HttpResponseRedirect(reverse_lazy("stock:edit", kwargs={"pk": self.instance.pk}))
-        context = super().get_context_data(**kwargs)
-        return render(request, self.template_name, context)
+        print(f"SCHWARM ????")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class SingleBookProductToPositionView(BookProductToPositionView):

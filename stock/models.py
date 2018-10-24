@@ -255,10 +255,6 @@ class Stock(models.Model):
             print(f"GELÖSCHT")
         super().delete(*args, **kwargs)
 
-    def clean(self):
-        if self.lagerplatz is None:
-            return
-
     def get_total_stocks(self, product=None):
         if self.product is not None:
             product = self.product
@@ -420,11 +416,11 @@ class Stock(models.Model):
         sku = None
         if self.sku is not None and self.sku != "":
             self.sku = self.sku.strip()
-            sku = Sku.objects.filter(sku=self.sku).first()
+            sku = Sku.objects.filter(sku=self.sku, main_sku=True).first()
 
         if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
                 and self.zustand is not None and self.zustand != ""):
-            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand).first()
+            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand, main_sku=True).first()
         return sku
 
     def get_product(self):

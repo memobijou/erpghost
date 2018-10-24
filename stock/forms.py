@@ -75,6 +75,7 @@ def stock_validation(instance, form):
 
     validate_stock_is_not_reserved(instance, bestand, state, form)
 
+
     states_sku = None
 
     if instance is not None and instance.sku_instance is not None and instance.sku_instance.product is not None:
@@ -98,10 +99,17 @@ def stock_validation(instance, form):
         form.add_error(None, "<h3 style='color:red;'>Sie dürfen nur eine Angabe machen: EAN oder SKU</h3>")
         return
 
+    sku_instance = None
     if sku != "":
-        sku_instance = Sku.objects.filter(sku=sku).first()
+        sku_instance = Sku.objects.filter(sku=sku, main_sku=True).first()
+
         if sku_instance is None:
-            form.add_error("sku", "Die angegebene SKU ist im Sytem nicht vorhanden.")
+            online_sku_instance = Sku.objects.filter(sku=sku, main_sku__isnull=True).first()
+            print(f"wiee biee: {online_sku_instance}")
+            if online_sku_instance is not None:
+                form.add_error("sku", "Die angegebene SKU ist eine Online-SKU. Bitte geben Sie eine normale SKU an.")
+            else:
+                form.add_error("sku", "Die angegebene SKU ist im Sytem nicht vorhanden.")
 
     if sku != "" and state != "":
         # states_sku hat nur einen Wert, wenn der Zustand beim Updaten geändert wird
@@ -113,7 +121,7 @@ def stock_validation(instance, form):
             form.add_error("zustand", "Wenn Sie eine EAN angeben, müssen Sie einen Zustand auswählen.")
 
     sku_or_changed_sku = form.cleaned_data.get("sku", "") or ""
-    validate_stock_has_no_duplicates(ean, sku_or_changed_sku, state, position, form, instance)
+    validate_stock_has_no_duplicates(ean, sku_or_changed_sku, state, position, form, instance, sku_instance)
 
 
 def validate_stock_is_not_reserved(instance, bestand, state, form):
@@ -131,15 +139,23 @@ def validate_stock_is_not_reserved(instance, bestand, state, form):
                 form.add_error(None, error_msg)
 
 
-def validate_stock_has_no_duplicates(ean, sku, state, position, form, instance):
+def validate_stock_has_no_duplicates(ean, sku, state, position, form, instance, sku_instance):
     skus = []
+
+    if state is None or state == "":
+        if sku_instance is not None:
+            state = sku_instance.state
+            if ean is None or ean == "":
+                ean = sku_instance.product.ean
+    print(f"blabla: {sku_instance} {state}")
 
     if ean != "" and state != "":
         skus = Sku.objects.filter(product__ean=ean, state__iexact=state).values_list("sku", flat=True)
 
     print(f"salami: {position}")
     if position != "":
-        print(f"NACH: {state} - {sku} - {form.cleaned_data.get('sku') or ''} - {skus}")
+        print(f"NACH: {state} - {sku} - {form.cleaned_data.get('sku') or ''} - {skus} - {instance.id}")
+        sku = sku.strip()
         stocks = Stock.objects.filter(
             Q(Q(Q(ean_vollstaendig=ean, zustand=state) | Q(sku=sku) | Q(sku__in=skus)))
             & Q(lagerplatz=position)).exclude(Q(id=instance.id) | Q(lagerplatz__icontains="block"))
@@ -197,7 +213,8 @@ def validate_changed_state_of_sku_exists(instance, state, ean, form):
     if state != "" and ean == "":
         if state != instance.sku_instance.state:
             states_sku = instance.sku_instance.product.sku_set.filter(
-                state=state, sku__icontains=instance.sku_instance.product.main_sku).first()
+                state=state, main_sku=True).first()
+
             if states_sku is not None:
                 return True
             else:
@@ -238,18 +255,19 @@ class StockUpdateForm(ModelForm):
         return bestand
 
     def clean(self):
+        cleaned_data = super().clean()
         stock_validation(self.instance, self)
         product = None
         if self.is_valid() is False:
-            return self.cleaned_data
+            return cleaned_data
         if self.instance.sku_instance is not None:
             product = self.instance.sku_instance.product
 
         if product is not None:
-            sku = self.cleaned_data.get("sku") or ""
-            ean = self.cleaned_data.get("ean_vollstaendig") or ""
-            state = self.cleaned_data.get("zustand") or ""
-            bestand = self.cleaned_data.get("bestand") or ""
+            sku = cleaned_data.get("sku") or ""
+            ean = cleaned_data.get("ean_vollstaendig") or ""
+            state = cleaned_data.get("zustand") or ""
+            bestand = cleaned_data.get("bestand") or ""
             sku_instance = None
 
             if sku != "":
@@ -276,7 +294,7 @@ class StockUpdateForm(ModelForm):
                                        f"<p style='color:red;'>Dieser Artikel ist {reserved_amount}x reserviert.</p>"
                                        f"<p style='color:red;'>Du kannst den Artikel noch maximal "
                                        f"{sku_instance.available_total}x ausbuchen</p>")
-        return self.cleaned_data
+        return cleaned_data
 
 
 class StockCreateForm(ModelForm):
@@ -308,8 +326,6 @@ class StockCreateForm(ModelForm):
     def clean(self):
         print(f"Okay is being called: ")
         stock_validation(self.instance, self)
-        if self.is_valid() is False:
-            return self.cleaned_data
         return self.cleaned_data
 
 

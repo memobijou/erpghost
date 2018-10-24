@@ -13,7 +13,8 @@ class OnlineDeliveryNoteView(View):
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
-        self.client = Client.objects.get(pk=self.request.session.get("client"))
+        first_product = self.mission.productmission_set.first()
+        self.client = first_product.sku.channel.client
         self.partial_delivery_note = DeliveryNote.objects.get(pk=self.kwargs.get("delivery_note_pk"))
         self.partial_delivery_note_number = self.partial_delivery_note.delivery_note_number
         return super().dispatch(request, *args, **kwargs)
@@ -288,7 +289,9 @@ class OnlineDeliveryNoteView(View):
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(delivery_address_object)
 
-        delivery_date = self.mission.delivery_date
+        delivery_date_from = self.mission.delivery_date_from
+
+        delivery_date_to = self.mission.delivery_date_to
 
         terms_of_delivery = self.mission.terms_of_delivery
 
@@ -296,7 +299,8 @@ class OnlineDeliveryNoteView(View):
 
         table_data = [
             [
-                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date.strftime('%d.%m.%Y')}<br/>",
+                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date_from.strftime('%d.%m.%Y')}-"
+                          f"{delivery_date_to.strftime('%d.%m.%Y')}<br/>",
                           style=size_twelve_helvetica_bold),
             ],
             [
@@ -354,9 +358,9 @@ class OnlineDeliveryNoteView(View):
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(mission_product.get_ean_or_sku(),
                               style=size_nine_helvetica),
-                    Paragraph(mission_product.state,
+                    Paragraph(mission_product.sku.state,
                               style=size_nine_helvetica),
-                    Paragraph(mission_product.product.title or "",
+                    Paragraph(mission_product.sku.product.title or "",
                               style=size_nine_helvetica),
                     Paragraph(str(mission_product.amount),
                               style=right_align_paragraph_style),

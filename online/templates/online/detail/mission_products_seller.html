@@ -7,7 +7,8 @@
                 <thead>
                     <tr>
                         <th>Bild</th>
-                        <th>EAN / SKU</th>
+                        <th>EAN</th>
+                        <th>SKU</th>
                         <th>Zustand</th>
                         <th>Artikelname</th>
                         <th>Auftragsmenge</th>
@@ -17,7 +18,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                        {% for productmission, missing_amount, stock, delivery_amount, sent_amount in products_from_stock %}
+                        {% for productmission, stock in products_from_stock %}
                             {% if object.id == productmission.mission.id %}
                             <tr>
                                 <td>
@@ -26,10 +27,13 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{productmission.get_ean_or_sku}}
+                                    {{productmission.sku.product.ean|default:""}}
                                 </td>
-                                <td>{{productmission.state}}</td>
-                                <td>{{productmission.product.title|default:""}}</td>
+                                <td>
+                                    {{productmission.sku.sku|default:""}}
+                                </td>
+                                <td>{{productmission.sku.state}}</td>
+                                <td>{{productmission.sku.product.title|default:""}}</td>
                                 <td>{{productmission.amount}}</td>
                                 <td>
                                     {{ stock|default:'0' }}

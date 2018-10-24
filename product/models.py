@@ -83,26 +83,32 @@ class Product(models.Model):
         super().save()
 
         if generate_skus is True:
-            bulk_instances = [Sku(product_id=self.pk, sku=f"N{self.main_sku}", state="Neu"),
-                              Sku(product_id=self.pk, sku=f"G{self.main_sku}", state="G"),
-                              Sku(product_id=self.pk, sku=f"B{self.main_sku}", state="B"),
-                              Sku(product_id=self.pk, sku=f"C{self.main_sku}", state="C"),
-                              Sku(product_id=self.pk, sku=f"D{self.main_sku}", state="D")]
+            bulk_instances = [Sku(product_id=self.pk, sku=f"N{self.main_sku}", state="Neu", main_sku=True),
+                              Sku(product_id=self.pk, sku=f"G{self.main_sku}", state="G", main_sku=True),
+                              Sku(product_id=self.pk, sku=f"B{self.main_sku}", state="B", main_sku=True),
+                              Sku(product_id=self.pk, sku=f"C{self.main_sku}", state="C", main_sku=True),
+                              Sku(product_id=self.pk, sku=f"D{self.main_sku}", state="D", main_sku=True)]
             Sku.objects.bulk_create(bulk_instances)
         else:
             skus = self.sku_set.all()
-            sku_strings = [sku.state for sku in skus]
+
+            for sku in skus:
+                if sku.sku.endswith(str(self.main_sku)) is True:
+                    sku.main_sku = True
+                    sku.save()
+
+            sku_states = [sku.state for sku in skus]
             states = ["Neu", "G", "B", "C", "D"]
 
             for state in states:
-                if state not in sku_strings:
+                if state not in sku_states:
 
                     if state == "Neu":
                         prefix = "N"
                     else:
                         prefix = state
 
-                    sku_instance = Sku(product_id=self.pk, sku=f"{prefix}{self.main_sku}", state=f"{state}")
+                    sku_instance = Sku(product_id=self.pk, sku=f"{prefix}{self.main_sku}", state=state, main_sku=True)
                     sku_instance.save()
 
     def get_state_from_sku(self, sku):

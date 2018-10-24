@@ -101,7 +101,36 @@
                         </div>
                     </div>
                 </div>
+                {% if online_skus %}
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            Online SKUs
+                        </div>
+                        <div class="panel-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>SKU</th>
+                                            <th>Zustand</th>
+                                            <th>Channel</th>
 
+                                        </tr>
+                                    </thead>
+                                    {% for sku in online_skus %}
+                                        <tr>
+                                            <td>{{ sku.sku }}</td>
+                                            <td>{{ sku.state }}</td>
+                                            <td>
+                                                {{ sku.channel|default:"" }}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
 
             </div>
             <div class="col-md-12" style="padding:0px;">

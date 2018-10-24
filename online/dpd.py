@@ -48,7 +48,8 @@ class DPDPDFView(UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
-        self.client = Client.objects.get(pk=self.request.session.get("client"))
+        first_product = self.mission.productmission_set.first()
+        self.client = first_product.sku.channel.client
         print(f"{self.mission} --- {self.client}")
         return super().dispatch(request, *args, **kwargs)
 
@@ -114,12 +115,14 @@ class DPDPDFView(UpdateView):
             picklist.completed = True
             picklist.save()
             for pick_row in picklist.picklistproducts_set.all():
-                product = pick_row.product_mission.product
-                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
+                product = pick_row.product_mission.sku.product
+                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.sku.state).first()
+                skus = product.sku_set.filter(
+                    state=pick_row.product_mission.sku.state, main_sku=True).values_list("sku", flat=True)
                 stock = Stock.objects.filter(
                     Q(Q(lagerplatz=pick_row.position)
                       & Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
-                          | Q(sku=product_sku.sku)))).first()
+                          | Q(sku=product_sku.sku) | Q(sku__in=skus)))).first()
 
                 if stock is not None:
                     stock.bestand -= pick_row.confirmed_amount
@@ -155,6 +158,7 @@ class DPDLabelCreator:
 
     def create_label_through_dpd_api(self):
         self.get_authentication_token_from_dpd_api()
+        print(f"wie ?? {self.client}")
         doc = f'''
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
              xmlns:ns="http://dpd.com/common/service/types/Authentication/2.0"
@@ -198,7 +202,7 @@ class DPDLabelCreator:
                                   </recipient>
                             </generalShipmentData>
                             <parcels>
-                                <customerReferenceNumber1 />
+                                <customerReferenceNumber1>{self.mission.channel_order_id}</customerReferenceNumber1>
                                 <customerReferenceNumber2 />
                                 <customerReferenceNumber3 />
                                 <customerReferenceNumber4 />

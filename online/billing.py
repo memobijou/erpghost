@@ -20,7 +20,8 @@ class OnlineBillingView(View):
         self.billing_number = self.billing.billing_number
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
         self.billing_address = self.mission.billing_address
-        self.client = Client.objects.get(pk=self.request.session.get("client"))
+        first_product = self.mission.productmission_set.first()
+        self.client = first_product.sku.channel.client
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -102,7 +103,9 @@ class OnlineBillingView(View):
 
         delivery_address_html_string = get_delivery_address_html_string_from_object(self.mission.delivery_address)
 
-        delivery_date = self.mission.delivery_date
+        delivery_date_from = self.mission.delivery_date_from
+
+        delivery_date_to = self.mission.delivery_date_to
 
         terms_of_delivery = self.mission.terms_of_delivery
 
@@ -110,7 +113,8 @@ class OnlineBillingView(View):
 
         table_data = [
             [
-                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date.strftime('%d.%m.%Y')}<br/>",
+                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date_from.strftime('%d.%m.%Y')}-"
+                          f"{delivery_date_to.strftime('%d.%m.%Y')}<br/>",
                           style=size_twelve_helvetica_bold),
             ],
             [
@@ -164,7 +168,7 @@ class OnlineBillingView(View):
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.product.title, style=size_nine_helvetica),
+                    Paragraph(productmission.sku.product.title, style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
                               style=right_align_paragraph_style),

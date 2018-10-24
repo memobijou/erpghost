@@ -31,14 +31,14 @@
                             {% endif %}
                         >
                             <td>
-                                {% if pick_row.product_mission.product.main_image %}
+                                {% if pick_row.product_mission.sku.product.main_image %}
                                     <img class="img-responsive" style="max-height: 80px;"
-                                         src="{{ pick_row.product_mission.product.main_image.url }}"/>
+                                         src="{{ pick_row.product_mission.sku.product.main_image.url }}"/>
                                 {% endif %}
                             </td>
                             <td>
-                                <p><b>EAN: </b>{{ pick_row.product_mission.product.ean }}</p>
-                                <p><b>Zustand: </b>{{ pick_row.product_mission.state }}</p>
+                                <p><b>EAN: </b>{{ pick_row.product_mission.sku.product.ean }}</p>
+                                <p><b>Zustand: </b>{{ pick_row.product_mission.sku.state }}</p>
                                 <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
                             </td>
                         </tr>

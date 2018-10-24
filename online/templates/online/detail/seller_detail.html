@@ -8,7 +8,6 @@
         <p style="font-size:15px;"><b>Fremd ID: </b>{{ object.channel_order_id }}</p>
         <p><b>Kunde: </b>{{object.customer|default:"N/A"}}</p>
         <p>
-            {{ object.delivery_date_from }}
             <b>Lieferdatum: </b>{{ object.delivery_date_from|default:"N/A"}}-{{ object.delivery_date_to|default:"N/A"}}
         </p>
         <p>

@@ -103,6 +103,7 @@
                         <th>Bild</th>
                         <th>EAN</th>
                         <th>SKUs</th>
+                        <th>ASINs</th>
                         <th>Artikelname</th>
                         <th>Hersteller</th>
                         <th>Marke</th>
@@ -112,7 +113,7 @@
 
                 <tbody>
                     {% if product_list %}
-                        {% for object, skus, states_totals, total in product_list %}
+                        {% for object, skus, online_skus, states_totals, total in product_list %}
                             <tr>
                                 <td class="col-md-1"><a href="{% url 'product:detail' pk=object.pk %}">Ansicht</a>
                                     <a href="{% url 'product:edit' pk=object.pk %}">Bearbeiten</a>
@@ -148,6 +149,13 @@
                                 <td>
                                     {% for sku in skus %}
                                         {{ sku }}<br/>
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% for sku in online_skus %}
+                                        {% if sku.asin %}
+                                            {{ sku.asin|default:"" }}<br/>
+                                        {% endif %}
                                     {% endfor %}
                                 </td>
                                 <td>

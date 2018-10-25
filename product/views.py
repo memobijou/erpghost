@@ -55,9 +55,11 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
     def get_product_list(self, object_list):
         product_list = []
         for obj in object_list:
-            skus = obj.sku_set.all().order_by("state")
+            skus = obj.sku_set.filter(main_sku=True).order_by("state")
+            online_skus = obj.sku_set.filter(main_sku__isnull=True).order_by("state")
+
             states_totals, total = get_states_totals_and_total(obj, skus)
-            product_list.append((obj, skus, states_totals, total))
+            product_list.append((obj, skus, online_skus, states_totals, total))
         return product_list
 
     def get_queryset(self):
@@ -142,6 +144,7 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
                 brandname_q &= Q(brandname__icontains=q_element)
                 manufacturer_q &= Q(manufacturer__icontains=q_element)
                 part_number_q &= Q(part_number__icontains=q_element)
+                part_number_q &= Q(sku__asin__icontains=q_element)
 
             self.queryset = self.queryset.filter(Q(ean_q | title_q | short_description_q | long_description_q |
                                                    sku_q | brandname_q | manufacturer_q | part_number_q))

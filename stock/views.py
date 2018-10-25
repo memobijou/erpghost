@@ -56,7 +56,7 @@ class StockListBaseView(LoginRequiredMixin, ListView):
                 states_totals, total = get_states_totals_and_total(obj.sku_instance.product, skus)
                 result.append((obj, states_totals, total))
             else:
-                states_totals, total = get_states_totals_and_total_from_ean_without_product(obj)
+                states_totals, total = 0, 0
                 result.append((obj, states_totals, total))
         return result
 

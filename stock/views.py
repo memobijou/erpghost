@@ -506,7 +506,6 @@ class StockUpdateBaseView(LoginRequiredMixin, UpdateView):
         form = super().get_form(form_class=None)
 
         if self.object.pk is not None:
-            print(f"ben ben: {self.object.pk}")
 
             state = self.object.get_state()
 
@@ -528,7 +527,6 @@ class StockUpdateBaseView(LoginRequiredMixin, UpdateView):
         if ean is not None and ean != "":
             product = Product.objects.filter(ean=ean).first()
 
-        print(f"INWI: {ean} - {sku} - {product}")
         return product
 
 
@@ -914,11 +912,10 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
 
         if sku is not None and sku != "":
             product = Product.objects.filter(sku__sku=sku).first()
-        print(f"warum: {product}")
+
         if ean is not None and ean != "":
             product = Product.objects.filter(ean=ean, single_product__isnull=True).first()
 
-        print(f"INWI: {ean} - {sku} - {product.pk}")
         return product
 
 

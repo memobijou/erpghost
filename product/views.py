@@ -131,6 +131,7 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
             brandname_q = Q()
             manufacturer_q = Q()
             part_number_q = Q()
+            asin_q = Q()
 
             print(q_list)
             for q_element in q_list:
@@ -144,10 +145,10 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
                 brandname_q &= Q(brandname__icontains=q_element)
                 manufacturer_q &= Q(manufacturer__icontains=q_element)
                 part_number_q &= Q(part_number__icontains=q_element)
-                part_number_q &= Q(sku__asin__icontains=q_element)
+                asin_q &= Q(sku__asin__icontains=q_element)
 
             self.queryset = self.queryset.filter(Q(ean_q | title_q | short_description_q | long_description_q |
-                                                   sku_q | brandname_q | manufacturer_q | part_number_q))
+                                                   sku_q | brandname_q | manufacturer_q | part_number_q | asin_q))
         print(f"banana: {self.queryset}")
         return self.queryset.distinct()
 

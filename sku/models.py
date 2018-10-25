@@ -79,6 +79,7 @@ class Sku(models.Model):
     main_sku = models.NullBooleanField(blank=True, verbose_name="Haupt-SKU")
     product = models.ForeignKey("product.Product", null=True, blank=True)
     channel = models.ForeignKey("online.Channel", null=True, blank=True)
+    asin = models.CharField(max_length=200, null=True, blank=True, verbose_name="ASIN")
 
     def __str__(self):
         return str(self.sku)

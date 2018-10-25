@@ -113,14 +113,15 @@
                                         <tr>
                                             <th>SKU</th>
                                             <th>Zustand</th>
+                                            <th>Asin</th>
                                             <th>Channel</th>
-
                                         </tr>
                                     </thead>
                                     {% for sku in online_skus %}
                                         <tr>
-                                            <td>{{ sku.sku }}</td>
-                                            <td>{{ sku.state }}</td>
+                                            <td>{{ sku.sku|default:"" }}</td>
+                                            <td>{{ sku.state|default:"" }}</td>
+                                            <td>{{ sku.asin|default:"" }}</td>
                                             <td>
                                                 {{ sku.channel|default:"" }}
                                             </td>

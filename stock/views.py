@@ -541,7 +541,6 @@ class StockUpdateView(StockUpdateBaseView):
         if self.object is not None:
             self.position = Position.objects.filter(name__iexact=self.object.lagerplatz).first()
         self.instance = Stock.objects.get(id=self.kwargs.get("pk"))
-        print(f"hää: {self.instance.sku_instance.product.single_product}")
         if (self.instance.sku_instance is not None and self.instance.sku_instance.product is not None and
                 self.instance.sku_instance.product.single_product is True):
             return HttpResponseRedirect(reverse_lazy("stock:single_edit", kwargs={"pk": self.instance.pk}))
@@ -574,10 +573,16 @@ class StockDeleteQuerySetView(DeleteView):
                     if stock.sku_instance is not None and stock.sku_instance.product is not None
                     else stock.zustand or "")
             state = (stock.sku_instance.state if stock.sku_instance is not None else stock.zustand or "")
-            states_totals, total = get_states_totals_and_total(stock.sku_instance.product, skus)
-            print(f"hehe: {states_totals[state]}")
+            if stock.sku_instance is not None:
+                states_totals, total = get_states_totals_and_total(stock.sku_instance.product, skus)
+                print(f"hehe: {states_totals[state]}")
+            else:
+                continue
 
-            reserved_amount_position = PickListProducts.objects.get_stock_reserved_total(stock).get("total", 0) or 0
+            if stock.sku_instance is not None:
+                reserved_amount_position = PickListProducts.objects.get_stock_reserved_total(stock).get("total", 0) or 0
+            else:
+                reserved_amount_position = 0
 
             print(f" WHAT THE: {reserved_amount_position}")
 

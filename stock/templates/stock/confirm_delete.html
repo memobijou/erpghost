@@ -38,13 +38,33 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {{ obj.ean_vollstaendig|default:obj.sku_instance.product.ean|default:"" }}
+                                                    {% if obj.sku_instance %}
+                                                        {{ obj.sku_instance.product.ean|default:"" }}
+                                                    {% else %}
+                                                        {{ obj.ean_vollstaendig|default:"" }}
+                                                    {% endif %}
                                                 </td>
                                                 <td>
-                                                    {{ obj.sku_instance.product.title|default:obj.title|default:"" }}
+                                                    {% if obj.sku_instance %}
+                                                        {{ obj.sku_instance.product.title|default:"" }}
+                                                    {% else %}
+                                                        {{ obj.title|default:"" }}
+                                                    {% endif %}
                                                 </td>
-                                                <td>{{ obj.sku|default:obj.sku_instance.sku|default:"" }}</td>
-                                                <td>{{ obj.zustand|default:obj.sku_instance.state|default:"" }}</td>
+                                                <td>
+                                                    {% if obj.sku_instance %}
+                                                        {{ obj.sku_instance.sku|default:"" }}
+                                                    {% else %}
+                                                        {{ obj.sku|default:"" }}
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if obj.sku_instance %}
+                                                        {{ obj.sku_instance.state|default:"" }}
+                                                    {% else %}
+                                                        {{ obj.zustand|default:"" }}
+                                                    {% endif %}
+                                                </td>
                                                 <td>{{ obj.lagerplatz }}</td>
                                                 <td>{{ obj.bestand }}</td>
                                             </tr>
@@ -98,13 +118,33 @@
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                {{ obj.ean_vollstaendig|default:obj.sku_instance.product.ean|default:"" }}
+                                                {% if obj.sku_instance %}
+                                                    {{ obj.sku_instance.product.ean|default:"" }}
+                                                {% else %}
+                                                    {{ obj.ean_vollstaendig|default:"" }}
+                                                {% endif %}
                                             </td>
                                             <td>
-                                                {{ obj.sku_instance.product.title|default:obj.title|default:"" }}
+                                                {% if obj.sku_instance %}
+                                                    {{ obj.sku_instance.product.title|default:"" }}
+                                                {% else %}
+                                                    {{ obj.title|default:"" }}
+                                                {% endif %}
                                             </td>
-                                            <td>{{ obj.sku|default:obj.sku_instance.sku|default:"" }}</td>
-                                            <td>{{ obj.zustand|default:obj.sku_instance.state|default:"" }}</td>
+                                            <td>
+                                                {% if obj.sku_instance %}
+                                                    {{ obj.sku_instance.sku|default:"" }}
+                                                {% else %}
+                                                    {{ obj.sku|default:"" }}
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if obj.sku_instance %}
+                                                    {{ obj.sku_instance.state|default:"" }}
+                                                {% else %}
+                                                    {{ obj.zustand|default:"" }}
+                                                {% endif %}
+                                            </td>
                                             <td>{{ obj.lagerplatz }}</td>
                                             <td>
                                                 <p><b>IST Bestand: </b>{{ obj.bestand }}</p>

@@ -31,7 +31,6 @@
 
 
     <div class="is-table-row" style="padding-bottom: 20px;width:100%">
-
         {% if instance.id %}
             <div class="col-md-4 table-bordered" style="background-color:white;padding:25px;text-align: center;">
                     <b>Position: </b> <span> {{ instance.lagerplatz }} </span></br>
@@ -64,7 +63,7 @@
             </div>
         {% else %}
             <div class="col-md-12 table-bordered" style="background-color:white;padding:25px;text-align: center;font-size:25px;">
-                    <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
+                <b>Position: </b> <span> {{ object.lagerplatz }} </span></br>
             </div>
         {% endif %}
     </div>
@@ -110,19 +109,5 @@
                     </div>
                 </form>
         </div>
-        {% if instance.id %}
-            <div class="col-md-12" style="padding-right: 0px;padding-left: 0px;">
-                <br/>
-                {% if instance.sku_instance.product.single_product != True %}
-                    <a class="btn btn-danger pull-right" href="{% url 'stock:delete' pk=instance.id %}">Artikel ausbuchen</a>
-                {% else %}
-                    <a class="btn btn-danger pull-right" href="{% url 'stock:single_delete' pk=instance.id %}">
-                        Artikel ausbuchen
-                    </a>
-                {% endif %}
-            </div>
-        {% endif %}
-
-
     </div>
 {% endblock %}

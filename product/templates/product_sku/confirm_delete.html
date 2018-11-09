@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-md-2"></div>
+                <div class="col-md-8">
+                    <div class="text-center">
+                        <h3>Sie haben vor folgende SKU zu löschen</h3>
+                        <br/>
+                    </div>
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>SKU</th>
+                                <th>Zustand</th>
+                                <th>Asin</th>
+                                <th>Verkaufskanal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ object.sku }}</td>
+                                <td>{{ object.state }}</td>
+                                <td>{{ object.asin|default:"" }}</td>
+                                <td>{{ object.channel }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <form method="POST">{% csrf_token %}
+                        <div class="text-center">
+                            {% if not error_msg %}
+                                <p class="help-block">Dieser Vorgang kann nicht rückgängig gemacht werden</p>
+                                <button class="btn btn-danger btn-lg">Trotzdem löschen</button>
+                            {% else %}
+                                <p style="color:red;" class="help-block">{{ error_msg }}</p>
+                                <a class="btn btn-info" href="{% url 'product:detail' pk=product.pk %}">Zurück zum Artikel</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            <div class="col-md-2"></div>
+
+        </div>
+    </div>
+{% endblock %}

@@ -5,7 +5,7 @@ from django.db import models
 
 
 class Channel(models.Model):
-    name = models.CharField(null=True, blank=True, max_length=200, verbose_name="Channel")
+    name = models.CharField(null=True, blank=True, max_length=200, verbose_name="Bezeichnung")
     market = models.CharField(null=True, blank=True, max_length=200, verbose_name="Marktplatz")
     api_data = models.ForeignKey("client.ApiData", null=True, blank=True)
     client = models.ForeignKey("client.Client", null=True, blank=True, verbose_name="Mandant",
@@ -15,10 +15,35 @@ class Channel(models.Model):
         return f'{self.market or ""} - {self.name or ""}'
 
 
+class OfferManager(models.Manager):
+    def bulk_create(self, objs, batch_size=None):
+        from sku.models import Sku  # cyclic import error
+        for obj in objs:
+            sku_instance = Sku.objects.filter(sku=self.sku).first()
+            if sku_instance is not None:
+                obj.sku_instance = sku_instance
+        super().bulk_create(objs)
+
+
 class Offer(models.Model):
+    objects = OfferManager()
+
     sku = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
     asin = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
+    sku_instance = models.ForeignKey("sku.Sku", null=True, blank=True)
+
+    def __init__(self, *args, **kwargs):
+        from sku.models import Sku
+        self.sku_class = Sku
+        super().__init__(*args, **kwargs)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        sku_instance = self.sku_class.objects.filter(sku=self.sku).first()  # cyclic import error
+        if sku_instance is not None:
+            self.sku_instance = sku_instance
+        super().save()
 
 
 class RefillOrder(models.Model):

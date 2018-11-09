@@ -9,6 +9,8 @@ from xml.etree import ElementTree as Et
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.views.generic import UpdateView
+
+from disposition.models import BusinessAccount
 from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission
 from client.models import Client
 from online.forms import DhlForm
@@ -30,6 +32,8 @@ class DHLCreatePdfView(UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
+        if self.mission.online_picklist.completed is True:
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
         self.client = Client.objects.get(pk=self.request.session.get("client"))
         return super().dispatch(request, *args, **kwargs)
 
@@ -65,10 +69,11 @@ class DHLCreatePdfView(UpdateView):
         if picklist is not None:
             self.create_delivery_note(picklist)
             self.create_billing(picklist)
-            self.book_out_stocks(picklist)
         return super().form_valid(form)
 
     def create_delivery_note(self, picklist):
+        if picklist.online_delivery_note is not None:
+            picklist.online_delivery_note.delete()
         picklist.online_delivery_note = DeliveryNote.objects.create()
         picklist.save()
         bulk_instances = []
@@ -79,6 +84,8 @@ class DHLCreatePdfView(UpdateView):
         DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
 
     def create_billing(self, picklist):
+        if picklist.online_billing is not None:
+            picklist.online_billing.delete()
         picklist.online_billing = Billing.objects.create()
         picklist.save()
         bulk_instances = []
@@ -88,26 +95,6 @@ class DHLCreatePdfView(UpdateView):
                                                         billing=picklist.online_billing,
                                                         amount=pick_row.confirmed_amount))
         BillingProductMission.objects.bulk_create(bulk_instances)
-
-    def book_out_stocks(self, picklist):
-        if picklist.completed is None:
-            picklist.completed = True
-            picklist.save()
-            for pick_row in picklist.picklistproducts_set.all():
-                product = pick_row.product_mission.product
-                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.state).first()
-                stock = Stock.objects.filter(
-                    Q(Q(lagerplatz=pick_row.position) &
-                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.state)
-                        | Q(sku=product_sku.sku)))).first()
-                if stock is not None:
-                    stock.bestand -= pick_row.confirmed_amount
-                    print(f"{stock} - {stock.bestand}")
-                    if stock.bestand > 0:
-                        stock.save()
-                    else:
-                        stock.delete()
-                    print(f"SO 1: {stock}")
 
 
 class DHLLabelCreator:
@@ -124,6 +111,10 @@ class DHLLabelCreator:
         self.client = client
         self.package_weight, self.name_1, self.street, self.street_number = None, None, None, None
         self.postal_code, self.place, self.country_code = None, None, None
+        self.transport_account = BusinessAccount.objects.filter(client=self.client,
+                                                                transport_service__name__iexact="DHL").first()
+        self.transport_service = (self.transport_account.transport_service if self.transport_account is not None
+                                  else None)
 
     def create_label(self, package_weight, name_1, street, street_number, postal_code, place, country_code):
         self.package_weight, self.name_1, self.street = package_weight, name_1, street
@@ -159,6 +150,7 @@ class DHLLabelCreator:
             pdf_content = requests.get(label_url, stream=True).content
             print(shipment_number)
             self.mission.tracking_number = shipment_number
+            self.mission.online_transport_service = self.transport_service
             self.mission.shipped = True
             self.mission.save()
             return pdf_content, None

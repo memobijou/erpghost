@@ -14,15 +14,24 @@ class OnlineBillingView(View):
         self.mission = None
         self.client = None
         self.billing_address = None
+        self.total, self.discount, self.shipping_discount, self.shipping_price = 0.00, 0.00, 0.00, 0.00
 
     def dispatch(self, request, *args, **kwargs):
         self.billing = Billing.objects.get(pk=self.kwargs.get("billing_pk"))
         self.billing_number = self.billing.billing_number
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
         self.billing_address = self.mission.billing_address
+        self.set_payment_totals()
         first_product = self.mission.productmission_set.first()
         self.client = first_product.sku.channel.client
         return super().dispatch(request, *args, **kwargs)
+
+    def set_payment_totals(self):
+        for mission_product in self.mission.productmission_set.all():
+            self.total += mission_product.amount*mission_product.brutto_price or 0.00
+            self.discount += mission_product.discount or 0.00
+            self.shipping_discount += mission_product.shipping_discount or 0.00
+            self.shipping_price += mission_product.shipping_price or 0.00
 
     def get(self, request, *args, **kwargs):
         exception = self.validate_pdf()
@@ -163,17 +172,17 @@ class OnlineBillingView(View):
         pos = 1
         from mission.billing_pdf import  format_number_thousand_decimal_points
         for productmission in self.mission.productmission_set.all():
-
+            netto_price = productmission.brutto_price-(productmission.brutto_price*0.19)
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
                     Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
                     Paragraph(productmission.sku.product.title, style=size_nine_helvetica),
                     Paragraph(str(productmission.amount), style=right_align_paragraph_style),
-                    Paragraph(format_number_thousand_decimal_points(productmission.netto_price),
+                    Paragraph(format_number_thousand_decimal_points(netto_price),
                               style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(
-                        (productmission.netto_price * productmission.amount)),
+                        (netto_price * productmission.amount)),
                               style=right_align_paragraph_style),
                 ],
             )
@@ -186,7 +195,7 @@ class OnlineBillingView(View):
                 Paragraph("", style=right_align_paragraph_style),
                 Paragraph("",
                           style=right_align_paragraph_style),
-                Paragraph(format_number_thousand_decimal_points(self.mission.online_transport_cost or 0),
+                Paragraph(format_number_thousand_decimal_points(self.shipping_price-(self.shipping_price*0.19)),
                           style=right_align_paragraph_style),
             ],
         )
@@ -202,18 +211,53 @@ class OnlineBillingView(View):
         total_netto = 0
 
         for productmission in self.mission.productmission_set.all():
-            total_netto += productmission.amount * productmission.netto_price
+            netto_price = productmission.brutto_price-(productmission.brutto_price*0.19)
+            total_netto += productmission.amount * netto_price
+
+        discount_netto = self.discount - (self.discount * 0.19)
+        shipping_discount_netto = self.shipping_discount - (self.shipping_discount * 0.19)
+        netto_shipping_price = self.shipping_price-(self.shipping_price*0.19)
+        total_netto = total_netto+netto_shipping_price+discount_netto+shipping_discount_netto
+
+        print(f"wie wie wie: {total_netto}")
 
         horizontal_line_betrag = Drawing(20, 1)
         horizontal_line_betrag.add(Line(425, 0, 200, 0))
 
-        tax = total_netto*0.19+self.mission.online_transport_cost*0.19
+        tax = self.total*0.19+self.shipping_price*0.19+self.discount*0.19+self.shipping_discount*0.19
 
-        betrag_data = [
+        print(f"hä: {self.shipping_price}")
+        print(f"hahahah: {self.discount}")
+        betrag_data = []
+        if self.discount != 0.00:
+            print(f"hahahah: {self.discount}")
+            betrag_data.extend([
+                [
+                    Paragraph(f"Rabatt",
+                              style=right_align_paragraph_style),
+                    Paragraph(f"{format_number_thousand_decimal_points(discount_netto)} €",
+                              style=right_align_paragraph_style),
+                ]
+            ])
+
+        if self.shipping_discount != 0.00:
+            betrag_data.extend([
+                [
+                    Paragraph(f"Versandrabatt",
+                              style=right_align_paragraph_style),
+                    Paragraph(f"{format_number_thousand_decimal_points(shipping_discount_netto)} €",
+                              style=right_align_paragraph_style),
+                ]
+            ])
+
+        brutto_total = self.total+self.shipping_price+self.discount+self.shipping_discount
+
+        betrag_data.extend([
             [
                 Paragraph(f"Nettobetrag",
                           style=right_align_paragraph_style),
-                Paragraph(f"{format_number_thousand_decimal_points(total_netto+self.mission.online_transport_cost)} €",
+                Paragraph(f"{format_number_thousand_decimal_points(total_netto-discount_netto-shipping_discount_netto)}"
+                          f" €",
                           style=right_align_paragraph_style),
             ],
             [
@@ -226,10 +270,10 @@ class OnlineBillingView(View):
             ],
             [
                 Paragraph(f"GESAMT", style=right_align_bold_paragraph_style),
-                Paragraph(f"{format_number_thousand_decimal_points(total_netto+tax)} €",
+                Paragraph(f"{format_number_thousand_decimal_points(brutto_total)} €",
                           style=right_align_bold_paragraph_style),
             ]
-        ]
+        ])
         betrag_table = Table(betrag_data, colWidths=[None, 90, 75])
         betrag_table.setStyle(
             TableStyle([
@@ -247,17 +291,19 @@ class OnlineBillingView(View):
         #                                 ('BOX', (0, 0), (-1, -1), 0.25, colors.black)]))
 
     def build_right_align_header(self):
-        created_date = f"{self.mission.created_date.strftime('%d.%m.%Y')}"
+        created_date = ""
+        if self.billing.created is not None:
+            created_date = f"{self.billing.created.strftime('%d.%m.%Y')}"
         mission_number = self.mission.mission_number
 
         right_align_header_data = []
 
-        if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
+        if self.mission.channel_order_id is not None and self.mission.channel_order_id != "":
             print(self.mission.customer_order_number)
             right_align_header_data.append(
                 [
                     Paragraph("Ihre Bestellung", style=size_nine_helvetica_leading_10),
-                    Paragraph(add_new_line_to_string_at_index(self.mission.customer_order_number, 20),
+                    Paragraph(add_new_line_to_string_at_index(self.mission.channel_order_id, 20),
                               style=size_nine_helvetica_leading_10),
                 ],
             )

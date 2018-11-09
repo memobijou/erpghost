@@ -8,6 +8,7 @@ from django.views.generic import DeleteView
 from django.views.generic import DetailView
 from django.views.generic import ListView, FormView, UpdateView
 
+from configuration.forms import OnlineSkuForm
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
 from sku.models import Sku
@@ -55,11 +56,12 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
     def get_product_list(self, object_list):
         product_list = []
         for obj in object_list:
-            skus = obj.sku_set.filter(main_sku=True).order_by("state")
-            online_skus = obj.sku_set.filter(main_sku__isnull=True).order_by("state")
+            all_skus = obj.sku_set.all()
+            main_skus = all_skus.filter(main_sku=True).order_by("state")
+            online_skus = all_skus.filter(main_sku__isnull=True).order_by("state")
 
-            states_totals, total = get_states_totals_and_total(obj, skus)
-            product_list.append((obj, skus, online_skus, states_totals, total))
+            states_totals, total = get_states_totals_and_total(obj, all_skus)
+            product_list.append((obj, main_skus, online_skus, states_totals, total))
         return product_list
 
     def get_queryset(self):
@@ -816,30 +818,134 @@ class ProductUpdateIcecatView(ProductUpdateView):
 
 
 class ProductDetailView(DetailView):
+    template_name = "product/product_detail.html"
+
     def __init__(self):
         super().__init__()
         self.object = None
         self.skus = None
         self.online_skus = None
         self.context = {}
+        self.new_sku_form = None
+        self.update_form = None
+        self.create_form_validation = None
+        self.update_form_validation = {"pk": None, "validation": None}
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Product.objects.get(pk=self.kwargs.get("pk"))
+        self.skus = self.object.sku_set.filter(main_sku=True).order_by("state")
+        self.online_skus = self.get_online_skus_and_forms()
+
+        self.new_sku_form = OnlineSkuForm()
+
+        if self.request.method == "POST":
+            pk_from_GET = self.request.GET.get("sku_pk", "") or ""
+            print(f"wie: {pk_from_GET}")
+            success_redirect = HttpResponseRedirect(
+                reverse_lazy("product:detail", kwargs={"pk": self.kwargs.get("pk")}))
+
+            if pk_from_GET == "":
+                self.new_sku_form = OnlineSkuForm(data=self.request.POST)
+                self.create_form_validation = self.new_sku_form.is_valid()
+                if self.create_form_validation is True:
+                    self.create_new_sku()
+                    return success_redirect
+                else:
+                    return render(request, self.template_name, self.get_context())
+            else:
+                for sku, edit_form in self.online_skus.items():
+                    if str(sku.pk) == pk_from_GET:
+                        self.update_form = OnlineSkuForm(instance=sku, data=self.request.POST)
+                        self.online_skus[sku] = self.update_form
+                        self.update_form_validation["validation"] = self.update_form.is_valid()
+                        self.update_form_validation["pk"] = sku.pk
+                        break
+
+                if self.update_form_validation["validation"] is True:
+                    self.update_form.save()
+                    return success_redirect
+                else:
+                    print(f"why: {self.update_form_validation['validation']}")
+                    return render(request, self.template_name, self.get_context())
+        return super().dispatch(request, *args, **kwargs)
+
+    def create_new_sku(self):
+        print(f"??? POST")
+        new_sku = self.new_sku_form.save(commit=False)
+        new_sku.product = self.object
+        new_sku.save()
+        if new_sku.sku is None:
+            new_sku.sku = new_sku.pk
+            new_sku.save()
+        print(f"wawawa: {new_sku.pk}")
 
     def get_object(self):
-        self.object = Product.objects.get(pk=self.kwargs.get("pk"))
         return self.object
 
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
+        self.context = self.get_context()
+        return self.context
+
+    def get_context(self):
         self.context["title"] = "Artikel Detailansicht"
-        self.skus = self.object.sku_set.filter(main_sku=True).order_by("state")
-        self.online_skus = self.object.sku_set.filter(main_sku__isnull=True).order_by("state")
         self.context["skus"] = self.skus
         self.context["online_skus"] = self.online_skus
         self.context["states_totals"], self.context["total"] = self.get_states_totals_and_total()
+        self.context["form"] = self.new_sku_form
+        self.context["create_form_validation"] = self.create_form_validation
+        self.context["update_form_validation"] = self.update_form_validation
         return self.context
 
+    def get_online_skus_and_forms(self):
+        online_skus = self.object.sku_set.filter(main_sku__isnull=True).order_by("state")
+        result = {}
+        for sku in online_skus:
+            form = OnlineSkuForm(instance=sku)
+            result[sku] = form
+        return result
+
     def get_states_totals_and_total(self):
-        states_totals, total = get_states_totals_and_total(self.object, self.skus)
+        states_totals, total = get_states_totals_and_total(self.object, self.object.sku_set.all())
         return states_totals, total
+
+
+class OnlineSkuDeleteView(DeleteView):
+    template_name = "product_sku/confirm_delete.html"
+
+    def __init__(self):
+        super().__init__()
+        self.object, self.product = None, None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = Sku.objects.get(pk=self.kwargs.get("pk"), main_sku__isnull=True)
+        self.product = self.object.product if self.object is not None else None
+
+        if request.method == "POST":
+            sku_instance = Sku.objects.filter(sku=self.object.sku).first()
+            if sku_instance is not None and (sku_instance.productmission_set.all().count() > 0
+                                             or sku_instance.offer_set.all().count() > 0):
+                error_msg = "Diese SKU kann nicht gelöscht werden, da für diese SKU Aufträge oder Angebote bestehen."
+                context = self.get_context()
+                context["error_msg"] = error_msg
+                return render(request, self.template_name,
+                              context)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_object(self, queryset=None):
+        return self.object
+
+    def get_success_url(self):
+        return reverse_lazy("product:detail", kwargs={"pk": self.product.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(self.get_context())
+        return context
+
+    def get_context(self):
+        context = {"title": "Löschvorgang bestätigen", "object": self.object, "product": self.product}
+        return context
 
 
 class IncomeListView(ListAPIView):

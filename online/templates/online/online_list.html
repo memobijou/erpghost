@@ -13,10 +13,96 @@
         </div>
     {% endif %}
 
-    <div class="col-md-12" style="padding:0;">
-    <br/>
-        {% include "snippets/filter.html" %}
-    </div>
+    <form id="filter_form" action="." class="">
+        <div class="col-md-12" style="padding-bottom: 25px;">
+            <div class="input-group">
+
+                <input class="form-control" placeholder="Suche ..." name="q" value="{{ q }}" style="position:static;"/>
+
+                <span class="input-group-btn">
+                    <button class="btn btn-info" type="submit">
+                        <span class="glyphicon glyphicon-search"></span>
+                    </button>
+                </span>
+            </div>
+        </div>
+
+        <div class="col-md-12" style="padding-bottom: 15px;">
+            <buttton class="btn btn-default show_hide_filter_btn">Filter einblenden</buttton>
+        </div>
+        <div class="display_filter" style="display:none;">
+            <div class="col-md-12" style="padding:0px;">
+                <div class="col-md-12" >
+                    <div class="checkbox">
+                        {% for option in option_fields %}
+                            <label class="radio-inline"><input type="checkbox" name="status" value="{{ option }}"
+                            class="fire_submit" {% if option in status %}checked{% endif %}>{{ option }}</label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Auftragsnummer" name="mission_number" value="{{ mission_number }}" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Fremd ID" value="{{ channel_order_id }}" name="channel_order_id" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Lieferdatum von" value="{{ delivery_date_from }}" name="delivery_date_from" class="form-control datepicker" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Lieferdatum bis" value="{{ delivery_date_to }}" name="delivery_date_to" class="form-control datepicker" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Verkaufskanal" value="{{ channel }}" name="channel" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Lieferscheinnummer" value="{{ delivery_note_number }}" name="delivery_note_number" class="form-control" type="text">
+                    </div>
+
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Rechnungsnummer" value="{{ billing_number }}" name="billing_number" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Kaufdatum" value="{{ purchased_date }}" name="purchased_date" class="form-control datepicker" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Bezahlungsdatum" value="{{ payment_date }}" name="payment_date" class="form-control datepicker" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Kunde" value="{{ customer }}" name="customer" class="form-control" type="text">
+                    </div>
+
+                    <div class="col-md-2" style="padding:15px 5px 0px 0px;">
+                        <input placeholder="Tracking ID" value="{{ tracking_number }}" name="tracking_number" class="form-control" type="text">
+                    </div>
+                </div>
+
+                <div class="col-md-12" style="padding-top:15px;">
+                    <div class="text-right">
+                        <a style="color:red;padding:15px 5px 0px 0px;" href="{% url 'online:list' %}?clear_filter=1">
+                            <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-info" style="">Filter</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
 
     <div class="col-md-12">
             {% include 'snippets/paginate_by.html' %}
@@ -41,12 +127,12 @@
                 </tr>
             </thead>
             <tbody>
-                {% for object, status in object_list %}
+                {% for object, payment_totals in object_list %}
                     <tr>
                         <td>
-                                <p>
-                                    <a href="{% url 'online:detail' pk=object.pk %}">Ansicht</a>
-                                </p>
+                            <p>
+                                <a href="{% url 'online:detail' pk=object.pk %}">Ansicht</a>
+                            </p>
                         </td>
                         <td class="show_hide" style="cursor:pointer;">
                             <p>
@@ -66,19 +152,27 @@
                         </td>
                         <td>
                             <p>
-                                {% if status == "Verpackt" %}
+                                {% if object.status == "Verpackt" %}
                                     <h4>
-                                         <span class="label label-success">{{ status }}</span>
+                                         <span class="label label-success">{{ object.status }}</span>
+                                    </h4>
+                                {% elif object.status == "Artikel nicht zugeordnet" %}
+                                    <h4>
+                                         <span class="label label-danger">{{ object.status|default:"Offen"}}</span>
                                     </h4>
                                 {% else %}
                                     <h4>
-                                         <span class="label label-warning">{{ status|default:"Offen"}}</span>
+                                         <span class="label label-warning">{{ object.status|default:"Offen"}}</span>
                                     </h4>
                                 {% endif %}
                             </p>
                         </td>
                         <td>
-                            <p>{{ object.tracking_number|default:"N/A" }}</p>
+                            {% if object.status.lower == "verpackt" and object.online_picklist.completed == True %}
+                                <p>{{ object.tracking_number|default:"N/A" }}</p>
+                            {% else %}
+                                <p>N/A</p>
+                            {% endif %}
                         </td>
                     </tr>
                     <tr id="collapse_{{ forloop.counter }}" class="collapse">
@@ -102,7 +196,7 @@
                                     <b>Kaufdatum: </b>{{ object.purchased_date|default:"N/A"}}
                                 </p>
                                 <p>
-                                    <b>Bezahlungsdatum: </b>{{ object.purchased_date|default:"N/A"}}
+                                    <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
                                 </p>
                                 <p>
                                     <b>Gesamtpreis Netto: </b>{{ object.productmission_set.all|get_total_price_order_or_mission|format_number_thousand_decimal_points }}
@@ -111,19 +205,21 @@
                                     <b>Gesamtpreis Brutto: </b>{{ object.productmission_set.all|get_total_price_order_or_mission|netto_to_brutto|format_number_thousand_decimal_points }}
                                 </p>
 
-                                {% if object.online_picklist.online_delivery_note %}
-                                    <a class="btn btn-info"
-                                        href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
-                                        Lieferschein
-                                    </a>
+                                {% if object.online_picklist.online_delivery_note and object.online_picklist.completed == True %}
+                                    {% if object.status.lower == "verpackt" %}
+                                        <a class="btn btn-info"
+                                            href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
+                                            Lieferschein
+                                        </a>
+                                    {% endif %}
                                 {% else %}
                                     <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
                                 {% endif %}
                                 {% if object.online_picklist.online_billing %}
-                                    <a class="btn btn-info"
-                                        href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">
-                                        Rechnung
-                                    </a>
+{#                                    <a class="btn btn-info"#}
+{#                                        href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">#}
+{#                                        Rechnung#}
+{#                                    </a>#}
                                 {% else %}
                                         <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
                                 {% endif %}
@@ -137,8 +233,8 @@
                                             <th>SKU</th>
                                             <th>Zustand</th>
                                             <th>Menge</th>
-                                            <th>Einzelpreis (Netto)</th>
-                                            <th>Gesamtpreis (Netto)</th>
+                                            <th>Einzelpreis</th>
+                                            <th>Gesambeträge</th>
                                         </thead>
                                         <tbody>
                                             {% for mission_product in object.productmission_set.all %}
@@ -161,16 +257,108 @@
                                                         <p>{{ mission_product.amount }}</p>
                                                     </td>
                                                     <td>
-                                                        <p>{{ mission_product.netto_price }}</p>
+                                                        <p>{{ mission_product.brutto_price }}</p>
                                                     </td>
                                                     <td>
-                                                        <p>{{ mission_product.netto_price|multiply:mission_product.amount|format_number_thousand_decimal_points  }}</p>
+                                                        {% if mission_product.brutto_price %}
+                                                            <table class="table table-borderless" style="padding:0px;margin:0px;">
+                                                                <tr>
+                                                                    <td style="padding-top:0;padding-bottom:0;">Betrag</td>
+                                                                    <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                        <p>{{ mission_product.brutto_price|multiply:mission_product.amount|format_number_thousand_decimal_points }}</p>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td style="padding-top:0;padding-bottom:0;">Versand</td>
+                                                                    <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                        <p>{{ mission_product.shipping_price|format_number_thousand_decimal_points }}</p>
+                                                                    </td>
+                                                                </tr>
+                                                                {% if mission_product.discount %}
+                                                                    <tr>
+                                                                        <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
+                                                                        <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                            <p style="color:red;">{{ mission_product.discount|format_number_thousand_decimal_points }}</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endif %}
+                                                                {% if mission_product.shipping_discount %}
+                                                                    <tr>
+                                                                        <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
+                                                                        <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                            <p style="color:red;">{{ mission_product.shipping_discount|format_number_thousand_decimal_points }}</p>
+                                                                        </td>
+                                                                    </tr>
+                                                                {% endif %}
+                                                                <tr>
+                                                                    <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
+                                                                <tr>
+                                                                    <td  style="padding-top:0;padding-bottom:0;"><b>Gesamt</b></td>
+                                                                    <td align="right" style="padding-top:0;padding-bottom:0;">
+                                                                        <b>{{ mission_product.brutto_price|multiply:mission_product.amount|custom_add:mission_product.shipping_price|custom_add:mission_product.discount|custom_add:mission_product.shipping_discount|format_number_thousand_decimal_points }}</b>
+                                                                    </td>
+                                                                </tr>
+                                                            </table>
+                                                        {% endif %}
                                                     </td>
                                                 </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
                                 </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td class="col-md-9"></td>
+                                            <td class="col-md-3" style="padding:0;">
+                                                <div class="panel panel-default">
+                                                    <div class="panel-body" style="padding:2px;">
+                                                        <table class="table table-borderless">
+                                                            <tr>
+                                                                <td style="padding-top:0;padding-bottom: 0;">Gesamtbetrag Artikel</td>
+                                                                <td align="right" style="padding-top:0;padding-bottom:0;">
+                                                                    <p>{{ payment_totals.payment_total|format_number_thousand_decimal_points }}</p>
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td style="padding-top:0;padding-bottom:0;">Versandkosten</td>
+                                                                <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                    <p>{{ payment_totals.shipping_price|format_number_thousand_decimal_points }}</p>
+                                                                </td>
+                                                            </tr>
+                                                            {% if payment_totals.total_discount %}
+                                                                <tr>
+                                                                    <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
+                                                                    <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.total_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                </tr>
+                                                            {% endif %}
+                                                            {% if shipping_discount %}
+                                                                <tr>
+                                                                    <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
+                                                                    <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.shipping_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                </tr>
+                                                            {% endif %}
+
+                                                            <tr>
+                                                                <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
+                                                            </tr>
+                                                            <tr>
+                                                                <td style="padding-top:0;padding-bottom: 0;"><b>Gesamt</b></td>
+                                                                <td align="right" style="padding-top:0;padding-bottom: 0;"><p>
+                                                                    <b>{{ payment_totals.payment_total|custom_add:payment_totals.shipping_price|custom_add:payment_totals.total_discount|custom_add:payment_totals.shipping_discount|format_number_thousand_decimal_points }}</b>
+                                                                </p></td>
+                                                            </tr>
+
+
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </div>
+
                             </div>
                         </td>
                     </tr>
@@ -192,6 +380,65 @@
     </div>
 
     <script>
+        var elements = document.getElementsByClassName("fire_submit");
+        var calendars = document.getElementsByClassName("datepicker");
+        var filter_btn = document.getElementById("filter_form");
+
+        for (var i = 0; i < elements.length; i++) {
+            elements[i].onclick = function () {
+                filter_btn.submit();
+            }
+        }
+
+        for (var i = 0; i < calendars.length; i++) {
+            var calendar = calendars[i];
+            calendar.onchange = function () {
+                filter_btn.submit();
+            }
+        }
+
+
+
+        // elements[i].innerHTML = $( ".trim" ).html( $.trim(elements[i].innerHTML));
+        // alert(elements[i].innerHTML );
+
+        // DISPLAY FILTER PART
+
+        var show_hide_filter_btn = document.getElementsByClassName("show_hide_filter_btn")[0];
+        var display_filter = document.getElementsByClassName("display_filter")[0];
+        show_hide_filter_btn.onclick = function(){
+            if(display_filter.style.display == "none"){
+                display_filter.style.display = "";
+                this.innerHTML = "Filter ausblenden"
+            }else{
+                display_filter.style.display = "none";
+                this.innerHTML = "Filter einblenden"
+            }
+        };
+
+        var inputs = document.getElementsByTagName("input");
+
+
+        for(i=0; i<inputs.length; i++){
+            var input = inputs[i];
+            if(input.value != null){
+                if(input.className == "fire_submit"){
+                    if(input.value && input.checked){
+                        display_filter.style.display = "";
+                        show_hide_filter_btn.innerHTML = "Filter ausblenden"
+                    }
+                }
+
+                if(input.className.includes("form-control") && input.value && input.name != "q" ){
+                    display_filter.style.display = "";
+                    show_hide_filter_btn.innerHTML = "Filter ausblenden"
+                }
+            }
+
+        }
+
+        // flip down up detail of table row
+
         var show_hide_elements = document.getElementsByClassName("show_hide");
 
         for(var i = 0; i<show_hide_elements.length; i++){
@@ -220,4 +467,16 @@
 
 
     </script>
+
+    <style>
+        .table-borderless > tbody > tr > td,
+        .table-borderless > tbody > tr > th,
+        .table-borderless > tfoot > tr > td,
+        .table-borderless > tfoot > tr > th,
+        .table-borderless > thead > tr > td,
+        .table-borderless > thead > tr > th {
+            border: none;
+        }
+    </style>
+
 {% endblock %}

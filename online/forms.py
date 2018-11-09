@@ -89,3 +89,8 @@ class BookinForm(forms.Form):
 
 class ImportForm(forms.Form):
     import_file = forms.FileField(label="Import Datei", required=True)
+
+
+class ConfirmManualForm(forms.Form):
+    note = forms.CharField(widget=forms.Textarea(attrs={"class": "form-control", "rows": 5}), required=False,
+                           label="Bemerkung")

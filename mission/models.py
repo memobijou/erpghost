@@ -20,6 +20,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import F, Q, Sum, Case, When, Count
 
 from sku.models import Sku
+from utils.models.base import ModelBase
 
 CHOICES = (
     (None, "----"),
@@ -80,20 +81,27 @@ class Mission(models.Model):
 
     online_transport_cost = models.FloatField(null=True, blank=True, verbose_name="Transportkosten")
 
+    online_transport_service = models.ForeignKey("disposition.TransportService", null=True, blank=True)
+
     is_online = models.NullBooleanField(choices=CHOICES, verbose_name="Onlinehandel")
 
     shipped = models.NullBooleanField(verbose_name="Versendet")
 
+    not_matchable = models.NullBooleanField(verbose_name="Nicht matchbar")
+
     objects = MissionObjectManager()
 
     def get_online_status(self):
+        if self.not_matchable is True:
+            return "Artikel nicht zugeordnet"
+
+        if self.status == "Manuell":
+            return "Manuell"
+
         if self.online_picklist is not None:
             if self.online_picklist.completed is True and self.tracking_number is not None:
                 return "Verpackt"
-        if self.tracking_number is not None:
-            return "Verpackt"
 
-        if self.online_picklist is not None:
             pick_order = self.online_picklist.pick_order
             if pick_order is not None:
                 packing_station = pick_order.packingstation_set.first()
@@ -119,8 +127,10 @@ class Mission(models.Model):
         super().save()
         if self.mission_number is None or self.mission_number == "":
             self.mission_number = f"A{self.pk+1}"
-        if self.channel is None:
+        if self.is_online is None:
             self.status = get_status(self)
+        else:
+            self.status = self.get_online_status()
         super().save()
 
     # def save(self, *args, **kwargs):
@@ -137,7 +147,7 @@ class Mission(models.Model):
         return reverse("mission:detail", kwargs={"pk": self.id})
 
 
-class ProductMissionManager(models.Manager):
+class ProductMissionQuerySet(models.QuerySet):
     def get_online_stocks(self):
         from stock.models import Stock
         from configuration.models import OnlinePositionPrefix
@@ -177,9 +187,16 @@ class ProductMissionManager(models.Manager):
             picklists_total=Subquery(subquery_picklists_total.values("picklists_total")))
 
 
+class ProductMissionManager(models.Manager):
+    def get_queryset(self):
+        return ProductMissionQuerySet(self.model, using=self._db)  # Important!
+
+
 class ProductMission(models.Model):
     class Meta:
         ordering = ['pk']
+
+    objects = ProductMissionManager()
 
     sku = models.ForeignKey(Sku, on_delete=models.CASCADE, verbose_name="Sku", null=True)
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
@@ -189,8 +206,11 @@ class ProductMission(models.Model):
     online_shipped_amount = models.IntegerField(null=False, blank=False, default=0, verbose_name="Versendete Menge")
     missing_amount = models.IntegerField(null=True, blank=True, verbose_name="Fehlende Menge")
     netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
+    brutto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Brutto)")
+    shipping_price = models.FloatField(null=True, blank=True, verbose_name="Versandkosten")
+    discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt")
+    shipping_discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt für Versand")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
-    objects = ProductMissionManager()
 
     @property
     def real_amount(self):
@@ -243,8 +263,11 @@ class PickList(models.Model):
     delivery = models.ForeignKey("mission.Delivery", null=True, blank=True)
     pick_order = models.ForeignKey(PickOrder, null=True, blank=True)
     completed = models.NullBooleanField(null=True, blank=True, verbose_name="Erledigt")
-    online_delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True)
-    online_billing = models.ForeignKey("mission.Billing", null=True, blank=True)
+    online_delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True,
+                                             on_delete=django.db.models.deletion.SET_NULL)
+    online_billing = models.ForeignKey("mission.Billing", null=True, blank=True,
+                                       on_delete=django.db.models.deletion.SET_NULL)
+    note = models.CharField(max_length=400, blank=True, null=True)
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
@@ -407,7 +430,7 @@ class DeliveryProduct(models.Model):
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
 
 
-class Billing(models.Model):
+class Billing(ModelBase):
     class Meta:
         ordering = ['pk']
 
@@ -445,7 +468,7 @@ class BillingProductMission(models.Model):
     objects = BillingProductMissionManager()
 
 
-class DeliveryNote(models.Model):
+class DeliveryNote(ModelBase):
     class Meta:
         ordering = ['pk']
 

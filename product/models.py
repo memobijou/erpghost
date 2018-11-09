@@ -126,13 +126,9 @@ def get_states_totals_and_total(product, skus):
     total = {"total": 0, "available_total": 0}
     states_totals = OrderedDict()
 
-    ean_skus = None
-    if product.ean is not None and product.ean != "":
-        ean_skus = Sku.objects.filter(product__ean=product.ean).get_totals().order_by("state")
-    else:
-        skus = skus.get_totals()
+    skus = skus.get_totals()
 
-    for sku in ean_skus or skus:
+    for sku in skus:
         if sku.state not in states_totals:
             states_totals[sku.state] = {}
             states_totals[sku.state]["total"] = sku.total

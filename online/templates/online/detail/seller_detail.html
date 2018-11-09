@@ -14,13 +14,15 @@
             <b>Kaufdatum: </b>{{ object.purchased_date|default:"N/A"}}
         </p>
         <p>
-            <b>Bezahlungsdatum: </b>{{ object.purchased_date|default:"N/A"}}
+            <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
         </p>
         <p><b>Status: </b>
-            {% if status == "Verpackt" %}
-                 <span class="label label-success" style="font-size:15px;">{{ status }}</span>
+            {% if object.status == "Verpackt" %}
+                 <span class="label label-success" style="font-size:15px;">{{ object.status }}</span>
+            {% elif object.status == "Artikel nicht zugeordnet" %}
+                 <span class="label label-danger" style="font-size:15px;">{{ object.status }}</span>
             {% else %}
-                 <span class="label label-warning" style="font-size:15px;">{{ status|default:"Offen"}}</span>
+                 <span class="label label-warning" style="font-size:15px;">{{ object.status|default:"Offen"}}</span>
             {% endif %}
         </p>
     </div>
@@ -36,19 +38,21 @@
 </div>
 
 <div class="col-md-12" style="padding-bottom:25px;">
-    {% if object.online_picklist.online_delivery_note %}
-        <a class="btn btn-info"
-            href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
-            Lieferschein
-        </a>
+    {% if object.online_picklist.online_delivery_note and object.online_picklist.completed == True %}
+        {% if object.status.lower == "verpackt" %}
+            <a class="btn btn-info"
+                href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
+                Lieferschein
+            </a>
+        {% endif %}
     {% else %}
         <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
     {% endif %}
     {% if object.online_picklist.online_billing %}
-        <a class="btn btn-info"
-            href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">
-            Rechnung
-        </a>
+{#        <a class="btn btn-info"#}
+{#            href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">#}
+{#            Rechnung#}
+{#        </a>#}
     {% else %}
         <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
     {% endif %}
@@ -61,6 +65,18 @@
 <div class="col-md-12">
     {% if picklist_products %}
         <h3>Pickauftrag</h3>
+        {% if object.status.lower == "manuell" %}
+            <p class="help-block">Lieferschein und Label müssen für diesen Auftrag manuell erzeugt werden</p>
+            {% if object.online_picklist.note != "" %}
+                <div class="media">
+                  <div class="media-body">
+                    <h4 class="media-heading">Notiz vom Verpacker</h4>
+                    <p>{{ object.online_picklist.note|default:"" }}</p>
+                  </div>
+                </div>
+            {% endif %}
+        {% endif %}
+
         <table class="table table-bordered">
             <thead>
                 <tr>
@@ -99,8 +115,7 @@
                                 </p>
                                 <p>
                                     <b>Ausgebucht: </b>
-
-                                    {% if picklist_product.confirmed is True and picklist_product.pick_list.completed is True %}
+                                    {% if picklist_product.confirmed == True and picklist_product.pick_list.completed == True %}
                                         <span class="glyphicon glyphicon-ok" style="color:green;"></span>&nbsp;&nbsp;&nbsp;&nbsp;<b>Menge:</b> {{ picklist_product.confirmed_amount }}
                                     {% else %}
                                         <span class="glyphicon glyphicon-remove" style="color:red;"></span>

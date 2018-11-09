@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import pycountry
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -15,7 +16,8 @@ from mission.models import Mission, PickList, PickListProducts, PickOrder, Packi
     DeliveryNoteProductMission, Billing, BillingProductMission, ProductMission
 from online.dhl import DHLLabelCreator
 from online.dpd import DPDLabelCreator
-from online.forms import AcceptOnlinePicklistForm, PickListProductsForm, StationGotoPickListForm, PackingForm
+from online.forms import AcceptOnlinePicklistForm, PickListProductsForm, StationGotoPickListForm, PackingForm, \
+    ConfirmManualForm
 from sku.models import Sku
 from stock.models import Stock, Position
 import requests
@@ -24,16 +26,15 @@ from django.db.models import Sum, Case, When, Q, F, OuterRef, Subquery, Count, E
 from django.db.models.functions import Lower
 
 
-class AcceptOnlinePickList(generic.CreateView):
+class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
     template_name = "online/picklist/detail.html"
     form_class = AcceptOnlinePicklistForm
     success_url = reverse_lazy("online:pickorder")
 
     def __init__(self):
         super().__init__()
-        self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
-                                               productmission__sku__product__ean__isnull=False,
-                                               online_picklist__isnull=True, is_online=True)
+        self.missions = Mission.objects.filter(is_amazon_fba=False, productmission__sku__product__ean__isnull=False,
+                                               online_picklist__isnull=True, is_online=True, not_matchable__isnull=True)
         print(f"jo: {self.missions.count()}")
         self.picklist_data = None
         self.pickorder = None
@@ -74,13 +75,9 @@ class AcceptOnlinePickList(generic.CreateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_missions_products(self):
-        product_missions = ProductMission.objects.get_online_stocks()
-        product_missions = product_missions.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
-
+        product_missions = ProductMission.objects.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
+        product_missions = product_missions.get_online_stocks()
         print(f"banana: {product_missions}")
-
-        for p in product_missions:
-            print(f"x: {p.mission} {p.total}")
 
         exclude_missions_pks = product_missions.filter(
             Q(Q(total__lte=0) | Q(online_total__lte=0))).values_list("mission__pk", flat=True)
@@ -251,7 +248,7 @@ def order_stocks_by_position(stocks, query_condition=Q(), exclude_condition=Q())
     return ordered_stocks
 
 
-class PickOrderView(generic.UpdateView):
+class PickOrderView(LoginRequiredMixin, generic.UpdateView):
     form_class = PickListProductsForm
     template_name = "online/picklist/pickorder.html"
     success_url = reverse_lazy("online:pickorder")
@@ -352,7 +349,7 @@ class PickOrderView(generic.UpdateView):
         return HttpResponseRedirect(self.success_url)
 
 
-class PickerView(View):
+class PickerView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         pickorder = request.user.pickorder_set.filter(completed=None).first()
 
@@ -362,7 +359,7 @@ class PickerView(View):
             return HttpResponseRedirect(reverse_lazy('online:accept_picklist'))
 
 
-class PutPickOrderOnStationView(View):
+class PutPickOrderOnStationView(LoginRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         instance = PackingStation.objects.get(pk=self.kwargs.get("pk"))
         if instance.pickorder is None and instance.user is None:
@@ -373,7 +370,7 @@ class PutPickOrderOnStationView(View):
         return HttpResponseRedirect(reverse_lazy('online:online_redirect'))
 
 
-class GoFromStationToPackingView(View):
+class GoFromStationToPackingView(LoginRequiredMixin, View):
     form_class = StationGotoPickListForm
     template_name = "online/packing/station.html"
 
@@ -414,32 +411,34 @@ class GoFromStationToPackingView(View):
         print(f"fdsafadsfds: {self.picklist}")
 
 
-class PackingPickOrderOverview(View):
+class PackingPickOrderOverview(LoginRequiredMixin, View):
     template_name = "online/packing/pickorder_overview.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.pickorder = None
         self.packingstation = None
+        self.picklists = None
         self.picked_picklists = None
 
     def dispatch(self, request, *args, **kwargs):
         self.packingstation = PackingStation.objects.filter(user=request.user).first()
         if self.packingstation is None:
-            return HttpResponseRedirect(reverse_lazy("online:login_station"))
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
 
         self.pickorder = self.packingstation.pickorder
 
         if self.pickorder is None:
-            return HttpResponseRedirect(reverse_lazy("online:login_station"))
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
 
         if self.pickorder is not None:
             missions_list = []
-            picked_picklists = self.pickorder.picklist_set.filter(completed=True)
-            for picklist in picked_picklists:
+            picklists = self.pickorder.picklist_set.filter().order_by("mission__purchased_date")
+            for picklist in picklists:
                 mission = picklist.mission_set.first()
                 missions_list.append(mission)
-            self.picked_picklists = list(zip(picked_picklists, missions_list))
+            self.picked_picklists = picklists.filter(completed=True)
+            self.picklists = list(zip(picklists, missions_list))
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -454,7 +453,8 @@ class PackingPickOrderOverview(View):
 
     def get_context(self):
         context = {"title": f"Pickauftrag {self.pickorder.pick_order_id} Übersicht", "pickorder": self.pickorder,
-                   "picked_picklists": self.picked_picklists, "can_finish_pickorder": self.can_finish_pickorder()}
+                   "picklists": self.picklists, "picked_picklists": self.picked_picklists,
+                   "can_finish_pickorder": self.can_finish_pickorder()}
         return context
 
     def can_finish_pickorder(self):
@@ -464,7 +464,7 @@ class PackingPickOrderOverview(View):
         return True
 
 
-class LoginToStationView(View):
+class LoginToStationView(LoginRequiredMixin, View):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.packing_stations = PackingStation.objects.all()
@@ -514,10 +514,13 @@ class LoginToStationView(View):
         current_user = request.user
         self.packing_station.user = current_user
         self.packing_station.save()
+        for pick_list in self.packing_station.pickorder.picklist_set.all():
+            mission = pick_list.mission_set.first()
+            mission.save()
         return HttpResponseRedirect(reverse_lazy("online:login_station"))
 
 
-class LogoutFromStationView(View):
+class LogoutFromStationView(LoginRequiredMixin, View):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.packing_station = None
@@ -530,15 +533,20 @@ class LogoutFromStationView(View):
         return HttpResponseRedirect(reverse_lazy("online:login_station"))
 
 
-class PackingView(View):
+class PackingView(LoginRequiredMixin, View):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.picklist = None
         self.mission = None
         self.pick_rows = None
+        self.packingstation = None
 
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.get(pk=self.kwargs.get("pk"))
+        self.packingstation = PackingStation.objects.filter(user=request.user).first()
+        if self.packingstation is None:
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+
         self.mission = self.picklist.mission_set.first()
         self.pick_rows = self.picklist.picklistproducts_set.all().distinct("product_mission__sku")
         self.add_packing_amounts_to_pick_rows()
@@ -603,7 +611,7 @@ class PackingView(View):
         context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
                    "form": self.get_form(), "is_all_scanned": self.is_all_scanned(), "mission": self.mission,
                    "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
-                   "is_delivery_address_national": self.is_delivery_address_national()}
+                   "label_link": get_label_link(self.mission), "transport_service": get_transport_service(self.mission)}
         return context
 
     def get_form(self):
@@ -632,8 +640,6 @@ class PackingView(View):
         if self.mission.delivery_address is not None and self.mission.delivery_address.country_code is not None:
             delivery_address_country_code = self.mission.delivery_address.country_code
             country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-            print(country.name)
-            print(self.mission.channel.api_data.client.businessaccount_set.all())
 
             if country.name == "Germany":
                 return True
@@ -641,12 +647,56 @@ class PackingView(View):
                 return False
 
 
-class FinishPackingView(View):
+def get_label_link(mission):
+    if mission.delivery_address is not None and mission.delivery_address.country_code is not None:
+        country_code = mission.delivery_address.country_code
+        country = pycountry.countries.get(alpha_2=country_code)
+
+        if country.name == "Germany":
+            return reverse_lazy("online:dpd_get_label", kwargs={"pk": mission.pk})
+        else:
+            return reverse_lazy("online:dhl_get_label", kwargs={"pk": mission.pk,
+                                                                "shipment_number": mission.tracking_number})
+
+
+def get_transport_service(mission):
+    if mission.delivery_address is not None and mission.delivery_address.country_code is not None:
+        country_code = mission.delivery_address.country_code
+        country = pycountry.countries.get(alpha_2=country_code)
+
+        if country.name == "Germany":
+            return "DPD"
+        else:
+            return "DHL"
+
+
+def book_out_stocks(picklist):
+    picklist.completed = True
+    picklist.save()
+    for pick_row in picklist.picklistproducts_set.all():
+        product = pick_row.product_mission.sku.product
+        product_sku = pick_row.product_mission.sku
+
+        stock = Stock.objects.filter(
+            Q(Q(lagerplatz__iexact=pick_row.position) &
+              Q(Q(ean_vollstaendig=product.ean, zustand__iexact=product_sku.state)
+                | Q(sku=product_sku.sku)))).first()
+        if stock is not None:
+            stock.bestand -= pick_row.confirmed_amount
+
+            if stock.bestand > 0:
+                stock.save(hard_save=True)
+            else:
+                stock.delete(hard_delete=True)
+
+
+class ProvidePackingView(LoginRequiredMixin, View):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.picklist = None
         self.mission = None
         self.client = None
+        self.transport_service = None
 
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.get(pk=self.kwargs.get("pk"))
@@ -664,7 +714,6 @@ class FinishPackingView(View):
             print("????!?!??!!?!?")
             self.create_delivery_note()
             self.create_billing()
-            self.book_out_stocks()
         return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}))
 
     def create_delivery_note(self):
@@ -692,30 +741,33 @@ class FinishPackingView(View):
         error = self.break_down_address_in_street_and_house_number()
         if error is True:
             return HttpResponseRedirect(self.get_label_form_link()), True
-        national_business_account = self.client.businessaccount_set.filter(type="national").first()
-        foreign_country_business_account = self.client.businessaccount_set.filter(type="foreign_country").first()
+        national_business_account = self.client.businessaccount_set.filter(
+            type="national", transport_service__name__iexact="dpd").first()
+        foreign_country_business_account = self.client.businessaccount_set.filter(
+            type="foreign_country", transport_service__name__iexact="dhl").first()
         country = pycountry.countries.get(alpha_2=self.mission.delivery_address.country_code)
 
         if self.mission.delivery_address.strasse is not None and self.mission.delivery_address.hausnummer is not None:
             if country.name == "Germany":
-
-                if national_business_account.transport_service.name.lower() == "dhl":
+                self.transport_service = national_business_account.transport_service
+                if self.transport_service.name.lower() == "dhl":
                     dhl_label = self.create_dhl_label()
                     if dhl_label is None:
                         return HttpResponseRedirect(self.get_label_form_link()), True
                     return dhl_label, None
-                elif national_business_account.transport_service.name.lower() == "dpd":
+                elif self.transport_service.name.lower() == "dpd":
                     dpd_label = self.create_dpd_label()
                     if dpd_label is None:
                         return HttpResponseRedirect(self.get_label_form_link()), True
                     return dpd_label, None
             else:
-                if foreign_country_business_account.transport_service.name.lower() == "dhl":
+                self.transport_service = foreign_country_business_account.transport_service
+                if self.transport_service.name.lower() == "dhl":
                     dhl_label = self.create_dhl_label()
                     if dhl_label is None:
                         return HttpResponseRedirect(self.get_label_form_link()), True
                     return dhl_label, None
-                elif foreign_country_business_account.transport_service.name.lower() == "dpd":
+                elif self.transport_service.name.lower() == "dpd":
                     dpd_label = self.create_dpd_label()
                     if dpd_label is None:
                         return HttpResponseRedirect(self.get_label_form_link()), True
@@ -740,30 +792,6 @@ class FinishPackingView(View):
         print(f"bobo: {dhl_label}")
         if errors is None:
             return dhl_label
-
-    def book_out_stocks(self):
-        print(f"BANDITOS: {self.picklist}")
-        print(f"bandit: {self.picklist.completed}")
-
-        if self.picklist.completed is None:
-            print("yeaaah")
-            self.picklist.completed = True
-            self.picklist.save()
-            for pick_row in self.picklist.picklistproducts_set.all():
-                product = pick_row.product_mission.sku.product
-                product_sku = product.sku_set.filter(state__iexact=pick_row.product_mission.sku.state).first()
-                stock = Stock.objects.filter(
-                    Q(Q(lagerplatz__iexact=pick_row.position) &
-                      Q(Q(ean_vollstaendig=product.ean, zustand__iexact=pick_row.product_mission.sku.state)
-                        | Q(sku=product_sku.sku)))).first()
-                if stock is not None:
-                    stock.bestand -= pick_row.confirmed_amount
-                    print(f"{stock} - {stock.bestand} - {stock.lagerplatz}")
-                    if stock.bestand > 0:
-                        stock.save(hard_save=True)
-                    else:
-                        stock.delete(hard_delete=True)
-                    print(f"SO 1: {stock} --- {stock.bestand}")
 
     # Adresse in Stasse und Hausnummer zerlegen durch Reguläre Ausdrücke
     def break_down_address_in_street_and_house_number(self):
@@ -801,93 +829,6 @@ class FinishPackingView(View):
 
     # alles unten ist google maps places api, muss angepasst werden
 
-    def get_street_and_housenumber_from_shipping_address(self, shipping_address):
-        street_components = {}
-
-        if "AddressLine1" in shipping_address and "AddressLine2" in shipping_address:
-            street_components["company"] = shipping_address.get("AddressLine1")
-            street_components["street_and_housenumber"] = shipping_address.get("AddressLine2")
-        elif "AddressLine1" in shipping_address and "AddressLine2" not in shipping_address:
-            street_components["street_and_housenumber"] = shipping_address.get("AddressLine1")
-        elif "AddressLine2" in shipping_address and "AddressLine1" not in shipping_address:
-            street_components["street_and_housenumber"] = shipping_address.get("AddressLine2")
-
-        return street_components
-
-    def get_address_components_from_google_api(self, shipping_address):
-        street_components = self.get_street_and_housenumber_from_shipping_address(shipping_address)
-
-        city = shipping_address.get("City")
-        postal_code = shipping_address.get("PostalCode")
-
-        place_id = self.get_place_id_from_google_maps(street_components["street_and_housenumber"], city, postal_code)
-
-        if place_id is None:
-            return
-
-        place_details = self.get_place_details_from_google_maps(place_id)
-
-        if place_details is not None:
-            return place_details
-
-        # Checken ob Addresslinie 1 und 2 vorhanden, wenn ja dann, Company -> Adresse
-        # Checken ob nur Addressline 1, wenn ja dann, Adresse
-        # Checken ob nur Addressline 2, wenn ja dann, Adresse
-
-        return
-
-    def get_place_id_from_google_maps(self, street_and_housenumber, city, postal_code):
-        google_maps_input = f"{street_and_housenumber} {city} {postal_code}"
-        google_maps_url = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json"
-        query_string = f"?key={os.environ.get('GOOGLE_MAPS_KEY')}&inputtype=textquery&input={google_maps_input}"
-        google_maps_url += query_string
-        print(f"blablabla: {google_maps_url}")
-        response = requests.get(google_maps_url)
-        json_data = json.loads(response.text)
-
-        if json_data["status"] == "ZERO_RESULTS":
-            return
-
-        if json_data["status"] == "OVER_QUERY_LIMIT":
-            return
-
-        print(json_data)
-        candidates = json_data["candidates"]
-        for candidate in candidates:
-            print(f"{candidate}")
-            place_id = candidate["place_id"]
-            print(f"{place_id}")
-            return place_id
-
-    def get_place_details_from_google_maps(self, place_id):
-        google_maps_url = "https://maps.googleapis.com/maps/api/place/details/json"
-        query_string = f"?key={os.environ.get('GOOGLE_MAPS_KEY')}&placeid={place_id}"
-        google_maps_url += query_string
-        response = requests.get(google_maps_url)
-        json_data = json.loads(response.text)
-
-        if json_data["status"] == "ZERO_RESULTS":
-            return
-
-        if json_data["status"] == "OVER_QUERY_LIMIT":
-            return
-
-        result = json_data["result"]
-        address_components = result["address_components"]
-        street_number, route, city, postal_code = "", "", "", ""
-        for address_component in address_components:
-            if "street_number" in address_component.get("types"):
-                street_number = address_component.get("long_name")
-            if "route" in address_component.get("types"):
-                route = address_component.get("long_name")
-            if "locality" in address_component.get("types") and "political" in address_component.get("types"):
-                city = address_component.get("long_name")
-            if "postal_code" in address_component.get("types"):
-                postal_code = address_component.get("long_name")
-        print(f"FRONTEND: {route} {street_number} {postal_code} {city}")
-        print(f"baduni {json_data}")
-        return {"route": route, "street_number": street_number, "city": city, "postal_code": postal_code}
-
     def get_label_form_link(self):
         if self.mission.delivery_address is not None and self.mission.delivery_address.country_code is not None:
             delivery_address_country_code = self.mission.delivery_address.country_code
@@ -902,3 +843,78 @@ class FinishPackingView(View):
                     return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
                                                                   "business_account_pk": transport_account.pk})
             return ""
+
+
+class FinishPackingView(LoginRequiredMixin, View):
+    template_name = "online/packing/finish_packing.html"
+
+    def __init__(self):
+        super().__init__()
+        self.mission, self.picklist = None, None
+        self.context = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.picklist = PickList.objects.filter(pk=self.kwargs.get("pk")).first()
+        if self.picklist.completed is True:
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+        self.mission = self.picklist.mission_set.first() if self.picklist is not None else None
+        self.context = self.get_context()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context(self):
+        return {"title": f"Verpacken abschließen {self.mission.mission_number}", "picklist": self.picklist,
+                "mission": self.mission, "label_link": get_label_link(self.mission)}
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.context)
+
+    def post(self, request, *args, **kwargs):
+        book_out_stocks(self.picklist)
+        self.mission.save()
+        return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+
+
+class ConfirmManualView(LoginRequiredMixin, View):
+    template_name = "online/packing/confirm_manual.html"
+
+    def __init__(self):
+        self.context = {}
+        self.picklist = None
+        self.mission = None
+        self.form = None
+        super().__init__()
+
+    def dispatch(self, request, *args, **kwargs):
+        self.picklist = PickList.objects.filter(pk=self.kwargs.get("pk")).first()
+        if self.picklist.completed is True:
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+        self.mission = self.picklist.mission_set.first() if self.picklist is not None else None
+        self.context.update(self.get_context())
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context(self):
+        self.form = self.get_form()
+        return {"title":
+                f"Auftrag {self.mission.mission_number if self.mission is not None else ''} manuell erstellen",
+                "form": self.form}
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.context)
+
+    def post(self, request, *args, **kwargs):
+        print(f"jojojo: {request.POST}")
+        if self.form.is_valid() is True:
+            self.mission.status = "Manuell"
+            self.mission.save()
+            note = self.form.cleaned_data.get("note") or ""
+            if note != "":
+                self.picklist.note = note
+
+            book_out_stocks(self.picklist)
+            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+
+    def get_form(self):
+        if self.request.method == "POST":
+            return ConfirmManualForm(self.request.POST)
+        else:
+            return ConfirmManualForm()

@@ -23,62 +23,133 @@ class AmazonImportTask(Task):
 
     def get_amazon_mission_instances(self):
         print(len(self.result))
-        channel_instance = Channel.objects.get(name="Amazon.de")
 
         for i, row in enumerate(self.result):
             sku = self.column_from_row("sku", row)
-            shipping_price = self.column_from_row("shipping-price", row)
-            print(f"this is shipping-price: {shipping_price}")
             print(f"this is sku: {sku}")
-            sku_instance = Sku.objects.filter(sku__iexact=sku.strip()).first()
+            sku_instance = None
 
-            if sku_instance is None:
-                continue
+            if sku != "":
+                sku_instance = Sku.objects.filter(sku__iexact=sku.strip(), main_sku__isnull=True).first()
 
             shipping_address_instance = self.get_shipping_address_instance(row)
             billing_address_instance = self.get_billing_address_instance(row)
 
-            print(shipping_address_instance)
+            channel_order_id = self.column_from_row("order-id", row)
 
-            quantity_purchased = int(self.column_from_row("quantity-purchased", row))
-            item_price = float(self.column_from_row("item-price", row))
+            print(f'{channel_order_id}')
 
             delivery_date_from = self.parse_date(self.column_from_row('earliest-delivery-date', row))
 
             delivery_date_to = self.parse_date(self.column_from_row("latest-delivery-date", row))
 
-            instance_data = {"channel_order_id": self.column_from_row("order-id", row),
-                             "is_online": True, "is_amazon_fba": False,
-                             "purchased_date": dateutil.parser.parse(self.column_from_row("purchase-date", row),),
-                             "delivery_date_from":
-                                 self.parse_date(self.column_from_row('earliest-delivery-date', row)),
-                             "delivery_date_to": delivery_date_to,
-                             "payment_date": delivery_date_from,
-                             "delivery_address_id": shipping_address_instance.pk,
-                             "channel_id": channel_instance.pk, "billing_address_id": billing_address_instance.pk,
-                             "online_transport_cost": shipping_price}
+            purchased_date = self.parse_date(self.column_from_row("purchase-date", row))
+
+            payment_date = self.parse_date(self.column_from_row("payments-date", row))
+
+            instance_data = {"channel_order_id": channel_order_id, "is_online": True, "is_amazon_fba": False,
+                             "purchased_date": purchased_date, "delivery_date_from": delivery_date_from,
+                             "delivery_date_to": delivery_date_to, "payment_date": payment_date,
+                             }
+
+            if shipping_address_instance is not None:
+                instance_data.update({"delivery_address_id": shipping_address_instance.pk,
+                                      })
+
+            if billing_address_instance is not None:
+                instance_data.update({"billing_address_id": billing_address_instance.pk,
+                                      })
+
+            if sku_instance is None:
+                instance_data["not_matchable"] = True
+
             print(f"bankimoon: {instance_data}")
             mission_instance = Mission.objects.filter(channel_order_id=self.column_from_row("order-id", row)).first()
 
             if mission_instance is None:
-                mission_instance = Mission(**instance_data)
-                mission_instance.save()
+                if purchased_date != "" and delivery_date_from != "" and delivery_date_to != "" and payment_date != "":
+                    mission_instance = Mission(**instance_data)
+                    mission_instance.save()
+            else:
+                if mission_instance.not_matchable is True:
+                    continue
 
-            productmission_data = {"sku": sku_instance, "amount": quantity_purchased, "mission": mission_instance,
-                                   "netto_price": item_price}
+            if sku_instance is not None and mission_instance is not None:
+                quantity_purchased = self.column_from_row("quantity-purchased", row)
+                try:
+                    quantity_purchased = int(quantity_purchased)
+                except ValueError:
+                    print(f"- {quantity_purchased} -  kann nicht in int geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
 
-            productmission_instance = ProductMission.objects.filter(sku=sku_instance, mission=mission_instance).first()
+                item_price = self.column_from_row("item-price", row)
+                try:
+                    item_price = float(item_price)
+                except ValueError:
+                    print(f"- {item_price} -  kann nicht in float geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
 
-            print(f"{sku} ------- {productmission_instance or 'No'}")
+                shipping_price = self.column_from_row("shipping-price", row)
+                try:
+                    shipping_price = float(shipping_price)
+                except ValueError:
+                    print(f"- {shipping_price} -  kann nicht in float geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
 
-            if productmission_instance is None:
-                productmission_instance = ProductMission.objects.create(**productmission_data)
-                productmission_instance.save()
+                shipping_price = self.column_from_row("shipping-price", row)
+                try:
+                    shipping_price = float(shipping_price)
+                except ValueError:
+                    print(f"- {shipping_price} -  kann nicht in float geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
+
+                discount = self.column_from_row("item-promotion-discount", row)
+                try:
+                    discount = float(discount)
+                except ValueError:
+                    print(f"- {discount} -  kann nicht in float geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
+
+                shipping_discount = self.column_from_row("ship-promotion-discount", row)
+                try:
+                    shipping_discount = float(shipping_discount)
+                except ValueError:
+                    print(f"- {shipping_discount} -  kann nicht in float geparset werden")
+                    instance_data["not_matchable"] = True
+                    mission_instance.save()
+                    continue
+
+                productmission_data = {"sku": sku_instance, "amount": quantity_purchased, "mission": mission_instance,
+                                       "brutto_price": item_price/quantity_purchased, "shipping_price": shipping_price,
+                                       "discount": discount, "shipping_discount": shipping_discount}
+
+                productmission_instance = ProductMission.objects.filter(
+                    sku=sku_instance, mission=mission_instance).first()
+
+                print(f"{sku} ------- {productmission_instance or 'No'}")
+
+                if productmission_instance is None:
+                    productmission_instance = ProductMission.objects.create(**productmission_data)
+                    productmission_instance.save()
 
     def get_shipping_address_instance(self, row):
         address_line_1 = self.column_from_row("ship-address-1", row)
         address_line_2 = self.column_from_row("ship-address-2", row)
         address_line_3 = self.column_from_row("ship-address-3", row)
+
+        if address_line_1 == "" and address_line_2 == "" and address_line_3 == "":
+            return
+
         shipping_address = self.get_street_and_housenumber_from_address(address_line_1, address_line_2,
                                                                         address_line_3)
         recipient_name, ship_city = self.column_from_row("recipient-name", row), self.column_from_row("ship-city", row)
@@ -102,6 +173,10 @@ class AmazonImportTask(Task):
         address_line_1 = self.column_from_row("bill-address-1", row)
         address_line_2 = self.column_from_row("bill-address-2", row)
         address_line_3 = self.column_from_row("bill-address-3", row)
+
+        if address_line_1 == "" and address_line_2 == "" and address_line_3 == "":
+            return
+
         billing_address = self.get_street_and_housenumber_from_address(address_line_1, address_line_2,
                                                                        address_line_3)
         buyer_name, billing_city = self.column_from_row("buyer-name", row), self.column_from_row("bill-city", row)
@@ -148,6 +223,7 @@ class AmazonImportTask(Task):
                 index = self.header.index(header_col)
         if index is not None:
             return row[index]
+        return ""
 
 
 @shared_task

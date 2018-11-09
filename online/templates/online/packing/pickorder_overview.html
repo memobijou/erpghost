@@ -25,29 +25,32 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
-            {% if picked_picklists %}
-                <table class="table table-hover tabler-striped">
-                    {% for picklist, mission in picked_picklists %}
-                        <tr class="success">
-                            <td>
-                                <p>
-                                    <b>Auftrag: </b>
-                                    {{ mission.mission_number|default:"" }}
-                                </p>
-                                <p>
-                                    <a href="{% url 'online:packing' pk=picklist.pk %}">Zur Ansicht</a>
-                                </p>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </table>
-
-            {% endif %}
             {% if not picked_picklists %}
                 <div class="text-center">
                     <h3>Es wurde noch kein einziger Auftrag verpackt</h3>
                     <a href="{% url 'online:login_station' %}" class="btn btn-info btn-lg">Zum Packauftrag</a>
                 </div>
+                <br/><br/>
+            {% endif %}
+            {% if picklists %}
+                <table class="table table-hover tabler-striped">
+                    {% for picklist, mission in picklists %}
+                        <tr {% if picklist.completed is True %}class="success"{% endif %}>
+                            <td>
+                                <p>
+                                    <b>Auftrag: </b>
+                                    {{ mission.mission_number|default:"" }}
+                                </p>
+                                {% if picklist.completed is True %}
+                                    <p>
+                                        <a href="{% url 'online:packing' pk=picklist.pk %}">Zur Ansicht</a>
+                                    </p>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+
             {% endif %}
         </div>
     </div>

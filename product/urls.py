@@ -3,7 +3,7 @@ from django.conf.urls import url
 from product.single_product import SingleProductListView, SingleProductCreateView
 from product.views import ProductListView, ProductListAPIView, IncomeListView, ProductImportView, ProductUpdateView, \
     ProductDetailView, ProductImageImportView, ProductUpdateIcecatView, ProductCreateView, ProductDeleteView, \
-    ProductSingleUpdateView
+    ProductSingleUpdateView, OnlineSkuDeleteView
 
 urlpatterns = [
     url(r'^$', ProductListView.as_view(), name="list"),
@@ -19,4 +19,5 @@ urlpatterns = [
     url(r'^(?P<pk>\d+)/edit/icecat/$', ProductUpdateIcecatView.as_view(), name="edit_icecat"),
     url(r'^(?P<pk>\d+)/$', ProductDetailView.as_view(), name="detail"),
     url(r'^delete/$', ProductDeleteView.as_view(), name="delete"),
+    url(r'^sku/delete/(?P<pk>\d+)/$', OnlineSkuDeleteView.as_view(), name="sku_delete"),
 ]

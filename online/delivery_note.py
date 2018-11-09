@@ -240,7 +240,9 @@ class OnlineDeliveryNoteView(View):
         self.story.extend([delivery_note_title_paragraph, mission_horizontal_line])
 
     def build_right_align_header(self):
-        created_date = f"{self.mission.created_date.strftime('%d.%m.%Y')}"
+        created_date = ""
+        if self.partial_delivery_note.created is not None:
+            created_date = f"{self.partial_delivery_note.created.strftime('%d.%m.%Y')}"
         mission_number = self.mission.mission_number
 
         right_align_header_data = []

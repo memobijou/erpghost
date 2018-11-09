@@ -65,7 +65,6 @@ class StockQuerySet(models.QuerySet):
             available_total=F("total")-F("online_total")-F("wholesale_total"))
 
         for state in states:
-
             queryset = queryset.annotate(
                 **{f"sku_{state}": Subquery(Sku.objects.filter(
                     product=OuterRef("product"), state=state)[:1].values("sku"), output_field=models.CharField())})

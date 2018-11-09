@@ -167,3 +167,13 @@ def format_number_thousand_decimal_points(number):
     print(number)
     number = '{:,.2f}'.format(number).replace(",", "X").replace(".", ",").replace("X", ".")
     return number
+
+
+@register.filter
+def custom_add(value, arg):
+    if isinstance(arg, str):
+        try:
+            arg = float(arg)
+        except ValueError:
+            return value
+    return value+arg

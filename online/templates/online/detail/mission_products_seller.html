@@ -13,8 +13,8 @@
                         <th>Artikelname</th>
                         <th>Auftragsmenge</th>
                         <th>Lagerbestand</th>
-                        <th>Einzelpreis (Netto)</th>
-                        <th>Gesamtpreis (Netto)</th>
+                        <th>Einzelpreis</th>
+                        <th>Gesamtbeträge</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -38,10 +38,47 @@
                                 <td>
                                     {{ stock|default:'0' }}
                                 </td>
-                                <td>{{productmission.netto_price|format_number_thousand_decimal_points|default:"0"}}</td>
-                                <td>
-                                    {% if productmission.netto_price %}
-                                        {{ productmission.netto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}
+                                <td>{{productmission.brutto_price|format_number_thousand_decimal_points|default:"0"}}</td>
+                                <td class="col-md-3">
+                                    {% if productmission.brutto_price %}
+                                        <table class="table table-borderless" style="padding:0px;margin:0px;">
+                                            <tr>
+                                                <td style="padding-top:0;padding-bottom:0;">Betrag</td>
+                                                <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                    <p>{{ productmission.brutto_price|multiply:productmission.amount|format_number_thousand_decimal_points }}</p>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-top:0;padding-bottom:0;">Versand</td>
+                                                <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                    <p>{{ productmission.shipping_price|format_number_thousand_decimal_points }}</p>
+                                                </td>
+                                            </tr>
+                                            {% if productmission.discount %}
+                                                <tr>
+                                                    <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
+                                                    <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                        <p style="color:red;">{{ productmission.discount|format_number_thousand_decimal_points }}</p>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                            {% if productmission.shipping_discount %}
+                                                <tr>
+                                                    <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
+                                                    <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                        <p style="color:red;">{{ productmission.shipping_discount|format_number_thousand_decimal_points }}</p>
+                                                    </td>
+                                                </tr>
+                                            {% endif %}
+                                            <tr>
+                                                <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
+                                            <tr>
+                                                <td  style="padding-top:0;padding-bottom:0;"><b>Gesamt</b></td>
+                                                <td align="right" style="padding-top:0;padding-bottom:0;">
+                                                    <b>{{ productmission.brutto_price|multiply:productmission.amount|custom_add:productmission.shipping_price|custom_add:productmission.discount|custom_add:productmission.shipping_discount|format_number_thousand_decimal_points }}</b>
+                                                </td>
+                                            </tr>
+                                        </table>
                                     {% else %}
                                     {% endif %}
                                 </td>
@@ -51,5 +88,68 @@
                 </tbody>
             </table>
         </div>
+
+        <div class="table-responsive">
+            <table class="table table-borderless">
+                <tr>
+                    <td class="col-md-9"></td>
+                    <td class="col-md-3" style="padding:0;">
+                        <div class="panel panel-default">
+                            <div class="panel-body" style="padding:10px;">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td style="padding-top:0;padding-bottom: 0;">Gesamtbetrag Artikel</td>
+                                        <td align="right" style="padding-top:0;padding-bottom:0;">
+                                            <p>{{ payment_total|format_number_thousand_decimal_points }}</p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top:0;padding-bottom:0;">Versandkosten</td>
+                                        <td style="padding-top:0;padding-bottom:0;" align="right">
+                                            <p>{{ shipping_price|format_number_thousand_decimal_points }}</p>
+                                        </td>
+                                    </tr>
+                                    {% if total_discount %}
+                                        <tr>
+                                            <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
+                                            <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ total_discount|format_number_thousand_decimal_points }}</p></td>
+                                        </tr>
+                                    {% endif %}
+                                    {% if shipping_discount %}
+                                        <tr>
+                                            <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
+                                            <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ shipping_discount|format_number_thousand_decimal_points }}</p></td>
+                                        </tr>
+                                    {% endif %}
+
+                                    <tr>
+                                        <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top:0;padding-bottom: 0;"><b>Gesamt</b></td>
+                                        <td align="right" style="padding-top:0;padding-bottom: 0;"><p>
+                                            <b>{{ payment_total|custom_add:shipping_price|custom_add:total_discount|custom_add:shipping_discount|format_number_thousand_decimal_points }}</b>
+                                        </p></td>
+                                    </tr>
+
+
+                                </table>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
     {% endif %}
 </div>
+
+<style>
+    .table-borderless > tbody > tr > td,
+    .table-borderless > tbody > tr > th,
+    .table-borderless > tfoot > tr > td,
+    .table-borderless > tfoot > tr > th,
+    .table-borderless > thead > tr > td,
+    .table-borderless > thead > tr > th {
+        border: none;
+    }
+</style>

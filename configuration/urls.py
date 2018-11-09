@@ -1,4 +1,6 @@
 from django.conf.urls import url
+
+from configuration.channel.views import ChannelListView, ChannelUpdateView, ChannelCreateView
 from configuration.views import CreateTranportService, TransportServiceList, CreateBusinessAccount,\
     UpdateBusinessAccount, OnlinePositionPrefixCreate, OnlinePositionPrefixList, OnlinePositionPrefixUpdate, \
     PackingStationCreate, PackingStationList, PackingStationUpdate
@@ -18,5 +20,8 @@ urlpatterns = [
     url(r'^packingstation/create/$', PackingStationCreate.as_view(), name="packingstation_create"),
     url(r"^online/packingstation/$", PackingStationList.as_view(), name="packingstation_list"),
     url(r'^packingstation/(?P<pk>\d+)/update$', PackingStationUpdate.as_view(), name="packingstation_edit"),
+    url(r'^channels/$', ChannelListView.as_view(), name="channel_list"),
+    url(r'^channel/(?P<pk>\d+)/edit/$', ChannelUpdateView.as_view(), name="channel_edit"),
+    url(r'^channel/create/$', ChannelCreateView.as_view(), name="channel_create"),
 
 ]

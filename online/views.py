@@ -23,6 +23,7 @@ from django.views import View
 from online.forms import ImportForm
 from celery.result import AsyncResult
 from erpghost import app
+import dateutil
 
 
 class OnlineListView(generic.ListView):
@@ -31,8 +32,21 @@ class OnlineListView(generic.ListView):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.filter_fields = self.get_filter_fields()
         self.context = None
+
+    def dispatch(self, request, *args, **kwargs):
+        if self.request.GET.get("clear_filter", "") or "" == "1":
+            filter_values = {
+                             "q": None, "mission_number": None, "channel_order_id": None, "delivery_date_from": None,
+                             "delivery_date_to": None, "channel": None,
+                             "delivery_note_number": None, "billing_number": None,
+                             "purchased_date": None, "payment_date": None, "customer": None, "tracking_number": None,
+                             "status": None
+                             }
+            print(f"bibi: {filter_values}")
+            for name, value in filter_values.items():
+                request.session[name] = value
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         queryset = self.filter_queryset_from_request().filter(channel_order_id__isnull=False, is_online=True)
@@ -41,79 +55,160 @@ class OnlineListView(generic.ListView):
     def get_context_data(self, **kwargs):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Aufträge Online"
-        self.context["filter_fields"] = self.filter_fields
         self.context["object_list"] = self.get_object_list()
-        self.context["option_fields"] = [
-            {"status": ["Offen", "Verpackt", "am Picken", "auf Station"]}
-        ]
+        self.context["option_fields"] = ["Offen", "Verpackt", "am Picken", "auf Station", "Manuell",
+                                         "Artikel nicht zugeordnet"]
+        self.set_GET_values()
         return self.context
 
-    def get_filter_fields(self):
-        filter_fields = [("mission_number", "Auftragsnummer"), ("channel_order_id", "Fremd ID"),
-                         ("delivery_date_from", "Lieferdatum von"), ("delivery_date_to", "Lieferdatum bis"),
-                         ("channel", "Channel"), ("delivery_note_number", "Lieferscheinnummer"),
-                         ("billing_number", "Rechnungsnummer"), ("purchased_date", "Kaufdatum"),
-                         ("payment_date", "Bezahlungsdatum"), ("customer", "Kunde"),
-                         ("delivery_address", "Lieferadresse"), ("tracking_number", "Tracking ID"),
-                         ("status", "Status")]
-        return filter_fields
+    def set_GET_values(self):
+        self.context.update({"q": self.get_value_from_GET_or_session("q"),
+                             "mission_number": self.get_value_from_GET_or_session("mission_number"),
+                             "channel_order_id": self.get_value_from_GET_or_session("channel_order_id"),
+                             "delivery_date_from": self.get_value_from_GET_or_session("delivery_date_from"),
+                             "delivery_date_to": self.get_value_from_GET_or_session("delivery_date_to"),
+                             "channel": self.get_value_from_GET_or_session("channel"),
+                             "delivery_note_number": self.get_value_from_GET_or_session("delivery_note_number"),
+                             "billing_number": self.get_value_from_GET_or_session("billing_number"),
+                             "purchased_date": self.get_value_from_GET_or_session("purchased_date"),
+                             "payment_date": self.get_value_from_GET_or_session("payment_date"),
+                             "customer": self.get_value_from_GET_or_session("customer"),
+                             "tracking_number": self.get_value_from_GET_or_session("tracking_number"),
+                             "status": self.get_values_list_from_GET_or_session("status"),
+                             })
+
+    def get_values_list_from_GET_or_session(self, name):
+        values_list = self.request.GET.getlist(name)
+        session_values_list = self.request.session.get(name)
+        print(f"ben : {session_values_list}")
+        print(f"sven: {self.request.GET.get(name)}")
+        if values_list != []:
+            print(f"steve : {values_list}")
+            self.request.session[name] = values_list
+            return values_list
+        elif session_values_list is not [] and session_values_list is not None:
+            if self.request.GET.get("q") is not None and self.request.GET.get(name) is None:
+                print("richtig")
+                self.request.session[name] = []
+            return self.request.session[name]
+        else:
+            return []
+
+    def get_value_from_GET_or_session(self, name):
+        get_value = self.request.GET.get(name)
+        if get_value is not None:
+            get_value = get_value.strip()
+            self.request.session[name] = get_value
+            return get_value
+        else:
+            if get_value == "":
+                self.request.session[name] = ""
+            return self.request.session.get(name, "") or ""
 
     def get_object_list(self):
         object_list = self.context.get("object_list")
-        status_list = []
+        payment_totals = []
         for obj in object_list:
-            status_list.append(obj.get_online_status())
-        return list(zip(object_list, status_list))
+            payment_totals.append(self.get_payment_amounts(obj))
+        return zip(object_list, payment_totals)
+
+    def get_payment_amounts(self, obj):
+        total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
+        for mission_product in obj.productmission_set.all():
+            total += mission_product.amount*mission_product.brutto_price or 0.0
+            discount += mission_product.discount or 0.0
+            shipping_discount += mission_product.shipping_discount or 0.0
+            shipping_price += mission_product.shipping_price or 0.0
+        return {"payment_total": total, "total_discount": discount, "total_shipping_discount": shipping_discount,
+                "shipping_price": shipping_price, "shipping_discount": shipping_discount}
 
     def filter_queryset_from_request(self):
         q_filter = Q()
 
-        mission_number = self.request.GET.get("mission_number")
+        mission_number = self.get_value_from_GET_or_session("mission_number")
 
-        if mission_number is not None and mission_number != "":
+        if mission_number != "":
             q_filter &= Q(mission_number__icontains=mission_number)
 
-        channel_order_id = self.request.GET.get("channel_order_id")
+        channel_order_id = self.get_value_from_GET_or_session("channel_order_id")
 
-        if channel_order_id is not None and channel_order_id != "":
+        if channel_order_id != "":
             q_filter &= Q(channel_order_id__icontains=channel_order_id)
 
-        tracking_number = self.request.GET.get("tracking_number")
+        tracking_number = self.get_value_from_GET_or_session("tracking_number")
 
-        if tracking_number is not None and tracking_number != "":
+        if tracking_number != "":
             q_filter &= Q(tracking_number__icontains=tracking_number)
 
-        delivery_note_number = self.request.GET.get("delivery_note_number")
+        delivery_note_number = self.get_value_from_GET_or_session("delivery_note_number")
 
-        if delivery_note_number is not None and delivery_note_number != "":
+        if delivery_note_number != "":
             q_filter &= Q(online_picklist__online_delivery_note__delivery_note_number__icontains=delivery_note_number)
 
-        channel = self.request.GET.get("channel")
+        channel = self.get_value_from_GET_or_session("channel")
 
-        if channel is not None and channel != "":
+        if channel != "":
             q_filter &= Q(channel__name__icontains=channel)
 
+        purchased_date = self.get_value_from_GET_or_session("purchased_date")
+
+        if purchased_date != "":
+            purchased_date = dateutil.parser.parse(purchased_date, ignoretz=True)
+            print(f"babababa: {purchased_date}")
+            q_filter &= Q(purchased_date__year=purchased_date.year, purchased_date__month=purchased_date.month,
+                          purchased_date__day=purchased_date.day)
+
+        payment_date = self.get_value_from_GET_or_session("payment_date")
+
+        if payment_date != "":
+            payment_date = dateutil.parser.parse(payment_date, ignoretz=True)
+            print(f"babababa: {payment_date} - {payment_date.year} - {payment_date.month} - {payment_date.day}")
+            q_filter &= Q(payment_date__year=payment_date.year, payment_date__month=payment_date.month,
+                          payment_date__day=payment_date.day)
+
+        delivery_date_from = self.get_value_from_GET_or_session("delivery_date_from")
+
+        if delivery_date_from != "":
+            delivery_date_from = dateutil.parser.parse(delivery_date_from, ignoretz=True)
+            print(f"babababa: {delivery_date_from}")
+            q_filter &= Q(delivery_date_from__year=delivery_date_from.year,
+                          delivery_date_from__month=delivery_date_from.month,
+                          delivery_date_from__day=delivery_date_from.day)
+
+        delivery_date_to = self.get_value_from_GET_or_session("delivery_date_to")
+
+        if delivery_date_to != "":
+            delivery_date_to = dateutil.parser.parse(delivery_date_to, ignoretz=True)
+            print(f"babababa: {delivery_date_to}")
+            q_filter &= Q(delivery_date_to__year=delivery_date_to.year,
+                          delivery_date_to__month=delivery_date_to.month,
+                          delivery_date_to__day=delivery_date_to.day)
         print(q_filter)
         status_filter = Q()
 
-        for status in self.request.GET.getlist("status"):
+        status_list = self.get_values_list_from_GET_or_session("status")
+        print(f"status_list {status_list}")
+
+        for status in status_list:
             if status == "Verpackt":
-                status_filter |= Q(Q(online_picklist__completed=True) | Q(tracking_number__isnull=False))
+                status_filter |= Q(status__iexact="Verpackt")
             elif status == "Offen":
-                status_filter |= Q(Q(online_picklist__isnull=True) & Q(tracking_number__isnull=True))
+                status_filter |= Q(status__iexact="Offen")
             elif status == "am Picken":
-                status_filter |= Q(Q(online_picklist__isnull=False) & Q(tracking_number__isnull=True) &
-                                   Q(online_picklist__pick_order__isnull=False))
+                status_filter |= Q(status__iexact="am Picken")
             elif "auf Station" in status:
-                status_filter |= Q(Q(online_picklist__isnull=False) & Q(online_picklist__pick_order__isnull=False)
-                                   & Q(online_picklist__completed__isnull=True))
+                status_filter |= Q(status__icontains="auf Station")
+            elif status == "Manuell":
+                status_filter |= Q(status__iexact="Manuell")
+            elif status == "Artikel nicht zugeordnet":
+                status_filter |= Q(status__iexact="Artikel nicht zugeordnet")
 
         print(f"bababbaba: {status_filter}")
 
         q_filter &= status_filter
 
         search_filter = Q()
-        search_value = self.request.GET.get("q")
+        search_value = self.get_value_from_GET_or_session("q")
 
         if search_value is not None and search_value != "":
             search_value = search_value.strip()
@@ -158,6 +253,7 @@ class OnlineDetailView(DetailView):
         self.object = None
         self.mission_products = None
         self.picklist_products = None
+        self.context = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
@@ -185,18 +281,27 @@ class OnlineDetailView(DetailView):
         return self.object
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["title"] = "Auftrag " + context["object"].mission_number
-        # set_object_ondetailview(context=context, ModelClass=Mission, exclude_fields=["id"],
-        #                         exclude_relations=[], exclude_relation_fields={"products": ["id"]})
-        context["fields"] = self.build_fields()
-        context["products_from_stock"] = self.get_detail_products()
-        context["is_delivery_address_national"] = self.is_delivery_address_national()
-        context["label_form_link"] = self.get_label_form_link()
-        context["status"] = self.object.get_online_status()
-        context["picklist_products"] = self.picklist_products
-        print(context["is_delivery_address_national"])
-        return context
+        self.context = super().get_context_data(**kwargs)
+        self.context["title"] = "Auftrag " + self.object.mission_number
+        self.context["fields"] = self.build_fields()
+        self.context["products_from_stock"] = self.get_detail_products()
+        self.context["is_delivery_address_national"] = self.is_delivery_address_national()
+        self.context["label_form_link"] = self.get_label_form_link()
+        self.context["status"] = self.object.status
+        self.context["picklist_products"] = self.picklist_products
+        self.set_payment_amounts_in_context()
+        return self.context
+
+    def set_payment_amounts_in_context(self):
+        total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
+        for mission_product in self.mission_products:
+            total += mission_product.amount*mission_product.brutto_price or 0.0
+            discount += mission_product.discount or 0.0
+            shipping_discount += mission_product.shipping_discount or 0.0
+            shipping_price += mission_product.shipping_price or 0.0
+        self.context.update({"payment_total": total, "total_discount": discount,
+                             "total_shipping_discount": shipping_discount, "shipping_price": shipping_price,
+                             "shipping_discount": shipping_discount})
 
     def is_delivery_address_national(self):
         if self.object.delivery_address is not None and self.object.delivery_address.country_code is not None:
@@ -243,57 +348,13 @@ class OnlineDetailView(DetailView):
                 product = sku.product
             skus = None
             if product is not None:
-                skus = product.sku_set.all()
+                skus = product.sku_set.filter()
 
             states_totals, total = get_states_totals_and_total(product, skus)
             total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
                            f"{states_totals.get(sku.state).get('total')}"
             detail_products.append((product_mission,  total_result))
         return detail_products
-
-    def get_product_stock(self, product_mission):
-        product = product_mission.sku.product
-        state = product_mission.sku.state
-        sku_instance = product_mission.sku
-
-        if product is not None and product.ean is not None and product.ean != "":
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
-            if stock is not None:
-                if state is None:
-                    return stock.get_total_stocks().get("Gesamt")
-                else:
-                    return stock.get_total_stocks().get(state)
-
-        if sku_instance is not None:
-            if sku_instance.sku is not None and sku_instance.sku != "":
-                stock = Stock.objects.filter(sku=sku_instance.sku).first()
-                if stock is not None:
-                    if state is None:
-                        return stock.get_total_stocks().get("Gesamt")
-                    else:
-                        return stock.get_total_stocks().get(state)
-
-    def get_available_product_stock(self, product_mission):
-        product = product_mission.product
-        state = product_mission.state
-
-        if product.ean is not None and product.ean != "":
-            stock = Stock.objects.filter(ean_vollstaendig=product.ean).first()
-            if stock is not None:
-                if state is None:
-                    return stock.get_available_total_stocks().get("Gesamt")
-                else:
-                    return stock.get_available_total_stocks().get(state)
-
-        for sku_instance in product.sku_set.all():
-            if sku_instance is not None:
-                if sku_instance.sku is not None and sku_instance.sku != "":
-                    stock = Stock.objects.filter(sku=sku_instance.sku).first()
-                    if stock is not None:
-                        if state is None:
-                                return stock.get_available_total_stocks().get("Gesamt")
-                        else:
-                                return stock.get_available_total_stocks().get(state)
 
 
 class ImportMissionView(View):

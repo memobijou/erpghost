@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                <a href="{% url 'online:online_redirect' %}">Zurück zum Auftrag</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-md-12">
+                <div class="col-md-2"></div>
+                <div class="col-md-8">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            Lieferschein
+                        </div>
+                        <div class="panel-body">
+                            <div class="text-center">
+                                <div>
+                                    <object data="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=picklist.online_delivery_note.pk %}" type="application/pdf" width="100%" height="500px;">
+                                        alt : <a href="test.pdf">Lieferschein.pdf</a>
+                                    </object>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2"></div>
+            </div>
+
+            <div class="col-md-12">
+                <div class="col-md-2"></div>
+                <div class="col-md-8">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            Paketlabel
+                        </div>
+                        <div class="panel-body">
+                            <p>Transportdienstleister: <b>{{ mission.online_transport_service.name }}</b></p>
+
+                            <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
+
+                            <div class="text">
+                               <div>
+                                    <object data="{{ label_link }}" type="application/pdf" width="100%" height="500;">
+                                        alt : <a href="test.pdf">Lieferschein.pdf</a>
+                                    </object>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2"></div>
+            </div>
+            <div class="col-md-12">
+                <div class="text-center">
+                    <form method="POST">{% csrf_token %}
+                        <button type="Submit" class="btn btn-primary btn-lg">Verpacken und bestätigen</button>
+                    </form>
+                </div>
+                <div class="text-right">
+                    <a href="{% url 'online:online_redirect' %}">Zurück zum Auftrag</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

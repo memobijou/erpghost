@@ -24,7 +24,7 @@
                 <table class="table table-bordered table-hover table-striped">
                     <tbody>
                         <tr
-                            {% if pick_row.confirmed == True %}
+                            {% if is_all_scanned == True %}
                                 class="success"
                             {% elif confirmed_packing_amount != 0 %}
                                 class="warning"
@@ -46,26 +46,27 @@
                 </table>
             {% endfor %}
             {% if is_all_scanned == True and picklist.completed == None %}
+                {% if picklist.online_delivery_note == None %}
                 <div class="text-center">
-                    <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk %}">{% csrf_token %}
-                        <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Verpacken abschließen"/>
+                    <form method="POST" action="{% url 'online:provide_packing' pk=picklist.pk %}">{% csrf_token %}
+                        <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Für Versand bereitstellen"/>
                     </form>
                 </div>
-            {% elif is_all_scanned == True and picklist.completed == True %}
+                {% endif %}
+            {% endif %}
+            {% if is_all_scanned == True %}
                 <div class="col-md-12" style="padding: 0 0 25px 0;">
+                    {% if picklist.online_delivery_note %}
                     <a class="btn btn-info"
                        href="{% url 'online:delivery_note' pk=picklist.mission_set.first.pk delivery_note_pk=picklist.online_delivery_note.pk %}">
                         Lieferschein ansehen
                     </a>
-                <br/><br/>
-                    <a class="btn btn-info"
-                       href="{% url 'online:billing' pk=picklist.mission_set.first.pk billing_pk=picklist.online_billing.pk %}">
-                        Rechnung ansehen
-                    </a>
-                    {% if mission.tracking_number == None %}
-                        wiee
-                        <a class="btn btn-info" href="{{ label_form_link }}">Label erstellen</a>
                     {% endif %}
+                <br/><br/>
+{#                    <a class="btn btn-info"#}
+{#                       href="{% url 'online:billing' pk=picklist.mission_set.first.pk billing_pk=picklist.online_billing.pk %}">#}
+{#                        Rechnung ansehen#}
+{#                    </a>#}
                 </div>
                 {% if mission.tracking_number %}
                     <div class="col-md-6" style="padding-left: 0px;">
@@ -74,28 +75,16 @@
                                 Paketlabel
                             </div>
                             <div class="panel-body">
+                                <p>Transportdienstleister: <b>{{ mission.online_transport_service.name }}</b></p>
 
-                                    {% if is_delivery_address_national == True %}
-                                        <p>Transportdienstleister: <b>DPD</b></p>
-                                    {% else %}
-                                        <p>Transportdienstleister: <b>DHL</b></p>
-                                    {% endif %}
+                                <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
 
-                                    <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
-
-                                    <div class="text">
-                                        {% if is_delivery_address_national == False %}
-                                        <a class="btn btn-info"
-                                            href="{% url 'online:dhl_get_label' pk=mission.pk shipment_number=mission.tracking_number %}">
-                                            DHL Label ansehen
-                                        </a>
-                                        {% elif is_delivery_address_national == True %}
-                                        <a class="btn btn-info"
-                                            href="{% url 'online:dpd_get_label' pk=mission.pk %}">
-                                            DPD Label ansehen
-                                        </a>
-                                        {% endif %}
-                                    </div>
+                                <div class="text">
+                                    <a class="btn btn-info"
+                                        href="{{ label_link }}">
+                                        Paketlabel ansehen
+                                    </a>
+                                </div>
                             </div>
                             {% if is_delivery_address_national == False %}
                                 <div class="panel-footer">
@@ -109,16 +98,23 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="col-md-12" style="padding:0px;">
-                        <div class="text-right">
-                            <a href="{{ label_form_link }}">Paketlabel defekt ?</a>
-
+                    {% if picklist.completed is None %}
+                        <div class="col-md-12" style="padding-bottom: 25px;">
+                            <div class="text-center">
+                                <a class="btn btn-info" href="{% url 'online:finish_packing' pk=picklist.pk %}">Verpacken abschließen</a>
+                            </div>
                         </div>
-                    </div>
+                    {% endif %}
+                    {% if picklist.completed is None %}
+                        <div class="col-md-12" style="padding:0px;">
+                            <div class="text-right">
+                                <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|&nbsp;
+                                <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
+                            </div>
+                        </div>
+                    {% endif %}
                 {% endif %}
-
             {% endif %}
-
         </div>
     </div>
     <style>

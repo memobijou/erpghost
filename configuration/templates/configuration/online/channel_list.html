@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    {% include 'snippets/paginate_by.html' %}
+        <div class="text-right">
+            <a href="{% url 'config:channel_create' %}" class="btn btn-info">Verkaufskanal anlegen</a>
+        </div>
+        <br/>
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th class="col-md-1"></th>
+                                <th>Bezeichnung</th>
+                                <th>Verkaufskanal</th>
+                                <th>Mandant</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for object in object_list %}
+                                <tr>
+                                    <td class="col-md-1">
+                                        <p><a href="{% url 'config:channel_edit' pk=object.pk %}">Bearbeiten</a></p>
+                                    </td>
+                                    <td>{{ object.name }}</td>
+                                    <td>{{ object.market|default:"" }}</td>
+                                    <td>{{ object.client|default:"" }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% include 'snippets/paginate_by.html' %}
+{% endblock %}

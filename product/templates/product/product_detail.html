@@ -101,6 +101,9 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div class="col-md-10">
                 {% if online_skus %}
                     <div class="panel panel-default">
                         <div class="panel-heading">
@@ -114,26 +117,101 @@
                                             <th>SKU</th>
                                             <th>Zustand</th>
                                             <th>Asin</th>
-                                            <th>Channel</th>
+                                            <th>Verkaufskanal</th>
                                         </tr>
                                     </thead>
-                                    {% for sku in online_skus %}
+                                        {% for sku, form in online_skus.items %}
+                                            <form method="POST" action="?sku_pk={{ sku.pk }}">{% csrf_token %}
+                                                <tr>
+                                                    <td>
+                                                        <div class="edit_tags_{{ forloop.counter }}">{{ sku.sku|default:"" }}</div>
+                                                        <div class="edit_form_{{ forloop.counter }}" style="display:none;">
+                                                            <div class="errorlist">{{ form.sku.errors }}</div>
+                                                            {{ form.sku }}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="edit_tags_{{ forloop.counter }}">{{ sku.state|default:"" }}</div>
+                                                        <div class="edit_form_{{ forloop.counter }}" style="display:none;">
+                                                            <div class="errorlist">{{ form.state.errors }}</div>
+                                                            {{ form.state }}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="edit_tags_{{ forloop.counter }}">{{ sku.asin|default:"" }}</div>
+                                                        <div class="edit_form_{{ forloop.counter }}" style="display:none;">
+                                                            <div class="errorlist">{{ form.asin.errors }}</div>
+                                                            {{ form.asin }}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="edit_tags_{{ forloop.counter }}">{{ sku.channel|default:"" }}</div>
+                                                        <div class="edit_form_{{ forloop.counter }}" style="display:none;">
+                                                            <div class="errorlist">{{ form.channel.errors }}</div>
+                                                            {{ form.channel }}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="checkbox" id="edit_checkbox_{{ forloop.counter }}" style="padding:0;margin:0;">
+                                                          <label>
+                                                              <input type="checkbox" {% if update_form_validation.validation == False and update_form_validation.pk == sku.pk %}checked=""{% endif %}/>
+                                                              Bearbeiten
+                                                          </label>
+                                                        </div>
+                                                        <br/>
+                                                        <button class="btn btn-primary edit_form_{{ forloop.counter }}" style="display:none;">Speichern</button>
+                                                        <div class="text-center">
+                                                            <br/>
+                                                            <a class="btn btn-danger edit_form_{{ forloop.counter }}" href="{% url 'product:sku_delete' pk=sku.pk %}" style="display:none;">Löschen</a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </form>
+                                        {% endfor %}
+
+                                    {% if create_form_validation is None %}
                                         <tr>
-                                            <td>{{ sku.sku|default:"" }}</td>
-                                            <td>{{ sku.state|default:"" }}</td>
-                                            <td>{{ sku.asin|default:"" }}</td>
-                                            <td>
-                                                {{ sku.channel|default:"" }}
+                                            <td colspan="4">
+                                                <a style="cursor:pointer;" id="show_new_sku_row">
+                                                    <span class="glyphicon glyphicon-plus"></span> Neue SKU anlegen
+                                                </a>
                                             </td>
                                         </tr>
-                                    {% endfor %}
+                                    {% endif %}
+                                    <form method="POST" action="?sku_pk=">{% csrf_token %}
+                                        <tr id="new_sku_row" {% if create_form_validation is None %}style="display:none;"{% endif %}>
+                                            <td>
+                                                <div class="errorlist">{{ form.sku.errors }}</div>
+                                                {{ form.sku }}
+                                                <p class="help-block">Bei keiner Eingabe wird eine SKU generiert</p>
+                                            </td>
+                                            <td>
+                                                <div class="errorlist">{{ form.state.errors }}</div>
+                                                {{ form.state }}
+                                            </td>
+                                            <td>
+                                                <div class="errorlist">{{ form.asin.errors }}</div>
+                                                {{ form.asin }}
+                                            </td>
+                                            <td>
+                                                <div class="errorlist">{{ form.channel.errors }}</div>
+                                                {{ form.channel }}
+                                            </td>
+                                            <td>
+                                                <div class="text-right">
+                                                    <p style="color:red;">{{ form.non_field_errors }}</p>
+                                                    <button class="btn btn-primary">Speichern</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </form>
                                 </table>
                             </div>
                         </div>
                     </div>
                 {% endif %}
-
             </div>
+
             <div class="col-md-12" style="padding:0px;">
                 <div class="col-md-11">
                 {% if object.productimage_set.all %}
@@ -182,10 +260,82 @@
                 };
             }
 
+        var show_new_sku_row = document.getElementById("show_new_sku_row");
+        var new_sku_row = document.getElementById("new_sku_row");
+        var scrolled_to = null;
+
+        show_new_sku_row.onclick = function(e){
+          new_sku_row.style = "";
+          this.parentElement.style = "display:none";
+        };
+
+        {% for sku, form in online_skus.items %}
+            var checkbox_{{ forloop.counter }} = document.getElementById("edit_checkbox_{{ forloop.counter }}");
+
+            var display_row_or_not = function(checkbox, forms, tags){
+                var form;
+
+                for(var i = 0; i<forms.length;i++){
+                    form = forms[i];
+                    if(checkbox.checked) {
+                        form.style = "";
+                    }else{
+                        form.style = "display:none";
+                    }
+                }
+
+                var tag;
+
+                for(i = 0; i<tags.length;i++){
+                    tag = tags[i];
+                    if(checkbox.checked) {
+                        tag.style = "display:none";
+                    }else{
+                        tag.style = "";
+                    }
+                }
+            };
+
+            var forms = document.getElementsByClassName("edit_form_{{ forloop.counter }}");
+            var tags = document.getElementsByClassName("edit_tags_{{ forloop.counter }}");
+
+
+            var checkbox_input_onload = checkbox_{{ forloop.counter }}.getElementsByTagName("input")[0];
+
+
+            if(checkbox_input_onload.checked){
+                if(scrolled_to === null){
+                    checkbox_input_onload.scrollIntoView();
+                    scrolled_to = true;
+                }
+
+                display_row_or_not(checkbox_input_onload, forms, tags);
+            }
+
+            checkbox_{{ forloop.counter }}.onclick = function(e){
+                if(e.target.tagName == "LABEL"){
+                    return;
+                }
+                var forms = document.getElementsByClassName("edit_form_{{ forloop.counter }}");
+                var tags = document.getElementsByClassName("edit_tags_{{ forloop.counter }}");
+                var checkbox_input = this.getElementsByTagName("input")[0];
+
+                display_row_or_not(checkbox_input, forms, tags)
+
+            };
+        {% endfor %}
+
     </script>
     <style>
         .form-inline > * {
            margin:5px 0px;
+        }
+
+        .errorlist ul,.errorlist li{
+            list-style:none;
+            list-style-type:none;
+            color:red;
+            padding:0;
         }
     </style>
 {% endblock %}

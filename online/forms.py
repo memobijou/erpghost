@@ -3,6 +3,9 @@ from adress.models import Adress
 from mission.models import Mission, PickList, PickListProducts, PackingStation
 from django.core.exceptions import NON_FIELD_ERRORS
 
+from online.models import Offer
+from sku.models import Sku
+
 
 class DhlForm(forms.ModelForm):
     class Meta:
@@ -94,3 +97,45 @@ class ImportForm(forms.Form):
 class ConfirmManualForm(forms.Form):
     note = forms.CharField(widget=forms.Textarea(attrs={"class": "form-control", "rows": 5}), required=False,
                            label="Bemerkung")
+
+
+class OnlineSkuForm(forms.ModelForm):
+    class Meta:
+        model = Sku
+        fields = ["sku", "state", "channel", "asin"]
+
+    state = forms.ChoiceField(choices=[("Neu", "Neu"), ("B", "B"), ("C", "C"), ("D", "D"), ("G", "G")])
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.fields["channel"].required = True
+
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.ImageField:
+                visible.field.widget.attrs["class"] = "form-control"
+
+    def clean(self):
+        cleaned_data = super().clean()
+        sku_query = Sku.objects.filter(sku=cleaned_data.get("sku", ""))
+        if sku_query.exclude(sku=self.instance.sku).count() > 0:
+            self.add_error("sku", "Diese SKU ist bereits vergeben")
+
+        if cleaned_data.get("sku") != str(self.instance.sku):
+            sku_instance = Sku.objects.filter(sku=self.instance.sku).first()
+            if sku_instance is not None and (sku_instance.productmission_set.all().count() > 0
+                                             or hasattr(sku_instance, "offer") is True):
+                self.add_error("sku", "Diese SKU kann nicht geändert werden,"
+                                      " da für diese SKU Aufträge oder Angebote bestehen.")
+        return cleaned_data
+
+
+class OfferForm(forms.ModelForm):
+    class Meta:
+        model = Offer
+        fields = ["amount"]
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for visible in self.visible_fields():
+            if type(visible.field) is not forms.ImageField:
+                visible.field.widget.attrs["class"] = "form-control"

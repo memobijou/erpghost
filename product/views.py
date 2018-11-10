@@ -7,8 +7,7 @@ from django.views.generic import CreateView
 from django.views.generic import DeleteView
 from django.views.generic import DetailView
 from django.views.generic import ListView, FormView, UpdateView
-
-from configuration.forms import OnlineSkuForm
+from online.forms import OnlineSkuForm, OfferForm
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
 from sku.models import Sku
@@ -826,10 +825,11 @@ class ProductDetailView(DetailView):
         self.skus = None
         self.online_skus = None
         self.context = {}
-        self.new_sku_form = None
-        self.update_form = None
-        self.create_form_validation = None
+        self.new_sku_form, self.new_offer_form  = None, None
+        self.create_form_validation, self.create_offer_form_validation = None, None
+        self.update_form, self.update_offer_form = None, None
         self.update_form_validation = {"pk": None, "validation": None}
+        self.update_offer_form_validation = {"pk": None, "validation": None}
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Product.objects.get(pk=self.kwargs.get("pk"))
@@ -837,6 +837,7 @@ class ProductDetailView(DetailView):
         self.online_skus = self.get_online_skus_and_forms()
 
         self.new_sku_form = OnlineSkuForm()
+        self.new_offer_form = OfferForm()
 
         if self.request.method == "POST":
             pk_from_GET = self.request.GET.get("sku_pk", "") or ""
@@ -846,26 +847,44 @@ class ProductDetailView(DetailView):
 
             if pk_from_GET == "":
                 self.new_sku_form = OnlineSkuForm(data=self.request.POST)
+                self.new_offer_form = OfferForm(data=self.request.POST)
+
                 self.create_form_validation = self.new_sku_form.is_valid()
-                if self.create_form_validation is True:
-                    self.create_new_sku()
+                self.create_offer_form_validation = self.new_offer_form.is_valid()
+
+                if self.create_form_validation is True and self.create_offer_form_validation is True:
+                    new_sku_instance = self.create_new_sku()
+                    new_offer_instance = self.create_new_offer()
+                    new_offer_instance.sku_instance = new_sku_instance
+                    new_offer_instance.save()
                     return success_redirect
                 else:
                     return render(request, self.template_name, self.get_context())
             else:
-                for sku, edit_form in self.online_skus.items():
+                for sku, forms in self.online_skus.items():
                     if str(sku.pk) == pk_from_GET:
                         self.update_form = OnlineSkuForm(instance=sku, data=self.request.POST)
-                        self.online_skus[sku] = self.update_form
+                        self.update_offer_form = (OfferForm(instance=sku.offer, data=self.request.POST)
+                                                  if hasattr(sku, "offer") is True
+                                                  else OfferForm(data=self.request.POST))
+                        self.online_skus[sku]["form"] = self.update_form
+                        self.online_skus[sku]["offer_form"] = self.update_offer_form
                         self.update_form_validation["validation"] = self.update_form.is_valid()
                         self.update_form_validation["pk"] = sku.pk
+                        self.update_offer_form_validation["validation"] = self.update_offer_form.is_valid()
+                        self.update_offer_form_validation["pk"] = sku.offer.pk if hasattr(sku, "offer") else None
                         break
 
-                if self.update_form_validation["validation"] is True:
-                    self.update_form.save()
+                if (self.update_form_validation["validation"] is True and
+                        self.update_offer_form_validation["validation"] is True):
+                    sku_instance = self.update_form.save()
+                    offer_instance = self.update_offer_form.save()
+
+                    if offer_instance.pk is None:
+                        offer_instance.sku_instance = sku_instance
+                        offer_instance.save()
                     return success_redirect
                 else:
-                    print(f"why: {self.update_form_validation['validation']}")
                     return render(request, self.template_name, self.get_context())
         return super().dispatch(request, *args, **kwargs)
 
@@ -878,6 +897,11 @@ class ProductDetailView(DetailView):
             new_sku.sku = new_sku.pk
             new_sku.save()
         print(f"wawawa: {new_sku.pk}")
+        return new_sku
+
+    def create_new_offer(self):
+        new_offer = self.new_offer_form.save(commit=False)
+        return new_offer
 
     def get_object(self):
         return self.object
@@ -893,8 +917,11 @@ class ProductDetailView(DetailView):
         self.context["online_skus"] = self.online_skus
         self.context["states_totals"], self.context["total"] = self.get_states_totals_and_total()
         self.context["form"] = self.new_sku_form
+        self.context["offer_form"] = self.new_offer_form
         self.context["create_form_validation"] = self.create_form_validation
         self.context["update_form_validation"] = self.update_form_validation
+        self.context["create_offer_form_validation"] = self.create_offer_form_validation
+        self.context["update_offer_form_validation"] = self.update_offer_form_validation
         return self.context
 
     def get_online_skus_and_forms(self):
@@ -902,7 +929,8 @@ class ProductDetailView(DetailView):
         result = {}
         for sku in online_skus:
             form = OnlineSkuForm(instance=sku)
-            result[sku] = form
+            offer_form = OfferForm(instance=sku.offer) if hasattr(sku, "offer") is True else OfferForm()
+            result[sku] = {"form": form, "offer_form": offer_form}
         return result
 
     def get_states_totals_and_total(self):
@@ -924,7 +952,8 @@ class OnlineSkuDeleteView(DeleteView):
         if request.method == "POST":
             sku_instance = Sku.objects.filter(sku=self.object.sku).first()
             if sku_instance is not None and (sku_instance.productmission_set.all().count() > 0
-                                             or sku_instance.offer_set.all().count() > 0):
+                                             or (hasattr(sku_instance, "offer") is True
+                                                 and sku_instance.offer.amount not in [None, 0])):
                 error_msg = "Diese SKU kann nicht gelöscht werden, da für diese SKU Aufträge oder Angebote bestehen."
                 context = self.get_context()
                 context["error_msg"] = error_msg

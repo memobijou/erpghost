@@ -116,45 +116,53 @@
                                         <tr>
                                             <th>SKU</th>
                                             <th>Zustand</th>
+                                            <th>Angebotsmenge</th>
                                             <th>Asin</th>
                                             <th>Verkaufskanal</th>
                                         </tr>
                                     </thead>
-                                        {% for sku, form in online_skus.items %}
+                                        {% for sku, forms in online_skus.items %}
                                             <form method="POST" action="?sku_pk={{ sku.pk }}">{% csrf_token %}
                                                 <tr>
                                                     <td>
                                                         <div class="edit_tags_{{ forloop.counter }}">{{ sku.sku|default:"" }}</div>
                                                         <div class="edit_form_{{ forloop.counter }}" style="display:none;">
-                                                            <div class="errorlist">{{ form.sku.errors }}</div>
-                                                            {{ form.sku }}
+                                                            <div class="errorlist">{{ forms.form.sku.errors }}</div>
+                                                            {{ forms.form.sku }}
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="edit_tags_{{ forloop.counter }}">{{ sku.state|default:"" }}</div>
                                                         <div class="edit_form_{{ forloop.counter }}" style="display:none;">
-                                                            <div class="errorlist">{{ form.state.errors }}</div>
-                                                            {{ form.state }}
+                                                            <div class="errorlist">{{ forms.form.state.errors }}</div>
+                                                            {{ forms.form.state }}
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="edit_tags_{{ forloop.counter }}">{{ sku.offer.amount|default:"0" }}</div>
+                                                        <div class="edit_form_{{ forloop.counter }}" style="display:none;">
+                                                            <div class="errorlist">{{ forms.offer_form.amount.errors }}</div>
+                                                            {{ forms.offer_form.amount }}
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="edit_tags_{{ forloop.counter }}">{{ sku.asin|default:"" }}</div>
                                                         <div class="edit_form_{{ forloop.counter }}" style="display:none;">
-                                                            <div class="errorlist">{{ form.asin.errors }}</div>
-                                                            {{ form.asin }}
+                                                            <div class="errorlist">{{ forms.form.asin.errors }}</div>
+                                                            {{ forms.form.asin }}
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="edit_tags_{{ forloop.counter }}">{{ sku.channel|default:"" }}</div>
                                                         <div class="edit_form_{{ forloop.counter }}" style="display:none;">
-                                                            <div class="errorlist">{{ form.channel.errors }}</div>
-                                                            {{ form.channel }}
+                                                            <div class="errorlist">{{ forms.form.channel.errors }}</div>
+                                                            {{ forms.form.channel }}
                                                         </div>
                                                     </td>
                                                     <td>
                                                         <div class="checkbox" id="edit_checkbox_{{ forloop.counter }}" style="padding:0;margin:0;">
                                                           <label>
-                                                              <input type="checkbox" {% if update_form_validation.validation == False and update_form_validation.pk == sku.pk %}checked=""{% endif %}/>
+                                                              <input type="checkbox" {% if update_form_validation.validation == False or update_offer_form_validation.validation == False and update_form_validation.pk == sku.pk %}checked=""{% endif %}/>
                                                               Bearbeiten
                                                           </label>
                                                         </div>
@@ -169,9 +177,9 @@
                                             </form>
                                         {% endfor %}
 
-                                    {% if create_form_validation is None %}
+                                    {% if create_form_validation is None and create_offer_form_validation is None %}
                                         <tr>
-                                            <td colspan="4">
+                                            <td colspan="6">
                                                 <a style="cursor:pointer;" id="show_new_sku_row">
                                                     <span class="glyphicon glyphicon-plus"></span> Neue SKU anlegen
                                                 </a>
@@ -179,7 +187,7 @@
                                         </tr>
                                     {% endif %}
                                     <form method="POST" action="?sku_pk=">{% csrf_token %}
-                                        <tr id="new_sku_row" {% if create_form_validation is None %}style="display:none;"{% endif %}>
+                                        <tr id="new_sku_row" {% if create_form_validation is None and create_offer_form_validation is None %}style="display:none;"{% endif %}>
                                             <td>
                                                 <div class="errorlist">{{ form.sku.errors }}</div>
                                                 {{ form.sku }}
@@ -188,6 +196,10 @@
                                             <td>
                                                 <div class="errorlist">{{ form.state.errors }}</div>
                                                 {{ form.state }}
+                                            </td>
+                                            <td>
+                                                <div class="errorlist">{{ offer_form.amount.errors }}</div>
+                                                {{ offer_form.amount }}
                                             </td>
                                             <td>
                                                 <div class="errorlist">{{ form.asin.errors }}</div>
@@ -264,10 +276,18 @@
         var new_sku_row = document.getElementById("new_sku_row");
         var scrolled_to = null;
 
-        show_new_sku_row.onclick = function(e){
-          new_sku_row.style = "";
-          this.parentElement.style = "display:none";
-        };
+        if(show_new_sku_row != null){
+            show_new_sku_row.onclick = function(e){
+              new_sku_row.style = "";
+              this.parentElement.style = "display:none";
+            };
+        }
+        if(scrolled_to === null && new_sku_row.style["display"] != "none"){
+            new_sku_row.scrollIntoView();
+            scrolled_to = true;
+        }
+
+
 
         {% for sku, form in online_skus.items %}
             var checkbox_{{ forloop.counter }} = document.getElementById("edit_checkbox_{{ forloop.counter }}");

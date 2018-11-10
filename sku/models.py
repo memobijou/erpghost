@@ -25,8 +25,6 @@ class SkuQuerySet(models.QuerySet):
                                       function='ABS')), default=None, output_field=models.IntegerField())
         )[:1]
 
-        offers_total_subquery = Offer.objects.filter(sku=OuterRef("sku"))[:1]
-
         wholesale_total_subquery = Sku.objects.filter(pk=OuterRef("pk")).annotate(
             wholesale_total=Sum(
                 Case(When(Q(productmission__partialmissionproduct__product_mission__sku__sku=F("sku")),
@@ -50,7 +48,7 @@ class SkuQuerySet(models.QuerySet):
                                                 default=0)))[:1]
         return self.all().annotate(
             delta=Coalesce(Subquery(delta_subquery.values("delta")), None)).annotate(
-            offer_total=Coalesce(Subquery(offers_total_subquery.values("amount")), 0)
+            offer_total=Coalesce(Sum("offer__amount"), 0)
         ).annotate(
             total=Sum(Coalesce("stock__bestand", 0)),
             online_total=Case(When(delta__isnull=False, delta__lte=10, then=Subquery(
@@ -91,3 +89,11 @@ class Sku(models.Model):
 
     def __str__(self):
         return str(self.sku)
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self.main_sku is not True and hasattr(self, "offer") is False:
+            new_offer = Offer()
+            new_offer.save()
+            self.offer = new_offer
+        super().save()

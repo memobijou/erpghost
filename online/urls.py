@@ -51,6 +51,5 @@ urlpatterns = [
     url(r'^import_mission/$', ImportMissionView.as_view(), name="import_mission"),
     url(r'^import_offers/$', ImportOffersView.as_view(), name="import_offers"),
     url(r'^confirm_manual/(?P<pk>\d+)/$', ConfirmManualView.as_view(), name="confirm_manual"),
-
 ]
 

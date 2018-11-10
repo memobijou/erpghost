@@ -30,8 +30,8 @@ class Offer(models.Model):
 
     sku = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
     asin = models.CharField(null=True, blank=True, max_length=200, verbose_name="Angebot")
-    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
-    sku_instance = models.ForeignKey("sku.Sku", null=True, blank=True)
+    amount = models.IntegerField(verbose_name="Menge", null=True, blank=True, default="0")
+    sku_instance = models.OneToOneField("sku.Sku", null=True, blank=True)
 
     def __init__(self, *args, **kwargs):
         from sku.models import Sku

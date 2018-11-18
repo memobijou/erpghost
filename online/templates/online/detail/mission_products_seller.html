@@ -1,6 +1,13 @@
 {% load utils %}
 
 <div class="col-md-12">
+    {% if object.none_sku_products_amount %}
+        <div class="col-md-8" style="padding:0;">
+            <h3>Für diesen Auftrag gibt es <span style="color:red;">{{ object.none_sku_products_amount }}</span> Artikel ohne SKU</h3>
+        </div>
+    {% endif %}
+</div>
+<div class="col-md-12">
     {% if object.productmission_set.all %}
         <div class="table-responsive">
             <table class="table table-bordered">
@@ -22,15 +29,19 @@
                             {% if object.id == productmission.mission.id %}
                             <tr>
                                 <td>
-                                    {% if productmission.product.main_image %}
-                                        <img src="{{ productmission.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
+                                    {% if productmission.sku.product.main_image %}
+                                        <img src="{{ productmission.sku.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {{productmission.sku.product.ean|default:""}}
                                 </td>
                                 <td>
-                                    {{productmission.sku.sku|default:""}}
+                                    {% if productmission.sku %}
+                                        {{productmission.sku.sku|default:""}}
+                                    {% else %}
+                                        <p style="color:red;">{{ productmission.no_match_sku|default:"" }}</p>
+                                    {% endif %}
                                 </td>
                                 <td>{{productmission.sku.state}}</td>
                                 <td>{{productmission.sku.product.title|default:""}}</td>

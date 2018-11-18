@@ -120,11 +120,16 @@ class OnlineBillingView(View):
 
         terms_of_payment = self.mission.terms_of_payment
 
+        delivery_date_or_shipment_date = f""
+
+        if delivery_date_from is not None and delivery_date_to is not None:
+            delivery_date_or_shipment_date = f"<br/><b>Liefertermin:</b>" \
+                                             f" {delivery_date_from.strftime('%d.%m.%Y')}-" \
+                                             f"{delivery_date_to.strftime('%d.%m.%Y')}<br/>"
+
         table_data = [
             [
-                Paragraph(f"<br/><b>Liefertermin:</b> {delivery_date_from.strftime('%d.%m.%Y')}-"
-                          f"{delivery_date_to.strftime('%d.%m.%Y')}<br/>",
-                          style=size_twelve_helvetica_bold),
+                Paragraph(delivery_date_or_shipment_date, style=size_twelve_helvetica_bold),
             ],
             [
                  Paragraph("<br/>Lieferadresse: ", style=size_nine_helvetica),

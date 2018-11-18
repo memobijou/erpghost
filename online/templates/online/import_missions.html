@@ -1,24 +1,47 @@
 {% extends 'base.html' %}
 
-
 {% block content %}
-    <div class="panel panel-default">
-        <div class="panel-body">
-            {% if not still_pending %}
-                <form method="POST" enctype='multipart/form-data'>{% csrf_token %}
-                    {{ form.as_p }}
-                    <input type="submit" class="btn btn-primary " value="Importieren"/>
-                </form>
-            {% else %}
-                <div class="col-md-12" style="padding:0;">
-                    <div class="text-center">
-                        <h3>Aufträge werden noch angelegt</h3>
-                        <div class="loader center-block"></div>
-                        <p class="help-block">bitte haben Sie einen Moment Geduld</p>
-                    </div>
+    {% if messages %}
+        <div class="col-md-12">
+            {% for msg in messages %}
+                <div class="alert alert-{{ msg.tags }}">
+                   <p>{{ msg }}</p>
                 </div>
-                <meta http-equiv="refresh" content="5" >
-            {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                {% if not still_pending %}
+                    <div class="col-md-2"></div>
+                    <div class="col-md-8">
+                        <div class="text-center">
+                            <form method="POST" enctype='multipart/form-data'>{% csrf_token %}
+                                {% block channel_logo %}{% endblock %}
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td class="col-md-4"></td>
+                                        <td class="col-md-4">{{ form.as_p }}</td>
+                                        <td class="col-md-4"></td>
+                                    </tr>
+                                </table>
+                                <input type="submit" class="btn btn-lg btn-primary " value="Import starten"/>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-2"></div>
+                {% else %}
+                    <div class="col-md-12" style="padding:0;">
+                        <div class="text-center">
+                            <h3>Aufträge werden noch angelegt</h3>
+                            <div class="loader center-block"></div>
+                            <p class="help-block">bitte haben Sie einen Moment Geduld</p>
+                        </div>
+                    </div>
+                    <meta http-equiv="refresh" content="5" >
+                {% endif %}
+            </div>
         </div>
     </div>
 

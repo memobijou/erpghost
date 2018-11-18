@@ -40,6 +40,8 @@ class Mission(models.Model):
     delivery_date = models.DateField(default=datetime.date.today, verbose_name="Lieferdatum")
     delivery_date_from = models.DateField(null=True, blank=True, verbose_name="Lieferdatum von")
     delivery_date_to = models.DateField(null=True, blank=True, verbose_name="Lieferdatum bis")
+    ship_date_from = models.DateField(null=True, blank=True, verbose_name="Versanddatum von")
+    ship_date_to = models.DateField(null=True, blank=True, verbose_name="Versanddatum bis")
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
     channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
     skus = models.ManyToManyField(Sku, through="ProductMission")
@@ -67,6 +69,10 @@ class Mission(models.Model):
 
     is_amazon_fba = models.NullBooleanField(null=True, blank=True, verbose_name="Fulfillment")
 
+    is_amazon = models.NullBooleanField(null=True, blank=True, verbose_name="Amazon")
+
+    is_ebay = models.NullBooleanField(null=True, blank=True, verbose_name="Ebay")
+
     purchased_date = models.DateTimeField(null=True, blank=True)
     payment_date = models.DateTimeField(null=True, blank=True)
 
@@ -81,6 +87,9 @@ class Mission(models.Model):
 
     online_transport_cost = models.FloatField(null=True, blank=True, verbose_name="Transportkosten")
 
+    online_business_account = models.ForeignKey("disposition.BusinessAccount", null=True, blank=True,
+                                                verbose_name="Geschäftskonto Transportdienstleister")
+
     online_transport_service = models.ForeignKey("disposition.TransportService", null=True, blank=True)
 
     is_online = models.NullBooleanField(choices=CHOICES, verbose_name="Onlinehandel")
@@ -89,11 +98,19 @@ class Mission(models.Model):
 
     not_matchable = models.NullBooleanField(verbose_name="Nicht matchbar")
 
+    none_sku_products_amount = models.IntegerField(null=True, blank=True, verbose_name="Anzahl Artikel ohne SKU")
+
     objects = MissionObjectManager()
 
-    def get_online_status(self):
+    def get_online_status(self, mission_products, mission_products_without_match):
         if self.not_matchable is True:
-            return "Artikel nicht zugeordnet"
+            if mission_products.count() > 0:
+                for mission_product in mission_products:
+                    if mission_product.sku is not None and mission_product.sku.product.ean in [None, ""]:
+                        return "Artikel ohne EAN"
+            if (mission_products_without_match.count() > 0 or mission_products.count() == 0
+                    or self.none_sku_products_amount):
+                return "Artikel nicht zugeordnet"
 
         if self.status == "Manuell":
             return "Manuell"
@@ -130,7 +147,13 @@ class Mission(models.Model):
         if self.is_online is None:
             self.status = get_status(self)
         else:
-            self.status = self.get_online_status()
+            missions_products = self.productmission_set.all()
+            mission_products_without_match = missions_products.filter(no_match_sku__isnull=False)
+            if missions_products.count() > 0 and mission_products_without_match.count() == 0:
+                self.not_matchable = None
+            print(f"gamery: {mission_products_without_match}")
+            print(f"2: {mission_products_without_match.count()}")
+            self.status = self.get_online_status(missions_products, mission_products_without_match)
         super().save()
 
     # def save(self, *args, **kwargs):
@@ -198,7 +221,7 @@ class ProductMission(models.Model):
 
     objects = ProductMissionManager()
 
-    sku = models.ForeignKey(Sku, on_delete=models.CASCADE, verbose_name="Sku", null=True)
+    sku = models.ForeignKey(Sku, on_delete=models.deletion.SET_NULL, verbose_name="Sku", null=True)
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
     state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
@@ -211,6 +234,9 @@ class ProductMission(models.Model):
     discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt")
     shipping_discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt für Versand")
     confirmed = models.NullBooleanField(verbose_name="Bestätigt")
+    no_match_sku = models.CharField(max_length=200, null=True, blank=True)
+    online_identifier = models.CharField(max_length=500, null=True, blank=True)  # Amazon order-item-id zb
+    online_description = models.TextField(null=True, blank=True, verbose_name="Online Beschreibung")
 
     @property
     def real_amount(self):

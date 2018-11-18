@@ -33,7 +33,7 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
 
     def __init__(self):
         super().__init__()
-        self.missions = Mission.objects.filter(is_amazon_fba=False, productmission__sku__product__ean__isnull=False,
+        self.missions = Mission.objects.filter(productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True, not_matchable__isnull=True)
         print(f"jo: {self.missions.count()}")
         self.picklist_data = None
@@ -611,7 +611,7 @@ class PackingView(LoginRequiredMixin, View):
         context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
                    "form": self.get_form(), "is_all_scanned": self.is_all_scanned(), "mission": self.mission,
                    "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
-                   "label_link": get_label_link(self.mission), "transport_service": get_transport_service(self.mission)}
+                   "label_link": get_label_link(self.mission)}
         return context
 
     def get_form(self):
@@ -622,52 +622,24 @@ class PackingView(LoginRequiredMixin, View):
         return form
 
     def get_label_form_link(self):
-        if self.mission.delivery_address is not None and self.mission.delivery_address.country_code is not None:
-            delivery_address_country_code = self.mission.delivery_address.country_code
-            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-            transport_accounts = self.mission.channel.api_data.client.businessaccount_set.all()
-            for transport_account in transport_accounts:
-                print(f"{transport_account.type} : {country}")
-                if transport_account.type == "national" and country.name == "Germany":
-                    return reverse_lazy("online:dpd_pdf", kwargs={"pk": self.mission.pk,
-                                                                  "business_account_pk": transport_account.pk})
-                elif transport_account.type == "foreign_country" and country.name != "Germany":
-                    return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
-                                                                  "business_account_pk": transport_account.pk})
-            return ""
-
-    def is_delivery_address_national(self):
-        if self.mission.delivery_address is not None and self.mission.delivery_address.country_code is not None:
-            delivery_address_country_code = self.mission.delivery_address.country_code
-            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-
-            if country.name == "Germany":
-                return True
-            else:
-                return False
+        business_account = self.mission.online_business_account
+        if business_account.type == "national":
+            return reverse_lazy(
+                "online:dpd_pdf", kwargs={"pk": self.mission.pk,
+                                          "business_account_pk": business_account.pk})
+        if business_account.type == "foreign_country":
+            return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
+                                                          "business_account_pk": business_account.pk})
 
 
 def get_label_link(mission):
-    if mission.delivery_address is not None and mission.delivery_address.country_code is not None:
-        country_code = mission.delivery_address.country_code
-        country = pycountry.countries.get(alpha_2=country_code)
+    business_account = mission.online_business_account
+    if business_account.type == "national":
+        return reverse_lazy("online:dpd_get_label", kwargs={"pk": mission.pk})
 
-        if country.name == "Germany":
-            return reverse_lazy("online:dpd_get_label", kwargs={"pk": mission.pk})
-        else:
-            return reverse_lazy("online:dhl_get_label", kwargs={"pk": mission.pk,
-                                                                "shipment_number": mission.tracking_number})
-
-
-def get_transport_service(mission):
-    if mission.delivery_address is not None and mission.delivery_address.country_code is not None:
-        country_code = mission.delivery_address.country_code
-        country = pycountry.countries.get(alpha_2=country_code)
-
-        if country.name == "Germany":
-            return "DPD"
-        else:
-            return "DHL"
+    if business_account.type == "foreign_country":
+        return reverse_lazy("online:dhl_get_label", kwargs={"pk": mission.pk,
+                                                            "shipment_number": mission.tracking_number})
 
 
 def book_out_stocks(picklist):
@@ -701,8 +673,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.get(pk=self.kwargs.get("pk"))
         self.mission = self.picklist.mission_set.first()
-        first_product = self.mission.productmission_set.first()
-        self.client = first_product.sku.channel.client
+        self.client = self.mission.channel.client
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
@@ -738,40 +709,23 @@ class ProvidePackingView(LoginRequiredMixin, View):
         BillingProductMission.objects.bulk_create(bulk_instances)
 
     def create_label(self):
-        error = self.break_down_address_in_street_and_house_number()
-        if error is True:
+        if self.mission.delivery_address.strasse is None and self.mission.delivery_address.hausnummer is None:
             return HttpResponseRedirect(self.get_label_form_link()), True
-        national_business_account = self.client.businessaccount_set.filter(
-            type="national", transport_service__name__iexact="dpd").first()
-        foreign_country_business_account = self.client.businessaccount_set.filter(
-            type="foreign_country", transport_service__name__iexact="dhl").first()
-        country = pycountry.countries.get(alpha_2=self.mission.delivery_address.country_code)
+
+        business_account = self.mission.online_business_account
 
         if self.mission.delivery_address.strasse is not None and self.mission.delivery_address.hausnummer is not None:
-            if country.name == "Germany":
-                self.transport_service = national_business_account.transport_service
-                if self.transport_service.name.lower() == "dhl":
-                    dhl_label = self.create_dhl_label()
-                    if dhl_label is None:
-                        return HttpResponseRedirect(self.get_label_form_link()), True
-                    return dhl_label, None
-                elif self.transport_service.name.lower() == "dpd":
-                    dpd_label = self.create_dpd_label()
-                    if dpd_label is None:
-                        return HttpResponseRedirect(self.get_label_form_link()), True
-                    return dpd_label, None
-            else:
-                self.transport_service = foreign_country_business_account.transport_service
-                if self.transport_service.name.lower() == "dhl":
-                    dhl_label = self.create_dhl_label()
-                    if dhl_label is None:
-                        return HttpResponseRedirect(self.get_label_form_link()), True
-                    return dhl_label, None
-                elif self.transport_service.name.lower() == "dpd":
-                    dpd_label = self.create_dpd_label()
-                    if dpd_label is None:
-                        return HttpResponseRedirect(self.get_label_form_link()), True
-                    return dpd_label, None
+            if business_account.type == "national":
+                dpd_label = self.create_dpd_label()
+                if dpd_label is None:
+                    return HttpResponseRedirect(self.get_label_form_link()), True
+                return dpd_label, None
+
+            if business_account.type == "foreign_country":
+                dhl_label = self.create_dhl_label()
+                if dhl_label is None:
+                    return HttpResponseRedirect(self.get_label_form_link()), True
+                return dhl_label, None
 
     def create_dpd_label(self):
         dpd_label_creator = DPDLabelCreator(self.mission, self.client)
@@ -793,56 +747,17 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if errors is None:
             return dhl_label
 
-    # Adresse in Stasse und Hausnummer zerlegen durch Reguläre Ausdrücke
-    def break_down_address_in_street_and_house_number(self):
-        mission = self.picklist.mission_set.first()
-        delivery_address = mission.delivery_address
-        street_and_housenumber = delivery_address.street_and_housenumber
-        country_code = delivery_address.country_code
-        country = pycountry.countries.get(alpha_2=country_code)
-        country_name = country.name
-
-        print(f"sahbi {street_and_housenumber}")
-        print(country_name)
-        if country_name != "France" and country_name != "Luxenburg":
-            components = re.findall(r'(\D.+)\s+(\d+.*)$', street_and_housenumber)
-            if len(components) > 0:
-                components = components[0]
-            print(len(components))
-            print(components)
-            if len(components) == 2:
-                print(components)
-                delivery_address.strasse = components[0]
-                delivery_address.hausnummer = components[1]
-        else:
-            components = re.findall(r'^(\d+\w*)[,\s]*(\D.+)$', street_and_housenumber)
-            print(components)
-            if len(components) > 0:
-                components = components[0]
-            if len(components) == 2:
-                delivery_address.hausnummer = components[0]
-                delivery_address.strasse = components[1]
-        delivery_address.save()
-        if delivery_address.strasse is None and delivery_address.hausnummer is None:
-            return True
-        print(f"sahbi {delivery_address.strasse} {delivery_address.hausnummer}")
-
     # alles unten ist google maps places api, muss angepasst werden
 
     def get_label_form_link(self):
-        if self.mission.delivery_address is not None and self.mission.delivery_address.country_code is not None:
-            delivery_address_country_code = self.mission.delivery_address.country_code
-            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-            transport_accounts = self.mission.channel.api_data.client.businessaccount_set.all()
-            for transport_account in transport_accounts:
-                print(f"{transport_account.type} : {country}")
-                if transport_account.type == "national" and country.name == "Germany":
-                    return reverse_lazy("online:dpd_pdf", kwargs={"pk": self.mission.pk,
-                                                                  "business_account_pk": transport_account.pk})
-                elif transport_account.type == "foreign_country" and country.name != "Germany":
-                    return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
-                                                                  "business_account_pk": transport_account.pk})
-            return ""
+        business_account = self.mission.online_business_account
+        if business_account.type == "national":
+            return reverse_lazy(
+                "online:dpd_pdf", kwargs={"pk": self.mission.pk,
+                                          "business_account_pk": business_account.pk})
+        if business_account.type == "foreign_country":
+            return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
+                                                          "business_account_pk": business_account.pk})
 
 
 class FinishPackingView(LoginRequiredMixin, View):
@@ -886,7 +801,7 @@ class ConfirmManualView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.filter(pk=self.kwargs.get("pk")).first()
-        if self.picklist.completed is True:
+        if self.picklist is not None and self.picklist.completed is True:
             return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
         self.mission = self.picklist.mission_set.first() if self.picklist is not None else None
         self.context.update(self.get_context())

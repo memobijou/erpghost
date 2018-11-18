@@ -10,7 +10,8 @@ from django import views
 from online.models import Channel
 from adress.models import Adress
 from mission.models import Mission, ProductMission, PartialMissionProduct, PickListProducts
-from online.tasks_import import AmazonImportTask, amazon_import_task
+from online.amazon_import_tasks import AmazonImportTask, amazon_import_task
+from online.ebay_import_tasks import EbayImportTask, ebay_import_task
 from product.models import Product, get_states_totals_and_total
 from stock.models import Stock
 from utils.utils import get_filter_fields, get_verbose_names, set_object_ondetailview
@@ -24,6 +25,7 @@ from online.forms import ImportForm
 from celery.result import AsyncResult
 from erpghost import app
 import dateutil
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 
 class OnlineListView(generic.ListView):
@@ -57,7 +59,7 @@ class OnlineListView(generic.ListView):
         self.context["title"] = "Aufträge Online"
         self.context["object_list"] = self.get_object_list()
         self.context["option_fields"] = ["Offen", "Verpackt", "am Picken", "auf Station", "Manuell",
-                                         "Artikel nicht zugeordnet"]
+                                         "Artikel nicht zugeordnet", "Artikel ohne EAN"]
         self.set_GET_values()
         return self.context
 
@@ -110,7 +112,7 @@ class OnlineListView(generic.ListView):
         payment_totals = []
         for obj in object_list:
             payment_totals.append(self.get_payment_amounts(obj))
-        return zip(object_list, payment_totals)
+        return list(zip(object_list, payment_totals))
 
     def get_payment_amounts(self, obj):
         total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
@@ -202,6 +204,8 @@ class OnlineListView(generic.ListView):
                 status_filter |= Q(status__iexact="Manuell")
             elif status == "Artikel nicht zugeordnet":
                 status_filter |= Q(status__iexact="Artikel nicht zugeordnet")
+            elif status == "Artikel ohne EAN":
+                status_filter |= Q(status__iexact="Artikel ohne EAN")
 
         print(f"bababbaba: {status_filter}")
 
@@ -223,8 +227,13 @@ class OnlineListView(generic.ListView):
 
         q_filter &= search_filter
 
-        queryset = Mission.objects.filter(q_filter).annotate(
-             delta=Func((F('delivery_date_to')-datetime.date.today()), function='ABS')).order_by("delta").distinct()
+        from django.db.models.functions import Now
+        from django.db.models import DurationField, Case, When
+
+        queryset = Mission.objects.filter(q_filter).annotate(delta=Case(
+            When(purchased_date__gte=Now(), then=F('purchased_date') - Now()),
+            When(purchased_date__lt=Now(), then=Now() - F('purchased_date')),
+            output_field=DurationField())).order_by("delta").distinct()
 
         return queryset
 
@@ -270,6 +279,7 @@ class OnlineDetailView(DetailView):
         for mission_product in self.mission_products:
             picklist_rows = []
             product_tuple = (mission_product, picklist_rows)
+
             for picklist_product in self.picklist_products:
                 if picklist_product.product_mission == mission_product:
                     picklist_rows.append(picklist_product)
@@ -285,8 +295,6 @@ class OnlineDetailView(DetailView):
         self.context["title"] = "Auftrag " + self.object.mission_number
         self.context["fields"] = self.build_fields()
         self.context["products_from_stock"] = self.get_detail_products()
-        self.context["is_delivery_address_national"] = self.is_delivery_address_national()
-        self.context["label_form_link"] = self.get_label_form_link()
         self.context["status"] = self.object.status
         self.context["picklist_products"] = self.picklist_products
         self.set_payment_amounts_in_context()
@@ -302,33 +310,6 @@ class OnlineDetailView(DetailView):
         self.context.update({"payment_total": total, "total_discount": discount,
                              "total_shipping_discount": shipping_discount, "shipping_price": shipping_price,
                              "shipping_discount": shipping_discount})
-
-    def is_delivery_address_national(self):
-        if self.object.delivery_address is not None and self.object.delivery_address.country_code is not None:
-            delivery_address_country_code = self.object.delivery_address.country_code
-            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-            print(country.name)
-            print(self.object.channel.api_data.client.businessaccount_set.all())
-
-            if country.name == "Germany":
-                return True
-            else:
-                return False
-
-    def get_label_form_link(self):
-        if self.object.delivery_address is not None and self.object.delivery_address.country_code is not None:
-            delivery_address_country_code = self.object.delivery_address.country_code
-            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
-            transport_accounts = self.object.channel.api_data.client.businessaccount_set.all()
-            for transport_account in transport_accounts:
-                print(f"{transport_account.type} : {country}")
-                if transport_account.type == "national" and country.name == "Germany":
-                    return reverse_lazy("online:dpd_pdf", kwargs={"pk": self.object.pk,
-                                                                  "business_account_pk": transport_account.pk})
-                elif transport_account.type == "foreign_country" and country != "Germany":
-                    return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.object.pk,
-                                                                  "business_account_pk": transport_account.pk})
-            return ""
 
     def build_fields(self):
         fields = get_verbose_names(ProductMission, exclude=["id", "mission_id", "confirmed"])
@@ -350,21 +331,36 @@ class OnlineDetailView(DetailView):
             if product is not None:
                 skus = product.sku_set.filter()
 
-            states_totals, total = get_states_totals_and_total(product, skus)
-            total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
-                           f"{states_totals.get(sku.state).get('total')}"
+            total_result = None
+
+            if sku is not None:
+                states_totals, total = get_states_totals_and_total(product, skus)
+                total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
+                               f"{states_totals.get(sku.state).get('total')}"
             detail_products.append((product_mission,  total_result))
         return detail_products
 
 
-class ImportMissionView(View):
-    template_name = "online/import_missions.html"
+class ImportMissionBaseView(LoginRequiredMixin, View):
+    class Meta:
+        abstract = True
+
+    template_name = None
+    title = None
+    success_url = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.context = None
         self.form = None
         self.header, self.result = None, None
+
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name, self.context)
+
+    def get_context(self):
+        self.context = {"title": self.title, "form": self.form}
+        return self.context
 
     def dispatch(self, request, *args, **kwargs):
         self.form = self.get_form()
@@ -378,19 +374,12 @@ class ImportMissionView(View):
                 request.user.profile.celery_import_task_id = None
                 request.user.profile.save()
                 messages.success(request, "Aufträge wurden erfolgreich importiert")
-                return HttpResponseRedirect(reverse_lazy("online:list"))
+                return HttpResponseRedirect(self.success_url)
             if result.status == "PENDING":
                 self.context["still_pending"] = True
 
         print("But why !?")
         return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, *args, **kwargs):
-        return render(request, self.template_name, self.context)
-
-    def get_context(self):
-        self.context = {"title": "Aufträge importieren", "form": self.form}
-        return self.context
 
     def get_form(self):
         if self.request.method == "POST":
@@ -398,6 +387,12 @@ class ImportMissionView(View):
             return ImportForm(self.request.POST, self.request.FILES)
         else:
             return ImportForm()
+
+
+class ImportMissionAmazonView(ImportMissionBaseView):
+    template_name = "online/import_amazon_missions.html"
+    title = "Amazon Bestellbericht importieren"
+    success_url = reverse_lazy("online:import_amazon_mission")
 
     def post(self, request, *args, **kwargs):
         self.fetch_amazon_report()
@@ -408,7 +403,7 @@ class ImportMissionView(View):
             print(f"baby: {response.id}")
             self.request.user.profile.celery_import_task_id = response.id
             self.request.user.profile.save()
-        return HttpResponseRedirect(reverse_lazy("online:import_mission"))
+        return HttpResponseRedirect(self.success_url)
 
     def fetch_amazon_report(self):
         if self.form.is_valid() is True:
@@ -416,16 +411,12 @@ class ImportMissionView(View):
             print(f"banana: {import_file.name}")
             file_ending = import_file.name.split(".")[-1]
             print(file_ending)
-            if file_ending.lower() == "csv":
-                from io import TextIOWrapper
-                data = TextIOWrapper(import_file.file, encoding="latin1")
-                self.result = self.get_csv_content(data)
-                print(f"babo: {self.result}")
 
             if file_ending.lower() == "txt":
                 content_list = import_file.readlines()
                 for index, row in enumerate(content_list):
-                    content_list[index] = content_list[index].decode("ISO-8859-1")
+                    # content_list[index] = content_list[index].decode("ISO-8859-1")
+                    content_list[index] = content_list[index].decode("utf-8")
 
                 self.header = []
 
@@ -450,6 +441,36 @@ class ImportMissionView(View):
                     if len(row) != len(self.header):
                         self.result.pop(self.result.index(row))
 
+
+class ImportMissionEbayView(ImportMissionBaseView):
+    template_name = "online/import_ebay_missions.html"
+    success_url = reverse_lazy("online:import_ebay_mission")
+    title = "Ebay Bestellbericht importieren"
+
+    def post(self, request, *args, **kwargs):
+        self.fetch_ebay_report()
+        if self.header is not None and self.result is not None:
+            print(f"HELLLOOO")
+            response = ebay_import_task.delay([self.header, self.result])
+            print(f"baby: {response.status}")
+            print(f"baby: {response.id}")
+            self.request.user.profile.celery_import_task_id = response.id
+            self.request.user.profile.save()
+        return HttpResponseRedirect(self.success_url)
+
+    def fetch_ebay_report(self):
+        if self.form.is_valid() is True:
+            import_file = self.form.cleaned_data.get("import_file")
+            print(f"banana: {import_file.name}")
+            file_ending = import_file.name.split(".")[-1]
+            print(file_ending)
+            if file_ending.lower() == "csv":
+                from io import TextIOWrapper
+                data = TextIOWrapper(import_file.file, encoding="latin1")
+                self.header = self.get_csv_header(data)
+                self.result = self.get_csv_content(data)
+                print(f"babo: {self.result}")
+
     def get_csv_header(self, data):
         import csv
         csv_reader = csv.reader(data, delimiter=";")
@@ -466,7 +487,6 @@ class ImportMissionView(View):
 
     def get_csv_content(self, data):
         import csv
-        self.header = self.get_csv_header(data)
         csv_iterator = csv.DictReader(data, delimiter=';', fieldnames=self.header)
 
         self.result = []

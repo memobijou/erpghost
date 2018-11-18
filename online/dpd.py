@@ -19,6 +19,7 @@ import os
 from Crypto.Cipher import AES
 
 from stock.models import Stock
+from online.countries_list import countries_list
 
 
 def decrypt_encrypted_string(encrypted_string):
@@ -135,12 +136,25 @@ class DPDLabelCreator:
         self.username = self.transport_account.username
         self.password = decrypt_encrypted_string(self.transport_account.password_encrypted).decode("ISO-8859-1")
 
+        self.country_code = self.get_country_code()
+
+    def get_country_code(self):
+        if self.mission.delivery_address.country_code is not None:
+            self.country_code = self.mission.delivery_address.country_code
+        else:
+            for country_json in countries_list:
+                for k, v in country_json.items():
+                    if str.lower(v) == str.lower(self.mission.delivery_address.country):
+                        self.country_code = country_json.get("code")
+                        break
+        print(f"smile::: {self.country_code}")
+        return self.country_code
+
     def create_label(self):
         parcel_label_number = self.create_label_through_dpd_api()
         if parcel_label_number is not None and parcel_label_number != "":
             self.mission.tracking_number = parcel_label_number
             self.mission.online_transport_service = self.transport_service
-            self.mission.shipped = True
             self.mission.save()
             return parcel_label_number
 
@@ -183,7 +197,7 @@ class DPDLabelCreator:
                                     <name1>{self.mission.delivery_address.first_name_last_name}</name1>
                                     <street>{self.mission.delivery_address.strasse}</street>
                                     <houseNo>{self.mission.delivery_address.hausnummer}</houseNo>
-                                    <country>{self.mission.delivery_address.country_code}</country>
+                                    <country>{self.country_code}</country>
                                     <zipCode>{self.mission.delivery_address.zip}</zipCode>
                                     <city>{self.mission.delivery_address.place}</city>
                                     <gln>0</gln>

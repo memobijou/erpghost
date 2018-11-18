@@ -16,8 +16,10 @@ class Contact(models.Model):
     website = models.CharField(blank=True, null=True, max_length=200, verbose_name="Webseite")
     website_conditions_link = models.CharField(blank=True, null=True, max_length=200, verbose_name="Webseite")
     skype_id = models.CharField(blank=True, null=True, max_length=200)
-    billing_address = models.ForeignKey(Adress, null=True, blank=True, related_name='billing_contact')
-    delivery_address = models.ForeignKey(Adress, null=True, blank=True, related_name='delivery_contact')
+    billing_address = models.ForeignKey(Adress, null=True, blank=True, related_name='billing_contact',
+                                        on_delete=models.deletion.SET_NULL)
+    delivery_address = models.ForeignKey(Adress, null=True, blank=True, related_name='delivery_contact',
+                                         on_delete=models.deletion.SET_NULL)
     company_image = models.ImageField(verbose_name="Firmenlogo", blank=True, null=True)
     bank = models.ManyToManyField(Bank)
     commercial_register = models.CharField(blank=True, null=True, max_length=200, verbose_name="Handelsregister")

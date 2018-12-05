@@ -169,9 +169,9 @@
                                     <h4>
                                          <span class="label label-success">{{ object.status }}</span>
                                     </h4>
-                                {% elif object.not_matchable is True %}
+                                {% elif object.not_matchable is True or object.ignore_pickorder is True %}
                                     <h4>
-                                         <span class="label label-danger">{{ object.status|default:"Offen"}}</span>
+                                         <span class="label label-danger">{{ object.status|default:"Fehlerhaft"}}</span>
                                     </h4>
                                 {% else %}
                                     <h4>

@@ -59,7 +59,7 @@ class OnlineListView(generic.ListView):
         self.context["title"] = "Aufträge Online"
         self.context["object_list"] = self.get_object_list()
         self.context["option_fields"] = ["Offen", "Verpackt", "am Picken", "auf Station", "Manuell",
-                                         "Artikel nicht zugeordnet", "Artikel ohne EAN"]
+                                         "Artikel nicht zugeordnet", "Artikel ohne EAN", "DHL"]
         self.set_GET_values()
         return self.context
 
@@ -206,6 +206,8 @@ class OnlineListView(generic.ListView):
                 status_filter |= Q(status__iexact="Artikel nicht zugeordnet")
             elif status == "Artikel ohne EAN":
                 status_filter |= Q(status__iexact="Artikel ohne EAN")
+            elif status == "DHL":
+                status_filter |= Q(status__iexact="DHL")
 
         print(f"bababbaba: {status_filter}")
 
@@ -335,7 +337,11 @@ class OnlineDetailView(DetailView):
 
             if sku is not None:
                 states_totals, total = get_states_totals_and_total(product, skus)
-                total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
+                # MIT RESERVIERUNG
+                # total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
+                #                f"{states_totals.get(sku.state).get('total')}"
+                # OHNE RESERVIERUNG
+                total_result = f"{states_totals.get(sku.state).get('total')}/" \
                                f"{states_totals.get(sku.state).get('total')}"
             detail_products.append((product_mission,  total_result))
         return detail_products

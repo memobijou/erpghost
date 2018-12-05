@@ -19,7 +19,7 @@
         <p><b>Status: </b>
             {% if object.status == "Verpackt" %}
                  <span class="label label-success" style="font-size:15px;">{{ object.status }}</span>
-            {% elif object.not_matchable is True %}
+            {% elif object.not_matchable is True or object.ignore_pickorder is True %}
                  <span class="label label-danger" style="font-size:15px;">{{ object.status }}</span>
             {% else %}
                  <span class="label label-warning" style="font-size:15px;">{{ object.status|default:"Offen"}}</span>

@@ -35,6 +35,9 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
         super().__init__()
         self.missions = Mission.objects.filter(productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True, not_matchable__isnull=True)
+        # ohne DHL erstmal
+        self.missions = self.missions.exclude(Q(Q(online_transport_service__name__iexact="dhl") |
+                                                Q(ignore_pickorder=True)))
         print(f"jo: {self.missions.count()}")
         self.picklist_data = None
         self.pickorder = None

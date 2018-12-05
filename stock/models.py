@@ -10,6 +10,8 @@ import re
 from mission.models import PartialMissionProduct, DeliveryNoteProductMission, PickListProducts, ProductMission
 from product.models import Product
 from sku.models import Sku
+from django.contrib.auth.models import User
+from utils.models.base import ModelBase
 
 
 class StockQuerySet(models.QuerySet):
@@ -224,17 +226,21 @@ class Stock(models.Model):
 
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None, hard_save=None, *args, **kwargs):
+        # this snippet is probably not being used
         product = self.get_product()
         if product is not None:
             self.product = product
+        # called if stock created by sku only
         sku = self.get_sku()
         if sku is not None:
             self.sku_instance = sku
 
+        # called if stock created by ean and state only
         if self.ean_vollstaendig != "" and self.ean_vollstaendig is not None:
             if barcodenumber.check_code("ean13", self.ean_vollstaendig) is True:
                 if self.ean_vollstaendig != "" and self.zustand != "":
-                    product = Product.objects.filter(ean=self.ean_vollstaendig, single_product__isnull=True).first()
+                    product = Product.objects.filter(ean=self.ean_vollstaendig, single_product__isnull=True,
+                                                     packing_unit=1).first()
                     if product is None:
                         product = Product.objects.create(ean=self.ean_vollstaendig or "")
                         self.sku_instance = product.sku_set.filter(state=self.zustand,
@@ -415,11 +421,12 @@ class Stock(models.Model):
         sku = None
         if self.sku is not None and self.sku != "":
             self.sku = self.sku.strip()
-            sku = Sku.objects.filter(sku=self.sku, main_sku=True).first()
+            sku = Sku.objects.filter(sku=self.sku, main_sku=True, product__packing_unit=1).first()
 
         if (self.ean_vollstaendig is not None and self.ean_vollstaendig != ""
                 and self.zustand is not None and self.zustand != ""):
-            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand, main_sku=True).first()
+            sku = Sku.objects.filter(product__ean=self.ean_vollstaendig, state=self.zustand, main_sku=True,
+                                     product__packing_unit=1).first()
         return sku
 
     def get_product(self):
@@ -728,3 +735,36 @@ class Position(models.Model):
 
     class Meta:
         ordering = ["prefix", "shelf", "level", "column"]
+
+
+class RebookOrder(ModelBase):
+    class Meta:
+        ordering = ["id"]
+
+    user = models.ForeignKey(User, null=True, blank=True, verbose_name="Umbucher")
+    completed = models.NullBooleanField(verbose_name="Abgeschloßen")
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None, *args, **kwargs):
+        if self.user is None:
+            self.completed = False  # Wenn abegelöst ist, dann False
+        super().save()
+
+
+class RebookOrderItem(models.Model):
+    rebook_order = models.ForeignKey("stock.RebookOrder", null=True, blank=True)
+    stock = models.ForeignKey("stock.Stock", verbose_name="Bestand", null=True, blank=True, on_delete=models.SET_NULL)
+    position = models.CharField(max_length=200, null=True, blank=True, verbose_name="Ausgangslagerplatz")
+    sku = models.ForeignKey("sku.Sku", null=True, blank=True)
+    amount = models.IntegerField(verbose_name="Umbuchmenge", null=True, blank=True)
+    rebooked_amount = models.IntegerField(verbose_name="Tatsächliche Umbuchmenge", null=True, blank=True)
+    rebooked = models.NullBooleanField(verbose_name="Umgebucht")
+
+
+class RebookOrderItemDestinationStock(models.Model):
+    rebook_order_item = models.ForeignKey("stock.RebookOrderItem", null=True, blank=True)
+    rebooked_amount = models.IntegerField(verbose_name="Tatsächliche Umbuchmenge", null=True, blank=True)
+    destination_stock = models.ForeignKey("stock.Stock", related_name="destination", verbose_name="Bestand",
+                                          null=True, blank=True, on_delete=models.SET_NULL)
+    destination_position = models.CharField(max_length=200, null=True, blank=True, verbose_name="Endlagerplatz")
+    destination_sku = models.ForeignKey("sku.Sku", null=True, blank=True)

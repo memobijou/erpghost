@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    {% include "snippets/paginate_by.html" %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-center">
+                <b>Benutzer</b>
+                {% if request.user.profile.profile_image %}
+                    <img src="{{ request.user.profile.profile_image.url }}"
+                         class="img-responsive center-block img-circle" style="max-height:100px;"/>
+                {% endif %}
+                {{ request.user }}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="col-md-1"></th>
+                            <th>Auftrags Nr.</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for object in object_list %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'stock:rebook_order' pk=object.pk %}">Ansicht</a>
+                                </td>
+                                <td>{{ object.pk }}</td>
+                                <td>
+                                    {% if object.completed is True %}
+                                         <h4 style="padding:0;margin:0;"><span class="label label-success">Erledigt</span></h4>
+                                    {% else %}
+                                         <h4 style="padding:0;margin:0;"><span class="label label-warning">Offen</span></h4>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% include "snippets/paginate_by.html" %}
+{% endblock %}

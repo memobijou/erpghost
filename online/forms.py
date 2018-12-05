@@ -91,7 +91,7 @@ class BookinForm(forms.Form):
 
 
 class ImportForm(forms.Form):
-    import_file = forms.FileField(label="Import Datei", required=True)
+    import_file = forms.FileField(label="Bestellbericht importieren", required=True)
 
 
 class ConfirmManualForm(forms.Form):

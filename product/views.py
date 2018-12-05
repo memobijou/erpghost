@@ -7,6 +7,8 @@ from django.views.generic import CreateView
 from django.views.generic import DeleteView
 from django.views.generic import DetailView
 from django.views.generic import ListView, FormView, UpdateView
+
+from mission.models import Mission, ProductMission
 from online.forms import OnlineSkuForm, OfferForm
 from import_excel.funcs import get_table_header, compare_header_with_model_fields, get_records_as_list_with_dicts, \
     check_excel_header_fields_not_in_header, check_excel_for_duplicates
@@ -34,6 +36,7 @@ import base64
 import json
 import imghdr
 from django.db.models import Case, When, Value, IntegerField, Sum
+from collections import OrderedDict
 
 
 class ProductListBaseView(LoginRequiredMixin, ListView):
@@ -49,7 +52,8 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
         print(f"wwww: {context}")
         context["title"] = "Artikel Übersicht"
         object_list = context["object_list"]
-        context["product_list"] = self.get_product_list(object_list)
+        # context["product_list"] = self.get_product_list(object_list)
+        context["product_list"] = self.get_product_list_without_reservation(object_list)
         return context
 
     def get_product_list(self, object_list):
@@ -60,6 +64,27 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
             online_skus = all_skus.filter(main_sku__isnull=True).order_by("state")
 
             states_totals, total = get_states_totals_and_total(obj, all_skus)
+            product_list.append((obj, main_skus, online_skus, states_totals, total))
+        return product_list
+
+    def get_product_list_without_reservation(self, object_list):
+        product_list = []
+        for obj in object_list:
+            all_skus = obj.sku_set.all()
+            main_skus = all_skus.filter(main_sku=True).order_by("state")
+            online_skus = all_skus.filter(main_sku__isnull=True).order_by("state")
+            total = {"total": 0, "available_total": 0}
+            states_totals = OrderedDict()
+            for sku in all_skus.get_totals_without_reservation():
+                if sku.state not in states_totals:
+                    states_totals[sku.state] = {}
+                    states_totals[sku.state]["total"] = sku.total
+                    states_totals[sku.state]["available_total"] = sku.total
+                else:
+                    states_totals[sku.state]["total"] += sku.total
+                    states_totals[sku.state]["available_total"] += sku.total
+                total["total"] += sku.total
+                total["available_total"] += sku.total
             product_list.append((obj, main_skus, online_skus, states_totals, total))
         return product_list
 
@@ -943,23 +968,58 @@ class OnlineSkuDeleteView(DeleteView):
 
     def __init__(self):
         super().__init__()
-        self.object, self.product = None, None
+        self.object, self.product, self.missions_products = None, None, None
+        self.missions_pks, self.missions = [], None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = Sku.objects.get(pk=self.kwargs.get("pk"), main_sku__isnull=True)
         self.product = self.object.product if self.object is not None else None
+        self.missions_products = self.object.productmission_set.all()
+
+        print(f"limaddha: {self.missions_products.count()}")
+        print(f"{self.object.sku}")
+        if self.missions_products.count() > 0:
+            self.missions_pks = list(self.missions_products.values_list(
+                "mission__pk", flat=True).order_by("mission").distinct("mission"))
+            print(f"ok must work: {self.missions}")
 
         if request.method == "POST":
-            sku_instance = Sku.objects.filter(sku=self.object.sku).first()
-            if sku_instance is not None and (sku_instance.productmission_set.all().count() > 0
-                                             or (hasattr(sku_instance, "offer") is True
-                                                 and sku_instance.offer.amount not in [None, 0])):
+
+            has_picklist = None
+
+            for mission_product in self.missions_products:
+                if mission_product.picklistproducts_set.all().count() > 0:
+                    has_picklist = True
+                    break
+
+            if self.object is not None and (has_picklist is True or (hasattr(self.object, "offer") is True
+                                                                     and self.object.offer.amount not in [None, 0])):
                 error_msg = "Diese SKU kann nicht gelöscht werden, da für diese SKU Aufträge oder Angebote bestehen."
                 context = self.get_context()
                 context["error_msg"] = error_msg
                 return render(request, self.template_name,
                               context)
         return super().dispatch(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        print(f"ruffy: {self.object}")
+        print(f"shank 1: {self.missions}")
+        success_url = self.get_success_url()
+        mission_products = ProductMission.objects.filter(sku=self.object)
+        mission_products.update(no_match_sku=self.object.sku)
+        self.object.delete()
+        print(f"shank 2: {self.missions}")
+
+        self.missions = Mission.objects.filter(pk__in=self.missions_pks)
+
+        if self.missions.count() > 0:
+            for mission in self.missions:
+                print(f"BEFORE {mission.pk} - - - {mission.status}")
+                mission.refresh_from_db()
+                mission.not_matchable = True
+                mission.save()
+                print(f"AFTER {mission.pk} - - - {mission.status}")
+        return HttpResponseRedirect(success_url)
 
     def get_object(self, queryset=None):
         return self.object

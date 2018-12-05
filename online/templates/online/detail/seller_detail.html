@@ -2,7 +2,7 @@
 
 
 <div class="col-md-12">
-    <div class="col-md-4" style="padding:0;">
+    <div class="col-md-6" style="padding:0;">
         <p style="font-size:15px;"><b>Auftragsnummer: </b>{{ object.mission_number }}</p>
         <p style="font-size:15px;"><b>Verkaufskanal: </b>{{ object.channel.name|default:"" }}</p>
         <p style="font-size:15px;"><b>Fremd ID: </b>{{ object.channel_order_id }}</p>
@@ -19,7 +19,7 @@
         <p><b>Status: </b>
             {% if object.status == "Verpackt" %}
                  <span class="label label-success" style="font-size:15px;">{{ object.status }}</span>
-            {% elif object.status == "Artikel nicht zugeordnet" %}
+            {% elif object.not_matchable is True %}
                  <span class="label label-danger" style="font-size:15px;">{{ object.status }}</span>
             {% else %}
                  <span class="label label-warning" style="font-size:15px;">{{ object.status|default:"Offen"}}</span>
@@ -32,7 +32,6 @@
         </div>
         <div class="col-md-6" style="padding:5px;">
             {% include 'online/detail/billing_address.html' %}
-
         </div>
     </div>
 </div>

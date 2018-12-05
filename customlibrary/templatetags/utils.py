@@ -171,6 +171,9 @@ def format_number_thousand_decimal_points(number):
 
 @register.filter
 def custom_add(value, arg):
+    print(f"wie: {value}")
+    if arg is None:
+        return value
     if isinstance(arg, str):
         try:
             arg = float(arg)

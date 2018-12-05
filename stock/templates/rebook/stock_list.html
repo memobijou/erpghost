@@ -1,0 +1,27 @@
+{% extends 'stock/stock_list_base.html' %}
+
+{% block stock_links %}
+    <a href="{% url 'stock:rebook_on_position' stock_pk=object.pk %}">Umbuchen</a>
+{% endblock %}
+
+{% block q %}{{ rebook_q }}{% endblock %}
+
+{% block ean %}{{ rebook_ean_vollstaendig }}{% endblock %}
+
+{% block sku %}{{ rebook_sku }}{% endblock %}
+
+{% block title %}{{ rebook_title }}{% endblock %}
+
+{% block zustand_empty %}{% if rebook_zustand == "" %} selected{% endif %}{% endblock %}
+
+{% block zustand %}{% if rebook_zustand == state %} selected{% endif %}{% endblock %}
+
+{% block position %}{{ rebook_lagerplatz }}{% endblock %}
+
+{% block person %}{{ rebook_name }}{% endblock %}
+
+{% block clear_filter %}<a style="color:red;" href="{% url 'stock:rebook_overview' %}?clear_filter=1">
+    <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen</a>{% endblock %}
+
+
+{% block delete_action %}action=''{% endblock %}

@@ -17,7 +17,7 @@ from online.forms import DhlForm
 from django.urls import reverse_lazy
 import pycountry
 import datetime
-
+from online.countries_list import countries_list
 from stock.models import Stock
 
 
@@ -55,11 +55,14 @@ class DHLCreatePdfView(UpdateView):
         street = form.cleaned_data.get("strasse")
         street_number = form.cleaned_data.get("hausnummer")
         postal_code = form.cleaned_data.get("zip")
+        print(f"what the: {postal_code}")
+        print(f"but why: {self.client.contact.delivery_address.zip}")
         place = form.cleaned_data.get("place")
-        country_code = self.mission.delivery_address.country_code
+        country_code = self.get_country_code()
         dhl_label_creator = DHLLabelCreator(self.mission, self.client)
         dhl_label, errors = dhl_label_creator.create_label(package_weight, name, street, street_number, postal_code,
                                                            place, country_code)
+        print(f"COOOL OF: {errors}")
         if errors is not None:
             for error in errors:
                 form.add_error(None, error)
@@ -70,6 +73,18 @@ class DHLCreatePdfView(UpdateView):
             self.create_delivery_note(picklist)
             self.create_billing(picklist)
         return super().form_valid(form)
+
+    def get_country_code(self):
+        country_code = None
+        if self.mission.delivery_address.country_code is not None:
+            country_code = self.mission.delivery_address.country_code
+            return country_code
+        else:
+            for country_json in countries_list:
+                for k, v in country_json.items():
+                    if str.lower(v) == str.lower(self.mission.delivery_address.country):
+                        country_code = country_json.get("code")
+        return country_code
 
     def create_delivery_note(self, picklist):
         if picklist.online_delivery_note is not None:
@@ -109,7 +124,12 @@ class DHLLabelCreator:
         self.url = "https://cig.dhl.de/services/sandbox/soap"
         self.mission = mission
         self.client = client
+        self.transport_account = BusinessAccount.objects.filter(client=self.client,
+                                                                transport_service__name__iexact="DHL").first()
+        self.transport_service = (self.transport_account.transport_service if self.transport_account is not None
+                                  else None)
         self.package_weight, self.name_1, self.street, self.street_number = None, None, None, None
+        self.reference_number = self.mission.channel_order_id
         self.postal_code, self.place, self.country_code = None, None, None
         self.transport_account = BusinessAccount.objects.filter(client=self.client,
                                                                 transport_service__name__iexact="DHL").first()
@@ -159,9 +179,13 @@ class DHLLabelCreator:
             for el in root.iter("statusMessage"):
                 if el.text not in errors:
                     errors.append(el.text)
+            for el in root.iter("faultstring"):
+                if el.text not in errors:
+                    errors.append(el.text)
             return None, errors
 
     def get_xml_request_file(self):
+        print(f"rifaq: {self.country_code}")
         doc = f'''
 <?xml version="1.0" encoding="Iso-8859-1" standalone="no"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:cis="http://dhl.de/webservice/cisbase" xmlns:bus="http://dhl.de/webservices/businesscustomershipping">
@@ -187,7 +211,7 @@ class DHLLabelCreator:
                   <product>V53WPAK</product>
                   <cis:accountNumber>{self.account_number}</cis:accountNumber>
                   <!--Optional:-->
-                  <customerReference>Sendungsreferenz</customerReference>
+                  <customerReference>{self.reference_number}</customerReference>
                   <shipmentDate>{datetime.date.today().strftime("%Y-%m-%d")}</shipmentDate>
                   <!--Optional:-->
                   <returnShipmentAccountNumber>{self.return_shipment_account_number}</returnShipmentAccountNumber>

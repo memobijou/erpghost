@@ -25,4 +25,4 @@
 {% block clear_filter %}<a style="color:red;" href="{% url 'stock:single_list' %}?clear_filter=1">
     <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen</a>{% endblock %}
 
-{% block delete_action %}action='{% url 'stock:single_delete_items' %}'{% endblock %}
+{% block delete_action_value %}single_delete{% endblock %}

@@ -40,6 +40,11 @@
                                     list-style-type: none;
                                 }
                             </style>
+                            {% if not form.errors %}
+                                <p style="color:red;">
+                                    {{ request.GET.error_msg|default:"" }}
+                                </p>
+                            {% endif %}
                             {{ form.as_p }}
                         </div>
                     </div>

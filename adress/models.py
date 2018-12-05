@@ -21,6 +21,7 @@ class Adress(models.Model):
     zip = models.CharField(blank=False, null=True, max_length=200, verbose_name="Plz")
     place = models.CharField(blank=False, null=True, max_length=200, verbose_name="Ort")
     country_code = models.CharField(blank=True, null=True, max_length=200, verbose_name="Ländercode")
+    country = models.CharField(blank=True, null=True, max_length=200, verbose_name="Land")
 
     def __str__(self):
         return f"{self.firma} - {self.strasse} {self.hausnummer} - {self.zip} {self.place}"

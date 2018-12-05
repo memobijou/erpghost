@@ -3,6 +3,7 @@
 {% block stock_links %}
     <a href="{% url 'stock:detail' pk=object.pk %}">Ansicht</a>
     <a href="{% url 'stock:edit' pk=object.pk %}">Bearbeiten</a>
+    <a href="{% url 'stock:rebook_on_position' stock_pk=object.pk %}">Umbuchen</a>
     <input type="checkbox" name="item" style="cursor:pointer;" value="{{object.pk}}">
 {% endblock %}
 
@@ -25,5 +26,4 @@
 {% block clear_filter %}<a style="color:red;" href="{% url 'stock:list' %}?clear_filter=1">
     <span class="glyphicon glyphicon-remove"></span>&nbsp;Filter zurücksetzen</a>{% endblock %}
 
-
-{% block delete_action %}action='{% url 'stock:delete_items' %}'{% endblock %}
+{% block delete_action_value %}delete{% endblock %}

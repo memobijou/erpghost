@@ -58,6 +58,8 @@ class Product(models.Model):
     width = models.FloatField(null=True, blank=True, default=None, verbose_name="Breite")
     length = models.FloatField(null=True, blank=True, default=None, verbose_name="Länge")
 
+    packing_unit = models.IntegerField(null=True, blank=True, default=1, verbose_name="Verpackungseinheit")
+
     objects = ProductObjectManager()
 
     def __str__(self):

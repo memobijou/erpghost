@@ -28,12 +28,15 @@ import itertools
 from rest_framework import generics
 from rest_framework import serializers
 from stock.models import get_states_totals_and_total_from_ean_without_product
+from django.views import View
 # Create your views here.
+from collections import OrderedDict
 
 
 class StockListBaseView(LoginRequiredMixin, ListView):
     paginate_by = 15
     states = Sku.objects.all().values_list("state", flat=True).distinct("state")
+    title = "Lagerbestand"
 
     def __init__(self):
         super().__init__()
@@ -43,8 +46,9 @@ class StockListBaseView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context.update(self.context)
         object_list = context["object_list"]
-        context["stock_list"] = self.get_stock_list(object_list)
-        context["title"] = "Lagerbestand"
+        # context["stock_list"] = self.get_stock_list(object_list)
+        context["stock_list"] = self.get_stock_list_without_reservation(object_list)
+        context["title"] = self.title
         context["states"] = self.states
         return context
 
@@ -54,6 +58,29 @@ class StockListBaseView(LoginRequiredMixin, ListView):
             if obj.sku_instance is not None:
                 skus = obj.sku_instance.product.sku_set.all().get_totals().order_by("state")
                 states_totals, total = get_states_totals_and_total(obj.sku_instance.product, skus)
+                result.append((obj, states_totals, total))
+            else:
+                states_totals, total = 0, 0
+                result.append((obj, states_totals, total))
+        return result
+
+    def get_stock_list_without_reservation(self, object_list):
+        result = []
+        for obj in object_list:
+            if obj.sku_instance is not None:
+                skus = obj.sku_instance.product.sku_set.all().get_totals_without_reservation().order_by("state")
+                total = {"total": 0, "available_total": 0}
+                states_totals = OrderedDict()
+                for sku in skus:
+                    if sku.state not in states_totals:
+                        states_totals[sku.state] = {}
+                        states_totals[sku.state]["total"] = sku.total
+                        states_totals[sku.state]["available_total"] = sku.total
+                    else:
+                        states_totals[sku.state]["total"] += sku.total
+                        states_totals[sku.state]["available_total"] += sku.total
+                    total["total"] += sku.total
+                    total["available_total"] += sku.total
                 result.append((obj, states_totals, total))
             else:
                 states_totals, total = 0, 0
@@ -634,7 +661,6 @@ class StockDeleteView(DeleteView):
 
             if reserved_stock > 0:
                 if int(self.object.bestand) > int(available_stock):
-
                     if int(available_stock) <= 0:
                         context["error"] = f"Sie können diesen Bestand nicht ausbuchen. \n" \
                                            f"Der gesamte Bestand von diesem Artikel ist reserviert."
@@ -917,6 +943,22 @@ class BookProductToPositionView(LoginRequiredMixin, CreateView):
             product = Product.objects.filter(ean=ean, single_product__isnull=True).first()
 
         return product
+
+
+class RedirectStocksActionView(View):
+    def dispatch(self, request, *args, **kwargs):
+        action = self.request.GET.get("action", "") or ""
+        querystring = self.request.GET.urlencode()
+        if action != "":
+            action = action.lower()
+            if action == "delete":
+                print(f"{self.request.GET.urlencode()}")
+                return HttpResponseRedirect(reverse_lazy("stock:delete_items") + f"?{querystring}")
+            elif action == "single_delete":
+                return HttpResponseRedirect(reverse_lazy("stock:single_delete_items") + f"?{querystring}")
+            elif action == "rebook":
+                return HttpResponseRedirect(reverse_lazy("stock:rebook_order") + f"?{querystring}")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class GeneratePositionsView(FormView):

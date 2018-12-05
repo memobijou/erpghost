@@ -40,12 +40,12 @@
                      {% endif %}
                 {% elif object.sku %}
                      <b>SKU: </b> <span> {{ object.sku }} </span>
-                     {% if object.product and object.product.ean %}
-                         <b>EAN:</b> {{ object.product.ean }}
+                     {% if object.sku_instance.product and object.sku_instance.product.ean %}
+                         <b>EAN:</b> {{ object.sku_instance.product.ean }}
                      {% endif %}
                 {% elif object.title %}
                      <b>keine EAN oder SKU vorhanden</b>
-                {% elif product.title %}
+                {% elif object.sku_instance.product.title %}
                      <b>keine EAN oder SKU vorhanden </b>
                 {% else %}
                     <b>Kein Artikel gebucht</b>
@@ -70,21 +70,17 @@
                     <a style="float:right;" href="{% url 'stock:single_edit' pk=object.id %}">Bearbeiten</a>
                 {% endif %}
                 <div class="col-md-12" style="padding-left: 0px;">
-                {% if product %}
-                    {% if product.title %}
-                        <h4>{{ product.title }}</h4>
-                    {% elif object.title %}
-                        <h4>{{ object.title }}</h4>
-                    {% endif %}
+                {% if object.sku_instance.product.title %}
+                        <h4>{{ object.sku_instance.product.title }}</h4>
                 {% elif object.title %}
                         <h4>{{ object.title }}</h4>
                 {% endif %}
                 </div>
-                {% if product %}
-                    {% if product.main_image %}
+                {% if object.sku_instance.product %}
+                    {% if object.sku_instance.product.main_image %}
                         <div class="col-md-3" style="padding-left: 0px;">
                             <p>
-                                <img src="{{ product.main_image.url }}" class="img-responsive img-modal"
+                                <img src="{{ object.sku_instance.product.main_image.url }}" class="img-responsive img-modal"
                                      style="cursor:pointer;"/>
                             </p>
                             <div class="modal fade">
@@ -92,7 +88,7 @@
                                 <div class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-body">
-                                            <img src="{{ product.main_image.url|default:''}}"
+                                            <img src="{{ object.sku_instance.product.main_image.url|default:''}}"
                                              class="img-responsive center-block">
                                         </div>
                                     </div>
@@ -103,9 +99,9 @@
                 {% endif %}
 
                 <div class="col-md-6">
-                    {% if product %}
-                        {% if product.short_description %}
-                            <p><b>Kurzbeschreibung: </b> {{ product.short_description }}</p>
+                    {% if object.sku_instance.product %}
+                        {% if object.sku_instance.product.short_description %}
+                            <p><b>Kurzbeschreibung: </b> {{ object.sku_instance.product.short_description }}</p>
                         {% endif %}
                     {% endif %}
                     {% if object.name %}
@@ -145,14 +141,14 @@
                     </table>
                 </div>
                 <div class="col-md-11" style="padding-right: 0px;padding-left:0px;">
-                    {% if object.product and object.product.productimage_set.all %}
+                    {% if object.sku_instance.product and object.sku_instance.product.productimage_set.all %}
                         <div class="panel panel-default">
                             <div class="panel-heading">
                                 Weitere Bilder
                             </div>
                             <div class="panel-body">
                                 <div class="col-md-12">
-                                    {% for image in object.product.productimage_set.all %}
+                                    {% for image in object.sku_instance.product.productimage_set.all %}
                                         <div class="col-md-2" style="padding-left: 0px;padding-top:25px;">
                                             <div class="panel panel-default">
                                                 <div class="panel-body img-modal" style="min-height: 150px;cursor:pointer;">

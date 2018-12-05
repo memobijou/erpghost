@@ -1,0 +1,19 @@
+{% extends 'rebook/rebook_on_position_list_base.html' %}
+
+
+{% block navigation %}
+    <a href="{% url 'stock:list' %}">Zurück zur Übersicht</a>
+{% endblock %}
+
+
+{% block rebook_link %}
+    <a class="btn btn-info" href="{% url 'stock:book_stock_on_position' stock_pk=stock.pk %}?position={{ object.name }}">
+        Umbuchen</a>
+{% endblock %}
+
+
+{% block bestand %}
+    {% if stock.bestand %}
+        <p><b>Bestand: </b> {{ stock.bestand }}</p>
+    {% endif %}
+{% endblock %}

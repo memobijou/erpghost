@@ -30,6 +30,7 @@ class AcceptRefillStockView(View):
         self.missions = Mission.objects.filter(channel__isnull=False, is_amazon_fba=False,
                                                productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True)
+        self.missions = self.missions.exclude(online_business_account__transport_service__name__iexact="dhl")
         print(f"batta: {self.missions}")
         self.missions_products = self.get_missions_products()
         self.missions_products_stocks = self.get_missions_products_stocks()

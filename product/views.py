@@ -919,7 +919,7 @@ class ProductDetailView(DetailView):
         new_sku.product = self.object
         new_sku.save()
         if new_sku.sku is None:
-            new_sku.sku = new_sku.pk
+            new_sku.sku = f"ET-{new_sku.pk}"
             new_sku.save()
         print(f"wawawa: {new_sku.pk}")
         return new_sku

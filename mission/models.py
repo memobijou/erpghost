@@ -98,11 +98,21 @@ class Mission(models.Model):
 
     not_matchable = models.NullBooleanField(verbose_name="Nicht matchbar")
 
+    ignore_pickorder = models.NullBooleanField(verbose_name="Kein Pickauftrag erstellen")
+
     none_sku_products_amount = models.IntegerField(null=True, blank=True, verbose_name="Anzahl Artikel ohne SKU")
 
     objects = MissionObjectManager()
 
     def get_online_status(self, mission_products, mission_products_without_match):
+        if self.online_business_account is not None:
+            if self.online_business_account.transport_service is not None:
+                transport_service = self.online_business_account.transport_service
+                if transport_service.name is not None:
+                    if transport_service.name.lower() == "dhl":
+                        self.ignore_pickorder = True
+                        return "DHL"
+
         if self.not_matchable is True:
             if mission_products.count() > 0:
                 for mission_product in mission_products:

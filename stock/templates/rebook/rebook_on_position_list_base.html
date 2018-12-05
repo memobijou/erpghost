@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                {% block navigation %}
+                {% endblock %}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                {% if stock.sku_instance.product.main_image %}
+                    <p>
+                        <img src="{{ stock.sku_instance.product.main_image.url }}"
+                         class="img-responsive center-block" style="max-height:200px;"/>
+                    </p>
+                {% endif %}
+                <div class="text-center">
+                    {% if stock.sku_instance.product.title %}
+                        <p><b>Artikelname: </b> {{ stock.sku_instance.product.title }}</p>
+                    {% endif %}
+                    {% if stock.sku_instance.sku %}
+                        <p><b>SKU: </b>{{ stock.sku_instance.sku }}</p>
+                    {% endif %}
+                    {% if stock.sku_instance.product.ean %}
+                        <p><b>EAN: </b>{{ stock.sku_instance.product.ean }}</p>
+                    {% endif %}
+                    {% if stock.lagerplatz %}
+                        <p><b>Lagerposition: </b> {{ stock.lagerplatz }}</p>
+                    {% endif %}
+                    {% block bestand %}
+                    {% endblock %}
+                </div>
+            </div>
+            <div class="col-md-3"></div>
+        </div>
+    </div>
+
+    {% include 'snippets/paginate_by.html' %}
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="GET">
+                <div class="input-group">
+                    <input class="form-control" name="position" value="{{ position }}" placeholder="Lagerposition"/>
+                    <span class="input-group-btn">
+                        <button class="btn btn-info">
+                            <span class="glyphicon glyphicon-search"></span>
+                        </button>
+                    </span>
+                </div>
+            </form>
+            <br/>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Lagerposition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for object in object_list %}
+                            <tr>
+                                <td class="col-md-2">
+                                    {% block rebook_link %}
+                                    {% endblock %}
+                                </td>
+                                <td class="col-md-10">{{ object.name }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {% include 'snippets/paginate_by.html' %}
+{% endblock %}

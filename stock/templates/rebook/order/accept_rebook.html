@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <form method="POST">{% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Bild</th>
+                                <th>Artikel</th>
+                                <th>Lagerposition</th>
+                                <th>Menge</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rebookitem_form, stock in rebookitem_forms %}
+                                <tr>
+                                    <td>
+                                        {% if stock.sku_instance.product.main_image %}
+                                            <img src="{{ stock.sku_instance.product.main_image.url }}"
+                                                style="max-height:80px;" class="img-responsive"/>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <p><b>EAN: </b>{{ stock.sku_instance.product.ean }}</p>
+                                        <p><b>SKU: </b>{{ stock.sku_instance.sku }}</p>
+                                    </td>
+                                    <td>{{ stock.lagerplatz }}</td>
+                                    <td>
+                                        <p><b>Bestand: </b>{{ stock.bestand }}</p>
+                                        {{ rebookitem_form.as_p }}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-12">
+                    <div class="col-md-3"></div>
+                    <div class="col-md-6">
+                        {{ form.non_field_errors }}
+                        {{ form.user.errors }}
+                        {{ form.user.label_tag }}
+                        <br/>
+                        {% for value, name in form.user.field.choices %}
+                            {% for query in form.user.field.queryset %}
+                                {% if query.pk == value %}
+                                    <label class="radio-inline">
+                                        <input type="radio" value="{{ value }}" name="user" {% if query.pk|slugify == form.user.value|slugify %}checked{% endif %}/>
+                                        {% if query.profile.profile_image %}
+                                            <img src="{{ query.profile.profile_image.url }}" style="max-height:80px;" class="img-resposnive img-circle "/>
+                                        {% endif %}
+                                        {{ name }}
+                                    </label>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-3"></div>
+                </div>
+                <div class="col-md-12" style="padding-top:35px;">
+                    <div class="col-md-3"></div>
+                    <div class="col-md-6 text-center">
+                        <button type="submit" class="btn btn-primary btn-lg">Umbuchauftrag zuweisen</button>
+                    </div>
+                    <div class="col-md-3"></div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

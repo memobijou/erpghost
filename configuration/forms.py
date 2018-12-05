@@ -11,7 +11,8 @@ class TransportServiceForm(forms.ModelForm):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        self.choices = [("DHL", "DHL"), ("DPD", "DPD")]
+        self.fields['name'] = forms.ChoiceField(choices=self.choices, label="Bezeichnung")
         for visible in self.visible_fields():
             if type(visible.field) is not forms.ImageField:
                 visible.field.widget.attrs["class"] = "form-control"

@@ -57,22 +57,29 @@ class EbayImportTask(Task):
                              "purchased_date": purchased_date, "payment_date": payment_date, "is_ebay": True
                              }
 
+            mission_instance = Mission.objects.filter(channel_order_id=channel_order_id).first()
+
             channel = None
             if sku_instance is not None:
-                instance_data["channel"] = sku_instance.channel
                 channel = sku_instance.channel
 
-            shipping_address_instance = self.get_shipping_address_instance(row)
-            billing_address_instance = self.get_billing_address_instance(row)
+            if channel is not None:
+                instance_data["channel_id"] = channel.pk
+
+            print(f"channel: {channel}")
+            shipping_address_instance = self.get_shipping_address_instance(row, mission_instance)
+            billing_address_instance = self.get_billing_address_instance(row, mission_instance)
+
+            print(f"wilson: {shipping_address_instance}")
+            if channel is not None:
+                if shipping_address_instance is not None:
+                    business_account = self.get_business_account(shipping_address_instance, channel)
+                    if business_account is not None:
+                        instance_data.update({"online_business_account_id": business_account.pk})
 
             if shipping_address_instance is not None:
                 instance_data.update({"delivery_address_id": shipping_address_instance.pk,
                                       })
-
-                if channel is not None:
-                    business_account = self.get_business_account(shipping_address_instance, channel)
-                    if business_account is not None:
-                        instance_data.update({"online_business_account_id": business_account.pk})
 
                 self.break_down_address_in_street_and_house_number(shipping_address_instance)
 
@@ -83,9 +90,6 @@ class EbayImportTask(Task):
 
             if sku_instance is None or (sku_instance.product.ean is None or sku_instance.product.ean == ""):
                 instance_data["not_matchable"] = True
-
-            print(f"bankimoon: {instance_data}")
-            mission_instance = Mission.objects.filter(channel_order_id=channel_order_id).first()
 
             if mission_instance is None:
                 if purchased_date != "" and payment_date != "":
@@ -98,7 +102,12 @@ class EbayImportTask(Task):
                 instance_data["not_matchable"] = None
                 mission_instance.not_matchable = None
 
+            print(f"bankimoon: {instance_data}")
+
+            if mission_instance is not None:
+                mission_instance.__dict__.update(instance_data)
             mission_instance.save()
+            print(f"ben 2: {mission_instance.channel}")
 
             if sku == "" and sku_instance is None:
                 if mission_instance not in self.missions_none_sku_amounts:
@@ -168,11 +177,13 @@ class EbayImportTask(Task):
                     productmission_instance.save()
                     mission_instance.save()  # damit der richtige Status gesetzt wird
 
-    def get_shipping_address_instance(self, row):
+    def get_shipping_address_instance(self, row, mission):
         address_line_1 = row.get("Click &amp", "") or ""
         address_line_2 = row.get(" Collect: Referenznummer", "") or ""
 
         if address_line_1 == "":
+            if mission.delivery_address is not None:
+                return mission.delivery_address
             return
 
         shipping_address = address_line_1
@@ -187,17 +198,22 @@ class EbayImportTask(Task):
                         "country": ship_country
                         }
 
-        shipping_address_instance = Adress.objects.filter(**address_data).first()
+        shipping_address_instance = None
+        if mission is not None:
+            shipping_address_instance = mission.delivery_address
+
         if shipping_address_instance is None:
             shipping_address_instance = Adress(**address_data)
             shipping_address_instance.save()
         return shipping_address_instance
 
-    def get_billing_address_instance(self, row):
+    def get_billing_address_instance(self, row, mission):
         address_line_1 = row.get("Adresse 1", "") or ""
         address_line_2 = row.get("Adresse 2", "") or ""
 
         if address_line_1 == "":
+            if mission.billing_address is not None:
+                return mission.billing_address
             return
 
         billing_address = address_line_1
@@ -211,7 +227,10 @@ class EbayImportTask(Task):
                         "place": billing_city, "zip": billing_postal_code,"country": billing_country
                         }
 
-        billing_address_instance = Adress.objects.filter(**address_data).first()
+        billing_address_instance = None
+        if mission is not None:
+            billing_address_instance = mission.billing_address
+
         if billing_address_instance is None:
             billing_address_instance = Adress(**address_data)
             billing_address_instance.save()

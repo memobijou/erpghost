@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                <a href="{% url 'stock:admin_rebook_order_list' %}"> Zurück zur Übersicht</a>
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-body">
+            {% if object.completed is not True %}
+                <form method="POST">{% csrf_token %}
+                    <div class="col-md-12">
+                        <div class="col-md-3"></div>
+                        <div class="col-md-6">
+                                {{ form.non_field_errors }}
+                                {{ form.user.errors }}
+                                <div class="text-center">
+                                    <h4>Benutzer auswählen</h4>
+                                </div>
+                                <br/>
+                                {% for value, name in form.user.field.choices %}
+                                    {% for query in form.user.field.queryset %}
+                                        {% if query.pk == value %}
+                                            <label class="radio-inline">
+                                                <input type="radio" value="{{ value }}" name="user" {% if query.pk|slugify == form.user.value|slugify %}checked{% endif %}/>
+                                                {% if query.profile.profile_image %}
+                                                    <img src="{{ query.profile.profile_image.url }}" style="max-height:80px;" class="img-resposnive img-circle "/>
+                                                {% endif %}
+                                                {{ name }}
+                                            </label>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                <div class="text-center">
+                                    <br/><br/>
+                                    <label class="radio-inline" for="id_user_0"><input type="radio" name="user" value="" required="" id="id_user_0">
+                                    Ablösen</label>
+                                </div>
+                        </div>
+                        <div class="col-md-3"></div>
+                    </div>
+                    <div class="col-md-12" style="padding-top:35px;">
+                        <div class="col-md-3"></div>
+                        <div class="col-md-6 text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">Änderungen speichern</button>
+                        </div>
+                        <div class="col-md-3"></div>
+                    </div>
+                </form>
+            {% else %}
+                <div class="text-center">
+                    <h3>
+                        Dieser Auftrag ist bereits abgeschloßen und kann nicht geändert werden
+                    </h3>
+                </div>
+            {% endif %}
+
+            <div class="">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in object.rebookorderitem_set.all %}
+                            <tr>
+                                <td>
+                                    <div class="text-right">
+                                        <p><b>Anzahl: </b>
+                                             {{ rebooked_amount }}/{{ item.amount }}
+                                        </p>
+                                    </div>
+
+                                    {% if item.rebooked is not True %}
+                                        <a class="btn btn-info" href="{% url 'stock:rebook_order_rebook_on_position' pk=rebook_order.pk item_pk=item.pk %}">
+                                            Umbuchen
+                                        </a>
+                                        <br/><br/>
+                                    {% endif %}
+                                    {% if item.sku.product.main_image %}
+                                        <img src="{{ item.sku.product.main_image.url }}"
+                                             class="img-responsive" style="max-height:80px;"/>
+                                    {% endif %}
+                                    {% if item.sku.product.title %}
+                                        <p style="word-wrap: break-word"><b>Artikelname: </b>{{ item.sku.product.title }}</p>
+                                    {% endif %}
+                                    <p><b>SKU: </b>{{ item.sku.sku }}</p>
+                                    {% if item.sku.product.ean %}
+                                        <p><b>EAN: </b>{{ item.sku.product.ean }}</p>
+                                    {% endif %}
+                                    {% if item.rebookorderitemdestinationstock_set.all.count > 0 %}
+                                        <br/>
+                                        <div class="col-md-4" style="padding:0px;margin:-8px;">
+                                            <div class="text-center">
+                                                <h4>Verlauf</h4>
+                                            </div>
+                                            <table class="table table-borderless" style="background:transparent;padding:0;margin:0;">
+                                                <tr>
+                                                    <th>Menge</th>
+                                                    <th>Ausgangslagerplatz</th>
+                                                    <th>Endlagerplatz</th>
+                                                </tr>
+                                                {% for destination in item.rebookorderitemdestinationstock_set.all %}
+                                                    <tr>
+                                                        <td>
+                                                            {{ destination.rebooked_amount }}x
+                                                        </td>
+                                                        <td style="color:red;">
+                                                            {% if item.stock %}
+                                                                {{ item.stock.lagerplatz }}
+                                                            {% else %}
+                                                                {{ item.position }}
+                                                            {% endif %}
+                                                        </td>
+                                                        <td style="color:green;">
+                                                            {% if destination.destination_stock %}
+                                                                {{ destination.destination_stock.lagerplatz|default:"/" }}
+                                                            {% else %}
+                                                                {{ destination.destination_position }}
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </table>
+                                        </div>
+                                        <br/>
+                                    {% else %}
+                                        <p><b>Ausgangslagerplatz: </b>{{ item.stock.lagerplatz }}</p>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

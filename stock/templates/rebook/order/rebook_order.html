@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-center">
+                <b>Benutzer</b>
+                {% if request.user.profile.profile_image %}
+                    <img src="{{ request.user.profile.profile_image.url }}"
+                         class="img-responsive center-block img-circle" style="max-height:100px;"/>
+                {% endif %}
+                {{ request.user }}
+            </div>
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item, rebooked_amount in rebook_order_items %}
+                            <tr {% if item.rebooked is True and item.amount == rebooked_amount %}
+                                    class="success"
+                                {% elif item.amount != rebooked_amount and rebooked_amount > 0 %}
+                                    class="warning"
+                                {% endif %}
+                            >
+                                <td>
+                                    <div class="text-right">
+                                        <p><b>Anzahl: </b>
+                                             {{ rebooked_amount }}/{{ item.amount }}
+                                        </p>
+                                    </div>
+
+                                    {% if item.rebooked is not True %}
+                                        <a class="btn btn-info" href="{% url 'stock:rebook_order_rebook_on_position' pk=rebook_order.pk item_pk=item.pk %}">
+                                            Umbuchen
+                                        </a>
+                                        <br/><br/>
+                                    {% endif %}
+                                    {% if item.sku.product.main_image %}
+                                        <img src="{{ item.sku.product.main_image.url }}"
+                                             class="img-responsive" style="max-height:80px;"/>
+                                    {% endif %}
+                                    {% if item.sku.product.title %}
+                                        <p style="word-wrap: break-word"><b>Artikelname: </b>{{ item.sku.product.title }}</p>
+                                    {% endif %}
+                                    <p><b>SKU: </b>{{ item.sku.sku }}</p>
+                                    {% if item.sku.product.ean %}
+                                        <p><b>EAN: </b>{{ item.sku.product.ean }}</p>
+                                    {% endif %}
+                                    {% if item.rebookorderitemdestinationstock_set.all.count > 0 %}
+                                        <br/>
+                                        <div class="col-md-4" style="padding:0px;margin:-8px;">
+                                            <div class="text-center">
+                                                <h4>Verlauf</h4>
+                                            </div>
+                                            <table class="table table-borderless" style="background:transparent;padding:0;margin:0;">
+                                                <tr>
+                                                    <th>Menge</th>
+                                                    <th>Ausgangslagerplatz</th>
+                                                    <th>Endlagerplatz</th>
+                                                </tr>
+                                                {% for destination in item.rebookorderitemdestinationstock_set.all %}
+                                                    <tr>
+                                                        <td>
+                                                            {{ destination.rebooked_amount }}x
+                                                        </td>
+                                                        <td style="color:red;">
+                                                            {% if item.stock %}
+                                                                {{ item.stock.lagerplatz }}
+                                                            {% else %}
+                                                                {{ item.position }}
+                                                            {% endif %}
+                                                        </td>
+                                                        <td style="color:green;">
+                                                            {% if destination.destination_stock %}
+                                                                {{ destination.destination_stock.lagerplatz|default:"/" }}
+                                                            {% else %}
+                                                                {{ destination.destination_position }}
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </table>
+                                        </div>
+                                        <br/>
+                                    {% else %}
+                                        <p><b>Ausgangslagerplatz: </b>{{ item.stock.lagerplatz }}</p>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,12 @@
+{% extends 'rebook/book_stock_on_position_base.html' %}
+
+
+
+{% block back_link %}
+    <a href="{% url 'stock:rebook_order_rebook_on_position' pk=rebook_order.pk item_pk=rebook_order_item.pk %}">Zurück</a>
+{% endblock %}
+
+
+{% block bestand %}
+    <p><b>Bestand: </b> {{ rebook_amount }}</p>
+{% endblock %}

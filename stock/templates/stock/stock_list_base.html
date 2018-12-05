@@ -89,140 +89,143 @@
                 </thead>
 
                 <tbody>
-                    <form method="GET" {% block delete_action %}{% endblock %}>
+                    <div class="text-right" style="padding-bottom:10px;">
+                        <form method="GET" action='{% url 'stock:redirect_to_action' %}'>
+{#                            <button class="btn btn-default" name="action"#}
+{#                            value="rebook" type="Submit">Umbuchen</button>#}
 
-                        <div class="text-right" style="padding-bottom:10px;">
-                            <button class="btn btn-default" type="Submit">Ausbuchen</button>
-                        </div>
+                            <button class="btn btn-danger" name="action"
+                                    value="{% block delete_action_value %}{% endblock %}" type="Submit">Ausbuchen</button>
 
-                        {% for object, states_totals, total in stock_list %}
-                            <tr>
-                                <td class="col-md-1">
-                                    {% block stock_links %}
-                                    {% endblock %}
-                                </td>
-                                <td class="show_hide" style="cursor:pointer;">
-                                    <a collapseid="collapse_{{ forloop.counter }}">
-                                        <span class="glyphicon glyphicon-chevron-down"></span>
-                                    </a>
-                                </td>
-                                <td>
-                                    {% if object.product.main_image %}
-                                        <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
-                                            <img src="{{ object.product.main_image.url }}"
-                                                 class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
-                                        </div>
+                            {% for object, states_totals, total in stock_list %}
+                                <tr>
+                                    <td class="col-md-1">
+                                        {% block stock_links %}
+                                        {% endblock %}
+                                    </td>
+                                    <td class="show_hide" style="cursor:pointer;">
+                                        <a collapseid="collapse_{{ forloop.counter }}">
+                                            <span class="glyphicon glyphicon-chevron-down"></span>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if object.sku_instance.product.main_image %}
+                                            <div style="max-height: 90px; max-width: 90px;min-height: 50px; min-width:50px;">
+                                                <img src="{{ object.sku_instance.product.main_image.url }}"
+                                                     class="img-responsive img-modal" style="max-height: 90px;cursor:pointer;">
+                                            </div>
 
-                                        <div class="modal fade">
-                                         <!-- Modal -->
-                                            <div class="modal-dialog">
-                                                <div class="modal-content">
-                                                    <div class="modal-body">
-                                                        <img src="{{ object.product.main_image.url|default:''}}"
-                                                         class="img-responsive center-block">
+                                            <div class="modal fade">
+                                             <!-- Modal -->
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-body">
+                                                            <img src="{{ object.sku_instance.product.main_image.url|default:''}}"
+                                                             class="img-responsive center-block">
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if object.ean_vollstaendig %}
-                                        {{ object.ean_vollstaendig|default:""}}
-                                    {% else %}
-                                        {% if object.product.ean %}
-                                            {{ object.product.ean|default:"" }}
                                         {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if object.sku %}
-                                        {{object.sku|default:""}}
-                                    {% else %}
-                                        {% if object.sku_instance %}
-                                            {{ object.sku_instance.sku }}
+                                    </td>
+                                    <td>
+                                        {% if object.ean_vollstaendig %}
+                                            {{ object.ean_vollstaendig|default:""}}
+                                        {% else %}
+                                            {% if object.sku_instance.product.ean %}
+                                                {{ object.sku_instance.product.ean|default:"" }}
+                                            {% endif %}
                                         {% endif %}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if object.title %}
-                                        {{object.title|default:""}}
-                                    {% else %}
-                                        {{ object.product.title|default:"" }}
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if object.zustand %}
-                                        {{object.zustand}}
-                                    {% else %}
-                                        {{ object.sku_instance.state|default:"" }}
-                                    {% endif %}
-                                </td>
-                                <td> {{ object.lagerplatz}} </td>
-                                <td>{{ object.bestand }}</td>
-                                <td>
-                                    <p><b>Gesamt:</b> {{ total.available_total }}/{{ total.total }}</p>
-                                    <table class="table table-bordered">
-                                        <tr>
-                                            {% for state, total in states_totals.items %}
-                                                <th>{{ state }}</th>
-                                            {% endfor %}
-                                        </tr>
-                                        <tr>
-                                           {% for state, total in states_totals.items %}
-                                               <td>
-                                                   {{ total.available_total }}/{{ total.total }}
-                                               </td>
-                                           {% endfor %}
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                            <tr id="collapse_{{ forloop.counter }}" class="collapse">
-                                <td colspan="12">
-                                    {% if object.name %}
-                                      <p>
-                                          <b>Person: </b> {{ object.name }}
-                                      </p>
-                                    {% endif %}
-                                    {% if object.aufnahme_datum %}
-                                      <p>
-                                          <b>Aufnahme Datum: </b> {{ object.aufnahme_datum }}
-                                      </p>
-                                    {% endif %}
-                                    {% if object.regal %}
-                                      <p>
-                                          <b>Regal: </b> {{ object.regal }}
-                                      </p>
-                                    {% endif %}
-                                    {% if object.scanner %}
-                                      <p>
-                                          <b>Scanner: </b> {{ object.scanner }}
-                                      </p>
-                                    {% endif %}
-                                    {% if object.box %}
-                                      <p>
-                                          <b>Box: </b> {{ object.box }}
-                                      </p>
-                                    {% endif %}
-                                    {% if object.sku_instance.product.title %}
-                                      <p><b>Artikelname: </b><br/> {{ object.sku_instance.product.title}}</p>
-                                    {% endif %}
-                                    {% if object.sku_instance.product.short_description %}
-                                      <p><b>Kurzbeschreibung: </b><br/> {{ object.sku_instance.product.short_description}}</p>
-                                    {% endif %}
-                                    {% if object.sku_instance.product.description %}
-                                      <p><b>Beschreibung: </b><br/> {{ object.sku_instance.product.description}}</p>
-                                    {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if object.sku %}
+                                            {{object.sku|default:""}}
+                                        {% else %}
+                                            {% if object.sku_instance %}
+                                                {{ object.sku_instance.sku }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if object.title %}
+                                            {{object.title|default:""}}
+                                        {% else %}
+                                            {{ object.sku_instance.product.title|default:"" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if object.zustand %}
+                                            {{object.zustand}}
+                                        {% else %}
+                                            {{ object.sku_instance.state|default:"" }}
+                                        {% endif %}
+                                    </td>
+                                    <td> {{ object.lagerplatz}} </td>
+                                    <td>{{ object.bestand }}</td>
+                                    <td>
+                                        <p><b>Gesamt:</b> {{ total.available_total }}/{{ total.total }}</p>
+                                        <table class="table table-bordered">
+                                            <tr>
+                                                {% for state, total in states_totals.items %}
+                                                    <th>{{ state }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                            <tr>
+                                               {% for state, total in states_totals.items %}
+                                                   <td>
+                                                       {{ total.available_total }}/{{ total.total }}
+                                                   </td>
+                                               {% endfor %}
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr id="collapse_{{ forloop.counter }}" class="collapse">
+                                    <td colspan="12">
+                                        {% if object.name %}
+                                          <p>
+                                              <b>Person: </b> {{ object.name }}
+                                          </p>
+                                        {% endif %}
+                                        {% if object.aufnahme_datum %}
+                                          <p>
+                                              <b>Aufnahme Datum: </b> {{ object.aufnahme_datum }}
+                                          </p>
+                                        {% endif %}
+                                        {% if object.regal %}
+                                          <p>
+                                              <b>Regal: </b> {{ object.regal }}
+                                          </p>
+                                        {% endif %}
+                                        {% if object.scanner %}
+                                          <p>
+                                              <b>Scanner: </b> {{ object.scanner }}
+                                          </p>
+                                        {% endif %}
+                                        {% if object.box %}
+                                          <p>
+                                              <b>Box: </b> {{ object.box }}
+                                          </p>
+                                        {% endif %}
+                                        {% if object.sku_instance.product.title %}
+                                          <p><b>Artikelname: </b><br/> {{ object.sku_instance.product.title}}</p>
+                                        {% endif %}
+                                        {% if object.sku_instance.product.short_description %}
+                                          <p><b>Kurzbeschreibung: </b><br/> {{ object.sku_instance.product.short_description}}</p>
+                                        {% endif %}
+                                        {% if object.sku_instance.product.description %}
+                                          <p><b>Beschreibung: </b><br/> {{ object.sku_instance.product.description}}</p>
+                                        {% endif %}
 
-                                    {% if object.sku_instance.product %}
-                                      <p><a href="{% url "product:detail" pk=object.sku_instance.product.pk %}">Zur Artikelansicht</a></p>
-                                    {% endif %}
+                                        {% if object.sku_instance.product %}
+                                          <p><a href="{% url "product:detail" pk=object.sku_instance.product.pk %}">Zur Artikelansicht</a></p>
+                                        {% endif %}
 
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </form>
+                    </div>
                     {% if not stock_list %}
                         <tr>
                             <td colspan="12">

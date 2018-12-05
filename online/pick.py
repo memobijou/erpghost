@@ -112,9 +112,11 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
             mission.save()
 
             for pick_row in pick_rows:
+                mission_product = pick_row.get("mission_product")
+                amount = pick_row.get("amount")
                 pick_row_instance = PickListProducts.objects.create(
-                    pick_list=picklist_instance, amount=pick_row.get("amount"), position=pick_row.get("position"),
-                    product_mission=pick_row.get("mission_product")
+                    pick_list=picklist_instance, amount=amount, position=pick_row.get("position"),
+                    product_mission=mission_product
                 )
                 pick_row_instance.save()
                 # hier pickliste erstellen pro auftrag
@@ -132,6 +134,7 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
             product_sku = mission_product.sku.sku
             product = mission_product.sku.product
             skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
+            amount = mission_product.amount * mission_product.sku.product.packing_unit
             print(f"wA: {self.stocks}")
             for stock in self.stocks:
                 if ((stock.sku in skus) or (product.ean == stock.ean_vollstaendig
@@ -149,21 +152,24 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
                         continue
 
                     pick_row = {"position": stock.lagerplatz, "mission_product": mission_product, "stock": stock}
-                    if (total + stock_bestand) <= mission_product.amount:
+
+                    amount = mission_product.amount*mission_product.sku.product.packing_unit
+
+                    if (total + stock_bestand) <= amount:
                         total += stock_bestand
                         pick_row["amount"] = stock_bestand
                         picklist_stocks.append(pick_row)
                     else:
                         difference = 0
-                        if (total + stock_bestand) > mission_product.amount:
-                            difference = mission_product.amount-total
+                        if (total + stock_bestand) > amount:
+                            difference = amount-total
 
                         if difference > 0:
                             total += difference
                             pick_row["amount"] = difference
                             picklist_stocks.append(pick_row)
                             break
-            if total < mission_product.amount:
+            if total < amount:
                 continue
 
             if len(picklist_stocks) > 0:
@@ -647,12 +653,13 @@ def book_out_stocks(picklist):
     picklist.save()
     for pick_row in picklist.picklistproducts_set.all():
         product = pick_row.product_mission.sku.product
-        product_sku = pick_row.product_mission.sku
+        product_sku = pick_row.product_mission.sku.product.sku_set.filter(
+            main_sku=True, state=pick_row.product_mission.sku.state).first()
 
         stock = Stock.objects.filter(
             Q(Q(lagerplatz__iexact=pick_row.position) &
               Q(Q(ean_vollstaendig=product.ean, zustand__iexact=product_sku.state)
-                | Q(sku=product_sku.sku)))).first()
+                | Q(sku=product_sku.sku) | Q(sku_instance__sku=product_sku)))).first()
         if stock is not None:
             stock.bestand -= pick_row.confirmed_amount
 
@@ -716,9 +723,9 @@ class ProvidePackingView(LoginRequiredMixin, View):
 
         if self.mission.delivery_address.strasse is not None and self.mission.delivery_address.hausnummer is not None:
             if business_account.type == "national":
-                dpd_label = self.create_dpd_label()
+                dpd_label, message = self.create_dpd_label()
                 if dpd_label is None:
-                    return HttpResponseRedirect(self.get_label_form_link()), True
+                    return HttpResponseRedirect(f'{self.get_label_form_link()}?error_msg={message}'), True
                 return dpd_label, None
 
             if business_account.type == "foreign_country":
@@ -729,10 +736,10 @@ class ProvidePackingView(LoginRequiredMixin, View):
 
     def create_dpd_label(self):
         dpd_label_creator = DPDLabelCreator(self.mission, self.client)
-        dpd_label = dpd_label_creator.create_label()
+        dpd_label, message = dpd_label_creator.create_label()
         if dpd_label is None or dpd_label == "":
-            return
-        return dpd_label
+            return None, message
+        return dpd_label, message
 
     def create_dhl_label(self):
         dhl_label_creator = DHLLabelCreator(self.mission, self.client)

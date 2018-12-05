@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+
+{% block content %}
+    {% include 'snippets/paginate_by.html' %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Auftragsnummer</th>
+                        <th>Benutzer</th>
+                        <th>Erstellt am</th>
+                        <th>Zuletzt geändert</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                {% for object in object_list %}
+                    <tr>
+                        <td class="col-md-1">
+                            <a href="{% url 'stock:admin_rebook_order_edit' pk=object.pk %}">Bearbeiten</a>
+                        </td>
+                        <td class="col-md-1">{{ object.id }}</td>
+                        <td class="col-md-2">
+                            <div class="">
+                                {% if object.user.profile.profile_image %}
+                                    <img src="{{ object.user.profile.profile_image.url }}"
+                                         class="img-responsive img-circle" style="max-height:80px;"/>
+                                {% endif %}
+                                {{ object.user }}
+                            </div>
+                        </td>
+                        <td>{{ object.created|default:"/" }}</td>
+                        <td>{{ object.modified|default:"/" }}</td>
+                        <td>
+                            {% if object.completed is True %}
+                                 <h4 style="padding:0;margin:0;"><span class="label label-success">Erledigt</span></h4>
+                            {% elif object.completed is False %}
+                                 <h4 style="padding:0;margin:0;"><span class="label label-danger">Abgelöst</span></h4>
+                            {% else %}
+                                 <h4 style="padding:0;margin:0;"><span class="label label-warning">Offen</span></h4>
+                            {% endif %}
+                        </td>
+                    <td></td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+    {% include 'snippets/paginate_by.html' %}
+{% endblock %}

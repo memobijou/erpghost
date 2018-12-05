@@ -19,7 +19,9 @@
                         <li><a href="{% url 'stock:position_list' %}" style="color:black">Lagerpositionen</a></li>
 {#                        <li><a href="{% url 'stock:minus_list' %}" style="color:black">Minusbestand</a></li>#}
                           <li><a style="color:grey">Minusbestand</a></li>
-
+{#                          <li class="divider"></li>#}
+{#                          <div class="dropdown-header">Verwaltung</div>#}
+{#                          <li><a href="{% url 'stock:admin_rebook_order_list' %}">Umbuchaufträge</a></li>#}
                     </ul>
                 </li>
                 <li><a style="color:#7a8070;">Großhandel</a></li>
@@ -92,7 +94,11 @@
                     <li><a>Bitte loggen Sie sich ein</a></li>
                     <li><a href="{% url 'login' %}"><span class="glyphicon glyphicon-log-in"></span></a></li>
                 {% endif %}
+                <br/>
             </ul>
         </div>
     </div>
 </nav>
+{#<div class="col-md-12">#}
+{#    <a href="{% url 'stock:rebook_order_list' %}" style="text-decoration: none;"><h4><span class="label label-warning">Umbuchauftrag</span></h4></a>#}
+{#</div>#}

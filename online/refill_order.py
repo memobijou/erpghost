@@ -22,7 +22,7 @@ from django.db.models import Case, When
 
 
 class AcceptRefillStockView(View):
-    template_name = "online/refill/accept_refill.html"
+    template_name = "online/refill_order/accept_refill.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -188,7 +188,7 @@ class AcceptRefillStockView(View):
 
 
 class RefillStockView(View):
-    template_name = "online/refill/refill.html"
+    template_name = "online/refill_order/refill.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -269,7 +269,7 @@ class RefillStockView(View):
 
 
 class BookOutForOnlinePositions(View):
-    template_name = "online/refill/bookout.html"
+    template_name = "online/refill_order/bookout.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -335,7 +335,7 @@ class BookOutForOnlinePositions(View):
 
 
 class BookInOnlineWarehouseList(generic.ListView):
-    template_name = "online/refill/online_warehouse.html"
+    template_name = "online/refill_order/online_warehouse.html"
     paginate_by = 15
 
     def get_queryset(self):
@@ -363,7 +363,7 @@ class BookInOnlineWarehouseList(generic.ListView):
 
 
 class ProductsForBookInView(View):
-    template_name = "online/refill/products_for_bookin.html"
+    template_name = "online/refill_order/products_for_bookin.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -400,7 +400,7 @@ class ProductsForBookInView(View):
 
 
 class BookProductInPosition(View):
-    template_name = "online/refill/book_product_in_position.html"
+    template_name = "online/refill_order/book_product_in_position.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -503,7 +503,7 @@ class BookProductInPosition(View):
 
 
 class FinishRefillOrderView(View):
-    template_name = "online/refill/finish_refill_order.html"
+    template_name = "online/refill_order/finish_refill_order.html"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

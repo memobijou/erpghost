@@ -108,9 +108,14 @@ class Mission(models.Model):
                 for mission_product in mission_products:
                     if mission_product.sku is not None and mission_product.sku.product.ean in [None, ""]:
                         return "Artikel ohne EAN"
-            if (mission_products_without_match.count() > 0 or mission_products.count() == 0
-                    or self.none_sku_products_amount):
+            if mission_products_without_match.count() > 0 or self.none_sku_products_amount is not None:
                 return "Artikel nicht zugeordnet"
+
+        if self.none_sku_products_amount is not None:
+            return "Artikel nicht zugeordnet"
+
+        if mission_products.count() == 0:
+            return "Artikel nicht zugeordnet"
 
         if self.status == "Manuell":
             return "Manuell"
@@ -149,8 +154,11 @@ class Mission(models.Model):
         else:
             missions_products = self.productmission_set.all()
             mission_products_without_match = missions_products.filter(no_match_sku__isnull=False)
-            if missions_products.count() > 0 and mission_products_without_match.count() == 0:
+            if (missions_products.count() > 0 and mission_products_without_match.count() == 0 and
+                    self.none_sku_products_amount is None):
                 self.not_matchable = None
+            else:
+                self.not_matchable = True
             print(f"gamery: {mission_products_without_match}")
             print(f"2: {mission_products_without_match.count()}")
             self.status = self.get_online_status(missions_products, mission_products_without_match)

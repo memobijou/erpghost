@@ -448,6 +448,7 @@ class ImportMissionEbayView(ImportMissionBaseView):
     title = "Ebay Bestellbericht importieren"
 
     def post(self, request, *args, **kwargs):
+        print("FLANKE")
         self.fetch_ebay_report()
         if self.header is not None and self.result is not None:
             print(f"HELLLOOO")
@@ -460,29 +461,55 @@ class ImportMissionEbayView(ImportMissionBaseView):
 
     def fetch_ebay_report(self):
         if self.form.is_valid() is True:
+            import csv
+            import codecs
             import_file = self.form.cleaned_data.get("import_file")
+            import chardet
+            encoding = chardet.detect(import_file.read()).get("encoding", "utf-8")
+            # import_file = codecs.EncodedFile(import_file, encoding)
+            import_file.seek(0)
+
+            print(f"hadha: {encoding}")
             print(f"banana: {import_file.name}")
+            print(f"apple: {import_file.charset}")
             file_ending = import_file.name.split(".")[-1]
             print(file_ending)
             if file_ending.lower() == "csv":
+                print(f"??????????????")
+                print(f"sam: {import_file.read()}")
+                import_file.seek(0)
                 from io import TextIOWrapper
-                data = TextIOWrapper(import_file.file, encoding="latin1")
-                self.header = self.get_csv_header(data)
-                self.result = self.get_csv_content(data)
-                print(f"babo: {self.result}")
+                data = TextIOWrapper(import_file.file, encoding=encoding)
+                # data = codecs.iterdecode(import_file, encoding)
+                if encoding.lower() != "windows-1252":
+                    self.header = self.get_csv_header(data)
+                    self.result = self.get_csv_content(data)
+                    print(f"HEADER: {self.header}")
+                    print(f"babo: {self.result}")
 
     def get_csv_header(self, data):
         import csv
         csv_reader = csv.reader(data, delimiter=";")
         self.header = []
         for row in csv_reader:
+            print(f"hey: {len(row)}")
+            print(f"what: {row}")
             if len(row) > 0:
-                self.header = row
-                break
+                found_header = False
+                for col in row:
+                    print(f"hehe: {col}")
+                    if col != "":
+                        self.header = row
+                        found_header = True
+                        break
+                if found_header is True:
+                    break
+
         tmp_header = []
         for col in self.header:
             tmp_header.append(col.replace("\t", ""))
         self.header = tmp_header
+        print(f"header and so: {self.header}")
         return self.header
 
     def get_csv_content(self, data):

@@ -76,11 +76,11 @@ class DPDCreatePDFView(UpdateView):
 
     def form_valid(self, form, **kwargs):
         dpd_label_creator = DPDLabelCreator(self.mission, self.client)
-        parcel_label_number = dpd_label_creator.create_label()
-        # if errors is not None:
-        #     for error in errors:
-        #         form.add_error(None, error)
-        #     return super().form_invalid(form)
+        parcel_label_number, message = dpd_label_creator.create_label()
+        print(f"hey {message} --- {type(message)}")
+        if message is not None and message != "":
+            form.add_error(None, message)
+            return super().form_invalid(form)
         if parcel_label_number is not None:
             self.mission.tracking_number = parcel_label_number
 
@@ -151,12 +151,12 @@ class DPDLabelCreator:
         return self.country_code
 
     def create_label(self):
-        parcel_label_number = self.create_label_through_dpd_api()
+        parcel_label_number, message = self.create_label_through_dpd_api()
         if parcel_label_number is not None and parcel_label_number != "":
             self.mission.tracking_number = parcel_label_number
             self.mission.online_transport_service = self.transport_service
             self.mission.save()
-            return parcel_label_number
+        return parcel_label_number, message
 
     def create_label_through_dpd_api(self):
         self.get_authentication_token_from_dpd_api()
@@ -238,8 +238,11 @@ class DPDLabelCreator:
         for el in root.iter("parcelLabelNumber"):
             parcel_label_number = el.text
 
-        # parcelLabelNumber
-        return parcel_label_number
+        message = ""
+        for el in root.iter("message"):
+            message = el.text
+
+        return parcel_label_number, message
 
     def get_authentication_token_from_dpd_api(self):
         doc = f'''

@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="col-md-12">
+        <div class="text-right">
+            <div class="panel panel-default">
+                <div class="panel-body">
+                    {% block back_link %}
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="col-md-3"></div>
+                <div class="col-md-6">
+                    {% if stock.sku_instance.product.main_image %}
+                        <p>
+                            <img src="{{ stock.sku_instance.product.main_image.url }}"
+                             class="img-responsive center-block" style="max-height:200px;"/>
+                        </p>
+                    {% endif %}
+                    <div class="text-center">
+                        {% if stock.sku_instance.product.title %}
+                            <p><b>Artikelname: </b> {{ stock.sku_instance.product.title }}</p>
+                        {% endif %}
+                        {% if stock.sku_instance.sku %}
+                            <p><b>SKU: </b>{{ stock.sku_instance.sku }}</p>
+                        {% endif %}
+                        {% if stock.sku_instance.product.ean %}
+                            <p><b>EAN: </b>{{ stock.sku_instance.product.ean }}</p>
+                        {% endif %}
+                        {% if stock.lagerplatz %}
+                            <p><b>Lagerposition: </b> {{ stock.lagerplatz }}</p>
+                        {% endif %}
+                        {% block bestand %}
+                        {% endblock %}
+                    </div>
+                </div>
+                <div class="col-md-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="panel panel-default">
+            <div class="panel-body">
+                {% if position %}
+                    <div class="col-md-3"></div>
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <form method="POST" onsubmit="form_btn.disabled=true; return true;">{% csrf_token %}
+                                {{ form.amount.errors }}
+                                <p style="font-size:25px;">
+                                  {{ form.amount }}  Umbuchen von <b style="color:red;">{{ stock.lagerplatz }}</b> auf <b style="color:green;">{{ position }}</b>
+                                </p>
+                                <br/>
+                                <button type="submit" class="btn btn-primary btn-lg" name="form_btn">Umbuchen</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-md-3"></div>
+                {% else %}
+                    <div class="text-center">
+                        <h4 style="color:red;">Sie müssen eine Position bestimmen auf die umgebucht werden soll</h4>
+                        <a href="{% url 'stock:rebook_on_position' stock_pk=stock.pk %}">Zurück</a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

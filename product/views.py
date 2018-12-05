@@ -36,6 +36,7 @@ import base64
 import json
 import imghdr
 from django.db.models import Case, When, Value, IntegerField, Sum
+from collections import OrderedDict
 
 
 class ProductListBaseView(LoginRequiredMixin, ListView):
@@ -51,7 +52,8 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
         print(f"wwww: {context}")
         context["title"] = "Artikel Übersicht"
         object_list = context["object_list"]
-        context["product_list"] = self.get_product_list(object_list)
+        # context["product_list"] = self.get_product_list(object_list)
+        context["product_list"] = self.get_product_list_without_reservation(object_list)
         return context
 
     def get_product_list(self, object_list):
@@ -62,6 +64,27 @@ class ProductListBaseView(LoginRequiredMixin, ListView):
             online_skus = all_skus.filter(main_sku__isnull=True).order_by("state")
 
             states_totals, total = get_states_totals_and_total(obj, all_skus)
+            product_list.append((obj, main_skus, online_skus, states_totals, total))
+        return product_list
+
+    def get_product_list_without_reservation(self, object_list):
+        product_list = []
+        for obj in object_list:
+            all_skus = obj.sku_set.all()
+            main_skus = all_skus.filter(main_sku=True).order_by("state")
+            online_skus = all_skus.filter(main_sku__isnull=True).order_by("state")
+            total = {"total": 0, "available_total": 0}
+            states_totals = OrderedDict()
+            for sku in all_skus.get_totals_without_reservation():
+                if sku.state not in states_totals:
+                    states_totals[sku.state] = {}
+                    states_totals[sku.state]["total"] = sku.total
+                    states_totals[sku.state]["available_total"] = sku.total
+                else:
+                    states_totals[sku.state]["total"] += sku.total
+                    states_totals[sku.state]["available_total"] += sku.total
+                total["total"] += sku.total
+                total["available_total"] += sku.total
             product_list.append((obj, main_skus, online_skus, states_totals, total))
         return product_list
 

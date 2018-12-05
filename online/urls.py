@@ -6,7 +6,7 @@ from online.ebay import EbayView
 from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromStationToPackingView, PackingView, \
     ProvidePackingView, LoginToStationView, LogoutFromStationView, PackingPickOrderOverview, ConfirmManualView, \
     FinishPackingView
-from online.refill import AcceptRefillStockView, BookOutForOnlinePositions, RefillStockView, \
+from online.refill_order import AcceptRefillStockView, BookOutForOnlinePositions, RefillStockView, \
     BookInOnlineWarehouseList, ProductsForBookInView, BookProductInPosition, FinishRefillOrderView, OnlineRedirectView
 from .views import OnlineListView, OnlineDetailView, ImportMissionAmazonView, ImportMissionEbayView
 from .dpd import DPDCreatePDFView, DPDGetLabelView

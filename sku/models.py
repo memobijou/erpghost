@@ -66,6 +66,9 @@ class SkuQuerySet(models.QuerySet):
             available_total=F("total")-F("offer_total")-F("online_total")-F("wholesale_total")
         )
 
+    def get_totals_without_reservation(self):
+        return self.all().annotate(total=Sum(Coalesce("stock__bestand", 0)))
+
 
 class CustomManger(models.Manager):
     def get_queryset(self):
@@ -106,4 +109,5 @@ class Sku(models.Model):
                 missions_product.sku = self
                 missions_product.no_match_sku = None
                 missions_product.save()
-                missions_product.mission.save()  # For status to be newly set
+                mission = missions_product.mission
+                mission.save()  # For status to be newly set

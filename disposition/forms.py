@@ -58,7 +58,6 @@ class TruckForm(ModelForm):
         self.fields["arrival_date"].input_formats = DATE_INPUT_FORMATS
 
 
-
 class CreateTruckAppointmentForm(TruckForm):
     outgoing = forms.ChoiceField(choices=INCOMING_OUTGOING)
 

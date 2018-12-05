@@ -21,7 +21,7 @@ class ImportForm(forms.Form):
 
 def validate_ean_has_not_multiple_products(ean, state, form):
     if ean != "":
-        ean_products = Product.objects.filter(ean=ean, single_product__isnull=True)
+        ean_products = Product.objects.filter(ean=ean, single_product__isnull=True, packing_unit=1)
         print(f"SOSO: {ean_products.count()}")
         if ean_products.count() > 1:
             ean_products_error = f"<h3 style='color:red;'>Für diese EAN gibt es mehrere Artikel</h3>" \
@@ -75,7 +75,6 @@ def stock_validation(instance, form):
 
     validate_stock_is_not_reserved(instance, bestand, state, form)
 
-
     states_sku = None
 
     if instance is not None and instance.sku_instance is not None and instance.sku_instance.product is not None:
@@ -119,6 +118,14 @@ def stock_validation(instance, form):
     if ean != "":
         if state == "":
             form.add_error("zustand", "Wenn Sie eine EAN angeben, müssen Sie einen Zustand auswählen.")
+
+    if sku_instance is not None:
+        if sku_instance.product.packing_unit > 1:
+            # product_ean = sku_instance.product.ean
+            # if product_ean is not None and product_ean != "":
+            #     products = Product.objects.filter(ean=product_ean, packing_unit=1).exclude(product=sku_instance.product)
+            form.add_error(None, "<p style='color:red;'>Von dem Artikel kann kein Bestand erfasst werden, "
+                                 "da die Verpackungseinheit größer als 1 ist</p>")
 
     sku_or_changed_sku = form.cleaned_data.get("sku", "") or ""
     validate_stock_has_no_duplicates(ean, sku_or_changed_sku, state, position, form, instance, sku_instance)

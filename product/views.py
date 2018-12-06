@@ -960,6 +960,14 @@ class ProductDetailView(DetailView):
 
     def get_states_totals_and_total(self):
         states_totals, total = get_states_totals_and_total(self.object, self.object.sku_set.all())
+        # vorrübergehend ohne Reservierung anzeigen
+        ############################################
+        for k, v in states_totals.items():
+            print(f"ah: {k} : {v} : {states_totals}")
+            states_totals[k]["available_total"] = states_totals[k]["total"]
+        print(f"hey: {total}")
+        total["available_total"] = total["total"]
+        ############################################
         return states_totals, total
 
 

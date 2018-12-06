@@ -35,6 +35,7 @@ def create_user_profile(sender, instance, created, **kwargs):
 def save_user_profile(sender, instance, **kwargs):
     if instance.profile is None:
         Profile.objects.create(user=instance)
+    instance.refresh_from_db()
     instance.profile.save()
 
 

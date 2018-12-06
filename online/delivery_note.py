@@ -38,6 +38,9 @@ class OnlineDeliveryNoteView(View):
         if self.mission.customer_order_number is not None and self.mission.customer_order_number != "":
             your_mission_number = f"<u>Ihre Bestellung: {self.mission.customer_order_number}</u>"
 
+        elif self.mission.channel_order_id is not None and self.mission.channel_order_id != "":
+            your_mission_number = f"<u>Ihre Bestellung: {self.mission.channel_order_id}</u>"
+
         your_delivery_paragraph = Paragraph(your_mission_number, style=size_nine_helvetica_bold)
 
         self.build_right_align_header()
@@ -316,13 +319,27 @@ class OnlineDeliveryNoteView(View):
             [
                 Paragraph(delivery_address_html_string, style=size_nine_helvetica),
             ],
-            [
-                Paragraph(f"<br/>Lieferbedingungen: {terms_of_delivery or 'N/A'}<br/>", style=size_nine_helvetica),
-            ],
-            [
-                Paragraph(f"Zahlungsbedingungen: {terms_of_payment or 'N/A'}<br/>", style=size_nine_helvetica),
-            ],
         ]
+
+        if terms_of_delivery is not None:
+            table_data.extend(
+                [
+                    [
+                        Paragraph(f"<br/>Lieferbedingungen: {terms_of_delivery or 'N/A'}<br/>",
+                                  style=size_nine_helvetica)
+                    ]
+                ]
+            )
+
+        if terms_of_payment is not None:
+            table_data.extend(
+                [
+                    [
+                        Paragraph(f"Zahlungsbedingungen: {terms_of_payment or 'N/A'}<br/>", style=size_nine_helvetica),
+                    ]
+                ]
+            )
+
         table = Table(table_data)
         table.setStyle(
             TableStyle([
@@ -367,7 +384,7 @@ class OnlineDeliveryNoteView(View):
                               style=size_nine_helvetica),
                     Paragraph(mission_product.sku.state,
                               style=size_nine_helvetica),
-                    Paragraph(mission_product.sku.product.title or "",
+                    Paragraph(mission_product.online_description or mission_product.sku.product.title or "",
                               style=size_nine_helvetica),
                     Paragraph(str(mission_product.amount),
                               style=right_align_paragraph_style),

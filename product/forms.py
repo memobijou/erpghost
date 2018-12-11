@@ -15,7 +15,7 @@ class ProductForm(forms.ModelForm):
 
     class Meta:
         model = Product
-        exclude = ["main_sku", "single_product"]
+        exclude = ["main_sku", "single_product", "packing_unit_parent"]
 
     more_images = forms.FileField(label="Weitere Bilder", widget=forms.FileInput(attrs={'multiple': True}),
                                   required=False)
@@ -33,20 +33,10 @@ class ProductForm(forms.ModelForm):
         ean = self.cleaned_data.get("ean")
         if packing_unit < 1:
             self.add_error("packing_unit", "Die Verpackungseinheit darf nicht kleiner als 1 sein")
-        if packing_unit > 1:
-            products = Product.objects.filter(ean=ean, packing_unit=1)
-            print(f"asdsdsadsa: {self.instance.pk}")
-            if self.instance.id is not None:
-                products = products.exclude(pk=self.instance.id)
-            if products.count() == 0:
-                if self.instance.pk is None:
-                    error = f"Sie können keinen Artikel mit der Verpackungseinheit {packing_unit} anlegen"
-                    error_2 = f"Erstellen Sie erst einen Artikel mit der Verpackungseinheit 1"
-                else:
-                    error = f"Die Verpackungseinheit von diesem Artikel kann nicht geändert werden"
-                    error_2 = f"Erstellen Sie einen neuen Artikel mit der Verpackungseinheit {packing_unit}"
-                self.add_error("packing_unit", error)
-                self.add_error("packing_unit", error_2)
+        if self.instance.id is None:
+            if packing_unit > 1:
+                self.add_error("packing_unit", "Einen neuen Artikel können Sie nur mit der Verpackungseinheit 1"
+                                               " anlegen")
 
         if self.instance.id is not None and packing_unit > 1:
             stocks_count = Stock.objects.filter(sku_instance__product=self.instance,
@@ -55,6 +45,15 @@ class ProductForm(forms.ModelForm):
                 self.add_error("packing_unit", "Für diesen Artikel gibt es bereits Bestände.")
                 self.add_error("packing_unit", f"Erstellen Sie einen neuen Artikel mit der Verpackungseinheit"
                                                f" {packing_unit}")
+
+            if self.instance.packing_unit_parent is not None:
+                products = Product.objects.filter(packing_unit_parent=self.instance.packing_unit_parent).exclude(
+                    pk=self.instance.pk
+                )
+                print(f"hello: {products}")
+                for product in products:
+                    if packing_unit == product.packing_unit:
+                        self.add_error("packing_unit", f"Verpackungseinheit vergeben")
 
         return packing_unit
 

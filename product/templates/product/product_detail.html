@@ -44,6 +44,10 @@
                     <b>EAN: </b> {{ object.ean }}
                 </p>
                 {% endif %}
+                <p>
+                    <b>Verpackungseinheit: </b> {{ object.packing_unit }}
+                </p>
+                <br/>
                 {% if object.short_description %}
                     <p>
                         <b>Kurzbeschreibung: </b> {{ object.short_description }}
@@ -92,7 +96,7 @@
                                         <td>{{ sku.state }}</td>
                                         <td>
                                             {% if sku.purchasing_price %}
-                                            {{ sku.purchasing_price|default:""|format_number_thousand_decimal_points }}
+                                                {{ sku.purchasing_price|default:""|format_number_thousand_decimal_points }}
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -267,6 +271,65 @@
                             </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                <a href="{% url 'product:create_packing_unit' pk=object.pk %}">Neue Verpackungseinheit anlegen</a>
+            </div>
+            <div>
+
+                {% if object.packing_unit_parent %}
+                    <div class="col-md-3" style="padding-left: 0px;padding-top:25px;">
+                        <div class="panel panel-default">
+                            <div class="panel-body">
+                                <p><b>Verpackungseinheit: </b>{{ object.packing_unit_parent.packing_unit }}</p>
+                                {% if object.packing_unit_parent.title %}
+                                    <p><b>Beschreibung: </b>{{ object.packing_unit_parent.title }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="panel-heading text-center">
+                                <a href="{% url 'product:detail' pk=object.packing_unit_parent.pk %}">Zum Artikel</a>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                {% if object.packing_unit_parent %}
+                    {% for product in object.packing_unit_parent.packing_unit_child.all %}
+                        {% if product != object %}
+                            <div class="col-md-3" style="padding-left: 0px;padding-top:25px;">
+                                <div class="panel panel-default">
+                                    <div class="panel-body">
+                                        <p><b>Verpackungseinheit: </b>{{ product.packing_unit }}</p>
+                                        <p><b>Beschreibung: </b>{{ product.title }}</p>
+                                    </div>
+                                    <div class="panel-heading text-center">
+                                        <a href="{% url 'product:detail' pk=product.pk %}">Zum Artikel</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                {% if object.packing_unit_child %}
+                    {% for product in object.packing_unit_child.all %}
+                        {% if product != object %}
+                            <div class="col-md-3" style="padding-left: 0px;padding-top:25px;">
+                                <div class="panel panel-default">
+                                    <div class="panel-body">
+                                        <p><b>Verpackungseinheit: </b>{{ product.packing_unit }}</p>
+                                        <p><b>Beschreibung: </b>{{ product.title }}</p>
+                                    </div>
+                                    <div class="panel-heading text-center">
+                                        <a href="{% url 'product:detail' pk=product.pk %}">Zum Artikel</a>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
             </div>
         </div>
     </div>

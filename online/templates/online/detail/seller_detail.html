@@ -24,6 +24,10 @@
             {% else %}
                  <span class="label label-warning" style="font-size:15px;">{{ object.status|default:"Offen"}}</span>
             {% endif %}
+
+            {% if need_refill is True and object.online_picklist is None  %}
+                     <span class="label label-danger" style="font-size:15px;">Onlinebestand nachfüllen</span>
+            {% endif %}
         </p>
     </div>
     <div class="col-md-12" style="padding:0;">
@@ -86,16 +90,33 @@
             <tbody>
                 {% for mission_product, picklist_products in picklist_products %}
                     <tr>
-                        <td>
+                        <td class="col-md-8">
+                            <div class="text-right">
+                                <p><b></b><span style="font-size:25px;">{{ mission_product.amount }}x</span></p>
+                            </div>
                             {% if mission_product.sku.product.main_image %}
                                 <img src="{{ mission_product.sku.product.main_image.url }}" class="img-responsive" style="max-height: 90px;"/>
                             {% endif %}
-                            <p><b>EAN: </b>{{mission_product.sku.product.ean}}</p>
-                            <p><b>Zustand: </b>{{mission_product.sku.state}}</p>
-                            <p><b>Artikelname: </b>{{mission_product.sku.product.title|default:""}}</p>
-                            <p><b>Auftragsmenge: </b>{{ mission_product.amount }}</p>
+                            {% if mission_product.ean %}
+                                <p><b>EAN: </b>{{mission_product.ean}}</p>
+                            {% endif %}
+                            {% if mission_product.online_sku_number %}
+                                <p><b>Online SKU: </b>{{mission_product.online_sku_number}}</p>
+                            {% endif %}
+                            {% if mission_product.internal_sku_number %}
+                                <p><b>Interne SKU: </b>{{mission_product.internal_sku_number}}</p>
+                            {% endif %}
+                            {% if mission_product.state %}
+                                <p><b>Zustand: </b>{{mission_product.state}}</p>
+                            {% endif %}
+                            {% if mission_product.online_description %}
+                                <p><b>Online Beschreibung: </b>{{mission_product.online_description|default:""}}</p>
+                            {% endif %}
+                            {% if mission_product.sku %}
+                                <p><b>Verpackungseinheit: </b>{{ mission_product.sku.product.packing_unit }}</p>
+                            {% endif %}
                         </td>
-                        <td>
+                        <td class="col-md-4">
                             {% for picklist_product in picklist_products %}
                                 <p><b>Lagerposition: </b>{{ picklist_product.position }}</p>
                                 <p><b>Pickmenge: </b>{{ picklist_product.amount }}</p>

@@ -23,7 +23,7 @@ class DhlForm(forms.ModelForm):
 class DPDForm(forms.ModelForm):
     class Meta:
         model = Adress
-        fields = ("first_name_last_name", 'strasse', "hausnummer", "zip", "place")
+        fields = ("first_name_last_name", 'strasse', "hausnummer", "adresszusatz", "zip", "place")
     package_weight = forms.FloatField(label="Paketgewicht in KG", required=False)
 
     def __init__(self, **kwargs):
@@ -70,13 +70,14 @@ class StationGotoPickListForm(forms.Form):
 
 
 class PackingForm(forms.Form):
-    ean = forms.CharField(max_length=13, label="EAN", help_text="<div class='help-block'>Bitte scannen Sie einen "
-                                                                "Artikel"
-                                                                "</div>")
+    ean_or_sku = forms.CharField(label="EAN/SKU",
+                                 help_text="<div class='help-block'>Bitte scannen Sie einen Artikel</div>")
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-
+        self.fields['ean_or_sku'].widget.attrs.update({
+            'autofocus': ''
+        })
         for visible in self.visible_fields():
             visible.field.widget.attrs["class"] = "form-control"
 

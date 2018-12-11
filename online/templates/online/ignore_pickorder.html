@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Auftragsnummer</th>
+                        <th>Fremd ID</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if items %}
+                        {% for item in items %}
+                            <tr>
+                                <td>{{ item }}</td>
+                                <td>{{ item.channel_order_id|default:"" }}</td>
+                                <td>
+                                    <p>
+                                        {% if item.status == "Verpackt" %}
+                                            <h4>
+                                                 <span class="label label-success">{{ item.status }}</span>
+                                            </h4>
+                                        {% elif item.not_matchable is True or item.ignore_pickorder is True %}
+                                            <h4>
+                                                 <span class="label label-danger">{{ item.status|default:"Fehlerhaft"}}</span>
+                                            </h4>
+                                        {% else %}
+                                            <h4>
+                                                 <span class="label label-warning">{{ item.status|default:"Offen"}}</span>
+                                            </h4>
+                                        {% endif %}
+                                    </p>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3">
+                                <div class="text-center">
+                                    <h3>Keine Ergebnisse</h3>
+                                    <p class="help-block">Sie haben keine Auswahl getroffen oder einer der Aufträge hat bereits eine Pickliste</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            {% if items %}
+                <div class="text-center">
+                    <form method="POST">{% csrf_token %}
+                        <p class="help-block">Dieser Vorgang kann nicht rückgängig gemacht werden</p>
+                        <button class="btn btn-danger btn-lg" type="submit">Von Pickauftrag ablösen</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

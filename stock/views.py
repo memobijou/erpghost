@@ -598,6 +598,7 @@ class StockDeleteQuerySetView(DeleteView):
                     if stock.sku_instance is not None and stock.sku_instance.product is not None
                     else stock.zustand or "")
             state = (stock.sku_instance.state if stock.sku_instance is not None else stock.zustand or "")
+
             if stock.sku_instance is not None:
                 states_totals, total = get_states_totals_and_total(stock.sku_instance.product, skus)
                 print(f"hehe: {states_totals[state]}")
@@ -611,10 +612,17 @@ class StockDeleteQuerySetView(DeleteView):
 
             print(f" WHAT THE: {reserved_amount_position}")
 
-            available_total = states_totals[state].get("available_total", "") or 0
-            if available_total - int(stock.bestand) < 0 or reserved_amount_position > 0:
-                print(f"Der Artikel kann maximal {available_total} ausgebucht werden.")
-                exclude_stocks.append((stock, available_total, reserved_amount_position))
+            # available_total = states_totals[state].get("available_total", "") or 0
+            # if available_total - int(stock.bestand) < 0 or reserved_amount_position > 0:
+            #     print(f"Der Artikel kann maximal {available_total} ausgebucht werden.")
+            #     exclude_stocks.append((stock, available_total, reserved_amount_position))
+
+            # OHNE RESERVIERUNG
+
+            total = states_totals[state].get("total", "") or 0
+            if total - int(stock.bestand) < 0 or reserved_amount_position > 0:
+                print(f"Der Artikel kann maximal {total} ausgebucht werden.")
+                exclude_stocks.append((stock, total, reserved_amount_position))
 
         stocks = stocks.exclude(id__in=[stock.pk for stock, _, _ in exclude_stocks])
         self.exclude_stocks = exclude_stocks

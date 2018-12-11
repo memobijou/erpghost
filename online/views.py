@@ -28,7 +28,7 @@ import dateutil
 from django.contrib.auth.mixins import LoginRequiredMixin
 
 
-class OnlineListView(generic.ListView):
+class OnlineListView(LoginRequiredMixin, generic.ListView):
     template_name = "online/online_list.html"
     paginate_by = 15
 
@@ -110,9 +110,29 @@ class OnlineListView(generic.ListView):
     def get_object_list(self):
         object_list = self.context.get("object_list")
         payment_totals = []
+
         for obj in object_list:
             payment_totals.append(self.get_payment_amounts(obj))
-        return list(zip(object_list, payment_totals))
+        missions_products = []
+
+        need_refill_list = []
+        for obj in object_list:
+            mission_products = obj.productmission_set.all().get_online_stocks().annotate(
+                packing_unit_amount_minus_online_total=F("packing_unit_amount")-F("online_total"))
+
+            need_refill = None
+            for mission_product in mission_products:
+                print(f"hello: {mission_product.packing_unit_amount} --- {mission_product.online_total}")
+                if mission_product.sku is not None:
+                    if mission_product.packing_unit_amount > mission_product.online_total:
+                        need_refill = True
+                        break
+
+            need_refill_list.append(need_refill)
+
+            missions_products.append(mission_products)
+
+        return list(zip(object_list, payment_totals, missions_products, need_refill_list))
 
     def get_payment_amounts(self, obj):
         total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
@@ -155,7 +175,7 @@ class OnlineListView(generic.ListView):
         purchased_date = self.get_value_from_GET_or_session("purchased_date")
 
         if purchased_date != "":
-            purchased_date = dateutil.parser.parse(purchased_date, ignoretz=True)
+            purchased_date = dateutil.parser.parse(purchased_date, ignoretz=True, dayfirst=True)
             print(f"babababa: {purchased_date}")
             q_filter &= Q(purchased_date__year=purchased_date.year, purchased_date__month=purchased_date.month,
                           purchased_date__day=purchased_date.day)
@@ -163,7 +183,7 @@ class OnlineListView(generic.ListView):
         payment_date = self.get_value_from_GET_or_session("payment_date")
 
         if payment_date != "":
-            payment_date = dateutil.parser.parse(payment_date, ignoretz=True)
+            payment_date = dateutil.parser.parse(payment_date, ignoretz=True, dayfirst=True)
             print(f"babababa: {payment_date} - {payment_date.year} - {payment_date.month} - {payment_date.day}")
             q_filter &= Q(payment_date__year=payment_date.year, payment_date__month=payment_date.month,
                           payment_date__day=payment_date.day)
@@ -171,7 +191,7 @@ class OnlineListView(generic.ListView):
         delivery_date_from = self.get_value_from_GET_or_session("delivery_date_from")
 
         if delivery_date_from != "":
-            delivery_date_from = dateutil.parser.parse(delivery_date_from, ignoretz=True)
+            delivery_date_from = dateutil.parser.parse(delivery_date_from, ignoretz=True, dayfirst=True)
             print(f"babababa: {delivery_date_from}")
             q_filter &= Q(delivery_date_from__year=delivery_date_from.year,
                           delivery_date_from__month=delivery_date_from.month,
@@ -180,7 +200,7 @@ class OnlineListView(generic.ListView):
         delivery_date_to = self.get_value_from_GET_or_session("delivery_date_to")
 
         if delivery_date_to != "":
-            delivery_date_to = dateutil.parser.parse(delivery_date_to, ignoretz=True)
+            delivery_date_to = dateutil.parser.parse(delivery_date_to, ignoretz=True, dayfirst=True)
             print(f"babababa: {delivery_date_to}")
             q_filter &= Q(delivery_date_to__year=delivery_date_to.year,
                           delivery_date_to__month=delivery_date_to.month,
@@ -264,11 +284,21 @@ class OnlineDetailView(DetailView):
         self.object = None
         self.mission_products = None
         self.picklist_products = None
+        self.need_refill = None
         self.context = None
 
     def dispatch(self, request, *args, **kwargs):
         self.object = get_object_or_404(Mission, pk=self.kwargs.get("pk"))
         self.mission_products = self.object.productmission_set.all()
+        self.mission_products = self.mission_products.get_online_stocks().annotate(
+                packing_unit_amount_minus_online_total=F("packing_unit_amount")-F("online_total"))
+
+        for mission_product in self.mission_products:
+            print(f"hello: {mission_product.packing_unit_amount} --- {mission_product.online_total}")
+            if mission_product.sku is not None:
+                if mission_product.packing_unit_amount > mission_product.online_total:
+                    self.need_refill = True
+
         self.get_picklist_products()
         return super().dispatch(request, *args, **kwargs)
 
@@ -296,9 +326,10 @@ class OnlineDetailView(DetailView):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Auftrag " + self.object.mission_number
         self.context["fields"] = self.build_fields()
-        self.context["products_from_stock"] = self.get_detail_products()
+        self.context["mission_products"] = self.mission_products
         self.context["status"] = self.object.status
         self.context["picklist_products"] = self.picklist_products
+        self.context["need_refill"] = self.need_refill
         self.set_payment_amounts_in_context()
         return self.context
 
@@ -320,31 +351,6 @@ class OnlineDetailView(DetailView):
         fields[0] = "EAN / SKU"
         fields.insert(len(fields), "Gesamtpreis (Netto)")
         return fields
-
-    def get_detail_products(self):
-        detail_products = []
-
-        for product_mission in self.mission_products:
-            sku = product_mission.sku
-            product = None
-            if sku is not None:
-                product = sku.product
-            skus = None
-            if product is not None:
-                skus = product.sku_set.filter()
-
-            total_result = None
-
-            if sku is not None:
-                states_totals, total = get_states_totals_and_total(product, skus)
-                # MIT RESERVIERUNG
-                # total_result = f"{states_totals.get(sku.state).get('available_total')}/" \
-                #                f"{states_totals.get(sku.state).get('total')}"
-                # OHNE RESERVIERUNG
-                total_result = f"{states_totals.get(sku.state).get('total')}/" \
-                               f"{states_totals.get(sku.state).get('total')}"
-            detail_products.append((product_mission,  total_result))
-        return detail_products
 
 
 class ImportMissionBaseView(LoginRequiredMixin, View):
@@ -446,6 +452,33 @@ class ImportMissionAmazonView(ImportMissionBaseView):
                 for row in self.result:
                     if len(row) != len(self.header):
                         self.result.pop(self.result.index(row))
+
+
+class IgnoreOnlineMissionView(LoginRequiredMixin, View):
+    template_name = "online/ignore_pickorder.html"
+
+    def __init__(self):
+        super().__init__()
+        self.items = None
+
+    def dispatch(self, request, *args, **kwargs):
+        self.items = self.get_items()
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_items(self):
+        return Mission.objects.filter(pk__in=self.request.GET.getlist("item"), is_online=True).exclude(
+            Q(Q(online_picklist__completed=True) | Q(ignore_pickorder=True) | Q(online_picklist__isnull=False))
+        )
+
+    def get(self, request, *args, **kwargs):
+        context = {"title": "Von Pickauftrag ablösen", "items": self.items}
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        for item in self.items:
+            item.ignore_pickorder = True
+            item.save()
+        return HttpResponseRedirect(reverse_lazy("online:list"))
 
 
 class ImportMissionEbayView(ImportMissionBaseView):

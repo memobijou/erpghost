@@ -8,7 +8,8 @@ from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromS
     FinishPackingView
 from online.refill_order import AcceptRefillStockView, BookOutForOnlinePositions, RefillStockView, \
     BookInOnlineWarehouseList, ProductsForBookInView, BookProductInPosition, FinishRefillOrderView, OnlineRedirectView
-from .views import OnlineListView, OnlineDetailView, ImportMissionAmazonView, ImportMissionEbayView
+from .views import OnlineListView, OnlineDetailView, ImportMissionAmazonView, ImportMissionEbayView, \
+    IgnoreOnlineMissionView
 from .dpd import DPDCreatePDFView, DPDGetLabelView
 from .dhl import DHLCreatePdfView, DhlGetLabelView, DhlDeleteLabelView
 from online.import_offers import ImportOffersView
@@ -52,5 +53,6 @@ urlpatterns = [
     url(r'^import_ebay_mission/$', ImportMissionEbayView.as_view(), name="import_ebay_mission"),
     url(r'^import_offers/$', ImportOffersView.as_view(), name="import_offers"),
     url(r'^confirm_manual/(?P<pk>\d+)/$', ConfirmManualView.as_view(), name="confirm_manual"),
+    url(r'^ignore_pickorder/$', IgnoreOnlineMissionView.as_view(), name="ignore_pickorder"),
 ]
 

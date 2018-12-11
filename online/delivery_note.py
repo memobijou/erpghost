@@ -13,8 +13,7 @@ class OnlineDeliveryNoteView(View):
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
-        first_product = self.mission.productmission_set.first()
-        self.client = first_product.sku.channel.client
+        self.client = self.mission.channel.client
         self.partial_delivery_note = DeliveryNote.objects.get(pk=self.kwargs.get("delivery_note_pk"))
         self.partial_delivery_note_number = self.partial_delivery_note.delivery_note_number
         return super().dispatch(request, *args, **kwargs)
@@ -361,7 +360,7 @@ class OnlineDeliveryNoteView(View):
                                                      rightIndent=17)
         header = [
             Paragraph("<b>Pos</b>", style=size_nine_helvetica),
-            Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
+            Paragraph("<b>EAN</b>", style=size_nine_helvetica),
             Paragraph("<b>Zustand</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
@@ -375,18 +374,18 @@ class OnlineDeliveryNoteView(View):
 
         print(self.partial_delivery_note.deliverynoteproductmission_set.all())
 
-        for mission_product in self.mission.productmission_set.all():
+        for item in self.mission.online_picklist.online_delivery_note.deliverynoteitem_set.all():
 
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(mission_product.get_ean_or_sku(),
+                    Paragraph(f"{item.ean}",
                               style=size_nine_helvetica),
-                    Paragraph(mission_product.sku.state,
+                    Paragraph(item.state,
                               style=size_nine_helvetica),
-                    Paragraph(mission_product.online_description or mission_product.sku.product.title or "",
+                    Paragraph(item.description or "",
                               style=size_nine_helvetica),
-                    Paragraph(str(mission_product.amount),
+                    Paragraph(str(item.amount),
                               style=right_align_paragraph_style),
                 ],
             )

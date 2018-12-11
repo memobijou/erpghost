@@ -22,16 +22,15 @@ class OnlineBillingView(View):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
         self.billing_address = self.mission.billing_address
         self.set_payment_totals()
-        first_product = self.mission.productmission_set.first()
-        self.client = first_product.sku.channel.client
+        self.client = self.mission.channel.client
         return super().dispatch(request, *args, **kwargs)
 
     def set_payment_totals(self):
-        for mission_product in self.mission.productmission_set.all():
-            self.total += mission_product.amount*mission_product.brutto_price or 0.00
-            self.discount += mission_product.discount or 0.00
-            self.shipping_discount += mission_product.shipping_discount or 0.00
-            self.shipping_price += mission_product.shipping_price or 0.00
+        for item in self.mission.online_picklist.online_billing.billingitem_set.all():
+            self.total += item.amount*item.brutto_price or 0.00
+            self.discount += item.discount or 0.00
+            self.shipping_discount += item.shipping_discount or 0.00
+            self.shipping_price += item.shipping_price or 0.00
 
     def get(self, request, *args, **kwargs):
         exception = self.validate_pdf()
@@ -165,7 +164,7 @@ class OnlineBillingView(View):
                                                      rightIndent=17)
         header = [
             Paragraph("<b>Pos</b>", style=size_nine_helvetica),
-            Paragraph("<b>EAN / SKU</b>", style=size_nine_helvetica),
+            Paragraph("<b>EAN</b>", style=size_nine_helvetica),
             Paragraph("<b>Bezeichnung</b>", style=size_nine_helvetica),
             Paragraph("<b>Menge</b>", style=right_align_paragraph_style),
             Paragraph("<b>Einzelpreis</b>", style=right_align_paragraph_style),
@@ -175,19 +174,18 @@ class OnlineBillingView(View):
         data = []
         data.append(header)
         pos = 1
-        from mission.billing_pdf import  format_number_thousand_decimal_points
-        for productmission in self.mission.productmission_set.all():
-            netto_price = productmission.brutto_price-(productmission.brutto_price*0.19)
+        from mission.billing_pdf import format_number_thousand_decimal_points
+        for item in self.mission.online_picklist.online_billing.billingitem_set.all():
             data.append(
                 [
                     Paragraph(str(pos), style=size_nine_helvetica),
-                    Paragraph(productmission.get_ean_or_sku(), style=size_nine_helvetica),
-                    Paragraph(productmission.sku.product.title, style=size_nine_helvetica),
-                    Paragraph(str(productmission.amount), style=right_align_paragraph_style),
-                    Paragraph(format_number_thousand_decimal_points(netto_price),
+                    Paragraph(item.ean, style=size_nine_helvetica),
+                    Paragraph(item.description, style=size_nine_helvetica),
+                    Paragraph(str(item.amount), style=right_align_paragraph_style),
+                    Paragraph(format_number_thousand_decimal_points(item.netto_price),
                               style=right_align_paragraph_style),
                     Paragraph(format_number_thousand_decimal_points(
-                        (netto_price * productmission.amount)),
+                        (item.netto_price * item.amount)),
                               style=right_align_paragraph_style),
                 ],
             )
@@ -215,9 +213,8 @@ class OnlineBillingView(View):
 
         total_netto = 0
 
-        for productmission in self.mission.productmission_set.all():
-            netto_price = productmission.brutto_price-(productmission.brutto_price*0.19)
-            total_netto += productmission.amount * netto_price
+        for item in self.mission.online_picklist.online_billing.billingitem_set.all():
+            total_netto += item.amount * item.netto_price
 
         discount_netto = self.discount - (self.discount * 0.19)
         shipping_discount_netto = self.shipping_discount - (self.shipping_discount * 0.19)

@@ -14,18 +14,14 @@
                 <thead>
                     <tr>
                         <th>Bild</th>
-                        <th>EAN</th>
-                        <th>SKU</th>
-                        <th>Zustand</th>
-                        <th>Artikelname</th>
-                        <th>Auftragsmenge</th>
-                        <th>Lagerbestand</th>
+                        <th>Artikel</th>
+                        <th>Menge</th>
                         <th>Einzelpreis</th>
                         <th>Gesamtbeträge</th>
                     </tr>
                 </thead>
                 <tbody>
-                        {% for productmission, stock in products_from_stock %}
+                        {% for productmission in mission_products %}
                             {% if object.id == productmission.mission.id %}
                             <tr>
                                 <td>
@@ -34,20 +30,45 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {{productmission.sku.product.ean|default:""}}
-                                </td>
-                                <td>
+                                    {% if productmission.ean %}
+                                        <p><b>EAN: </b>{{ productmission.ean|default:"" }}</p>
+                                    {% endif %}
+                                    {% if productmission.online_sku_number %}
+                                        <p><b>Online SKU: </b>{{ productmission.online_sku_number|default:"" }}</p>
+                                    {% endif %}
+                                    {% if productmission.internal_sku_number %}
+                                        <p><b>Interne SKU: </b>{{ productmission.internal_sku_number|default:"" }}</p>
+                                    {% endif %}
+                                    {% if productmission.state %}
+                                        <p><b>Zustand: </b>{{ productmission.state|default:"" }}</p>
+                                    {% endif %}
                                     {% if productmission.sku %}
-                                        {{productmission.sku.sku|default:""}}
+
                                     {% else %}
-                                        <p style="color:red;">{{ productmission.no_match_sku|default:"" }}</p>
+                                        {% if productmission.internal_sku_number %}
+                                            <p><b>Letzte SKU: </b>{{ productmission.internal_sku_number }}</p>
+                                        {% endif %}
+                                        {% if productmission.no_match_sku %}
+                                            <p style="color:red;"><b>Nicht matchbare SKU: </b>{{ mission_product.no_match_sku|default:"" }}</p>
+                                        {% endif %}
+                                    {% endif %}
+                                    {% if productmission.online_description %}
+                                        <p><b>Online Beschreibung: </b> {{ productmission.online_description }}</p>
+                                    {% endif %}
+                                    {% if productmission.sku %}
+                                        <p><b>Verpackungseinheit: </b> {{ productmission.sku.product.packing_unit }}</p>
                                     {% endif %}
                                 </td>
-                                <td>{{productmission.sku.state}}</td>
-                                <td>{{productmission.sku.product.title|default:""}}</td>
-                                <td>{{productmission.amount}}</td>
+
                                 <td>
-                                    {{ stock|default:'0' }}
+                                    <p><b>Auftragsmenge: </b> {{productmission.amount}}</p>
+                                    <hr/>
+                                    <p><b>Onlinebestand:</b> {{ productmission.online_total }}</p>
+                                    <p><b>Lagerbestand: </b> {{ productmission.total }}/{{ productmission.total }}</p>
+                                    {% if productmission.packing_unit_amount > productmission.online_total and object.online_picklist is None %}
+                                        <hr/>
+                                        <p style="color:red;"><b>Minusbestand: </b>{{  productmission.packing_unit_amount_minus_online_total }}</p>
+                                    {% endif %}
                                 </td>
                                 <td>{{productmission.brutto_price|format_number_thousand_decimal_points|default:"0"}}</td>
                                 <td class="col-md-3">

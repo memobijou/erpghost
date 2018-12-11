@@ -355,7 +355,7 @@ class ProductListViewDEAD(ListView):
         return fields
 
 
-class ProductUpdateView(UpdateView):
+class ProductUpdateBaseView(LoginRequiredMixin, UpdateView):
     form_class = ProductForm
 
     def __init__(self):
@@ -478,7 +478,11 @@ class ProductUpdateView(UpdateView):
         ProductImage.objects.filter(pk__in=checked_images_ids).delete()
 
 
-class ProductCreateView(CreateView):
+class ProductUpdateView(ProductUpdateBaseView):
+    pass
+
+
+class ProductCreateBaseView(LoginRequiredMixin, CreateView):
     form_class = ProductForm
     template_name = "product/product_form.html"
 
@@ -506,7 +510,9 @@ class ProductCreateView(CreateView):
         purchasing_prices_forms_are_valid = self.validate_purchasing_forms(purchasing_prices_forms)
 
         if validation_msg is True and purchasing_prices_forms_are_valid is True:
-            self.object = form.save(commit=True)
+            self.object = form.save(commit=False)
+            self.set_object_as_packing_unit_product(self.object)
+            self.object.save()
             self.create_sku_purchasing_prices()
             self.upload_more_images(more_images)
         else:
@@ -517,6 +523,9 @@ class ProductCreateView(CreateView):
             self.context["title"] = "Artikel bearbeiten"
             return render(self.request, self.template_name, self.context)
         return HttpResponseRedirect(self.get_success_url())
+
+    def set_object_as_packing_unit_product(self, obj):
+        pass
 
     def create_sku_purchasing_prices(self):
         for sku, purchasing_price in zip(self.get_sku_instances(),
@@ -576,6 +585,69 @@ class ProductCreateView(CreateView):
         D_sku = Sku.objects.filter(product_id=self.object.pk, state="D").first()
         G_sku = Sku.objects.filter(product_id=self.object.pk, state="G").first()
         return [new_sku, B_sku, C_sku, D_sku, G_sku]
+
+
+class ProductCreateView(ProductCreateBaseView):
+    pass
+
+
+class ProductFormPackingUnit(ProductForm):
+    def __init__(self, parent_product=None, **kwargs):
+        super().__init__(**kwargs)
+        self.parent_product = parent_product
+
+    class Meta:
+        model = Product
+        exclude = ["main_sku", "single_product", "packing_unit_parent"]
+
+    def clean_packing_unit(self):
+        packing_unit = self.cleaned_data["packing_unit"]
+
+        if packing_unit == self.parent_product.packing_unit:
+            self.add_error("packing_unit", f"Die Verpackungseinheit {self.parent_product.packing_unit} "
+                                           f"ist bereits vergeben")
+
+        products = Product.objects.filter(packing_unit_parent=self.parent_product)
+        print(f"hello: {products}")
+        for product in products:
+            if packing_unit == product.packing_unit:
+                self.add_error("packing_unit", f"Verpackungseinheit vergeben")
+
+        if packing_unit == 1:
+            self.add_error("packing_unit", "Die Verpackungseinheit muss größer als 1 sein.")
+        print(f"hasdadsa: {self.parent_product}")
+        return packing_unit
+
+    def clean_ean(self):
+        ean = self.cleaned_data["ean"]
+        if ean != self.parent_product.ean:
+            self.add_error("ean", "Sie dürfen die EAN nicht ändern, da dieser Artikel eine Verpackungseinheit ist.")
+            self.add_error("ean", f"{self.parent_product.ean}")
+        return ean
+
+
+class CreatePackingUnitProduct(ProductCreateBaseView):
+    form_class = ProductFormPackingUnit
+
+    def __init__(self):
+        super().__init__()
+        self.parent_object = None
+
+    def get_form(self):
+        self.parent_object = Product.objects.get(pk=self.kwargs.get("pk"))
+        print(f"HHIIII: {self.parent_object.packing_unit}")
+        data = self.parent_object.__dict__
+        if self.parent_object.packing_unit_parent is not None:
+            self.parent_object = self.parent_object.packing_unit_parent
+        print(f"arizona: {self.parent_object}")
+        if self.request.method == "POST":
+            form = ProductFormPackingUnit(data=self.request.POST, parent_product=self.parent_object)
+        else:
+            form = ProductFormPackingUnit(initial=data, parent_product=self.parent_object)
+        return form
+
+    def set_object_as_packing_unit_product(self, obj):
+        obj.packing_unit_parent = self.parent_object
 
 
 class ProductSingleCreateView(CreateView):
@@ -937,6 +1009,7 @@ class ProductDetailView(DetailView):
         return self.context
 
     def get_context(self):
+        self.context["object"] = self.object
         self.context["title"] = "Artikel Detailansicht"
         self.context["skus"] = self.skus
         self.context["online_skus"] = self.online_skus
@@ -991,22 +1064,22 @@ class OnlineSkuDeleteView(DeleteView):
                 "mission__pk", flat=True).order_by("mission").distinct("mission"))
             print(f"ok must work: {self.missions}")
 
-        if request.method == "POST":
-
-            has_picklist = None
-
-            for mission_product in self.missions_products:
-                if mission_product.picklistproducts_set.all().count() > 0:
-                    has_picklist = True
-                    break
-
-            if self.object is not None and (has_picklist is True or (hasattr(self.object, "offer") is True
-                                                                     and self.object.offer.amount not in [None, 0])):
-                error_msg = "Diese SKU kann nicht gelöscht werden, da für diese SKU Aufträge oder Angebote bestehen."
-                context = self.get_context()
-                context["error_msg"] = error_msg
-                return render(request, self.template_name,
-                              context)
+        # if request.method == "POST":
+        #
+        #     has_picklist = None
+        #
+        #     for mission_product in self.missions_products:
+        #         if mission_product.picklistproducts_set.all().count() > 0:
+        #             has_picklist = True
+        #             break
+        #
+        #     if self.object is not None and (has_picklist is True or (hasattr(self.object, "offer") is True
+        #                                                              and self.object.offer.amount not in [None, 0])):
+        #         error_msg = "Diese SKU kann nicht gelöscht werden, da für diese SKU Aufträge oder Angebote bestehen."
+        #         context = self.get_context()
+        #         context["error_msg"] = error_msg
+        #         return render(request, self.template_name,
+        #                       context)
         return super().dispatch(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):

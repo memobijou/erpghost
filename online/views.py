@@ -123,8 +123,9 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
             need_refill = None
             for mission_product in mission_products:
                 print(f"hello: {mission_product.packing_unit_amount} --- {mission_product.online_total}")
+                online_total = mission_product.online_total if mission_product.online_total is not None else 0
                 if mission_product.sku is not None:
-                    if mission_product.packing_unit_amount > mission_product.online_total:
+                    if mission_product.packing_unit_amount > online_total:
                         need_refill = True
                         break
 

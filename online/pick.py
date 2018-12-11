@@ -231,8 +231,10 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
         if len(query_condition) == 0:
             return
 
-        for online_prefix in self.online_prefixes:
-            query_condition &= Q(lagerplatz__istartswith=online_prefix.prefix)
+        # for online_prefix in self.online_prefixes:
+        #     query_condition &= Q(lagerplatz__istartswith=online_prefix.prefix)
+
+        query_condition &= ~Q(lagerplatz__istartswith="block")
 
         stocks = list(Stock.objects.filter(query_condition))
 

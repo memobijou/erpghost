@@ -729,21 +729,22 @@ class ProvidePackingView(LoginRequiredMixin, View):
         DeliveryNoteItem.objects.bulk_create(bulk_instances)
 
     def create_billing(self):
-        self.picklist.online_billing = Billing.objects.create()
-        self.picklist.save()
-        bulk_instances = []
+        if self.mission.billing_address is not None:
+            self.picklist.online_billing = Billing.objects.create()
+            self.picklist.save()
+            bulk_instances = []
 
-        for mission_product in self.mission.productmission_set.all():
-            netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
+            for mission_product in self.mission.productmission_set.all():
+                netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
 
-            bulk_instances.append(BillingItem(
-                billing=self.picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
-                ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
-                description=mission_product.online_description, brutto_price=mission_product.brutto_price,
-                shipping_price=mission_product.shipping_price, discount=mission_product.discount,
-                shipping_discount=mission_product.shipping_discount
-            ))
-        BillingItem.objects.bulk_create(bulk_instances)
+                bulk_instances.append(BillingItem(
+                    billing=self.picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
+                    ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
+                    description=mission_product.online_description, brutto_price=mission_product.brutto_price,
+                    shipping_price=mission_product.shipping_price, discount=mission_product.discount,
+                    shipping_discount=mission_product.shipping_discount
+                ))
+            BillingItem.objects.bulk_create(bulk_instances)
 
     def create_label(self):
         if self.mission.delivery_address.strasse is None and self.mission.delivery_address.hausnummer is None:

@@ -121,7 +121,7 @@ class DPDCreatePDFView(UpdateView):
                     shipping_price=mission_product.shipping_price, discount=mission_product.discount,
                     shipping_discount=mission_product.shipping_discount
                 ))
-        BillingItem.objects.bulk_create(bulk_instances)
+            BillingItem.objects.bulk_create(bulk_instances)
 
 
 class DPDLabelCreator:

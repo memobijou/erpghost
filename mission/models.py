@@ -241,10 +241,10 @@ class ProductMissionQuerySet(models.QuerySet):
     #         packing_unit_amount=F("amount")*F("sku__product__packing_unit"))
 
     def get_online_stocks(self):
-        online_prefixes = OnlinePositionPrefix.objects.all()
-        online_prefixes_condition = Q()
-        for prefix in online_prefixes:
-            online_prefixes_condition |= Q(internal_sku__stock__lagerplatz__istartswith=prefix.prefix)
+        # online_prefixes = OnlinePositionPrefix.objects.all()
+        online_prefixes_condition = ~Q(internal_sku__stock__lagerplatz__istartswith="block")
+        # for prefix in online_prefixes:
+        #     online_prefixes_condition |= Q(internal_sku__stock__lagerplatz__istartswith=prefix.prefix)
 
         queryset = self.all().annotate(
             online_total=Sum(Case(When(online_prefixes_condition, then="internal_sku__stock__bestand"), default=0))

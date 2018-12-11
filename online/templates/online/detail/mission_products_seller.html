@@ -49,7 +49,7 @@
                                             <p><b>Letzte SKU: </b>{{ productmission.internal_sku_number }}</p>
                                         {% endif %}
                                         {% if productmission.no_match_sku %}
-                                            <p style="color:red;"><b>Nicht matchbare SKU: </b>{{ mission_product.no_match_sku|default:"" }}</p>
+                                            <p style="color:red;"><b>Nicht matchbare SKU: </b>{{ productmission.no_match_sku|default:"" }}</p>
                                         {% endif %}
                                     {% endif %}
                                     {% if productmission.online_description %}
@@ -64,13 +64,20 @@
                                     <p><b>Auftragsmenge: </b> {{productmission.amount}}</p>
                                     <hr/>
                                     <p><b>Onlinebestand:</b> {{ productmission.online_total }}</p>
-                                    <p><b>Lagerbestand: </b> {{ productmission.total }}/{{ productmission.total }}</p>
+                                    <p><b>Lagerbestand: </b> {{ productmission.total|default:0 }}/{{ productmission.total|default:0 }}</p>
                                     {% if productmission.packing_unit_amount > productmission.online_total and object.online_picklist is None %}
                                         <hr/>
                                         <p style="color:red;"><b>Minusbestand: </b>{{  productmission.packing_unit_amount_minus_online_total }}</p>
                                     {% endif %}
                                 </td>
-                                <td>{{productmission.brutto_price|format_number_thousand_decimal_points|default:"0"}}</td>
+                                <td>
+                                    {% if productmission.brutto_price is None %}
+                                        N/A
+                                    {% else %}
+                                    {{productmission.brutto_price|format_number_thousand_decimal_points|default:"0.00"}}
+                                    {% endif %}
+
+                                </td>
                                 <td class="col-md-3">
                                     {% if productmission.brutto_price %}
                                         <table class="table table-borderless" style="padding:0px;margin:0px;">
@@ -112,6 +119,7 @@
                                             </tr>
                                         </table>
                                     {% else %}
+                                        N/A
                                     {% endif %}
                                 </td>
                             </tr>
@@ -120,6 +128,7 @@
                 </tbody>
             </table>
         </div>
+
 
         <div class="table-responsive">
             <table class="table table-borderless">
@@ -163,8 +172,6 @@
                                             <b>{{ payment_total|custom_add:shipping_price|custom_add:total_discount|custom_add:shipping_discount|format_number_thousand_decimal_points }}</b>
                                         </p></td>
                                     </tr>
-
-
                                 </table>
                             </div>
                         </div>

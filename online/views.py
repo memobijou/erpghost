@@ -137,7 +137,9 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
     def get_payment_amounts(self, obj):
         total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
         for mission_product in obj.productmission_set.all():
-            total += mission_product.amount*mission_product.brutto_price or 0.0
+            print(f"??? {mission_product.amount} - {mission_product.brutto_price}")
+            brutto_price = mission_product.brutto_price if mission_product.brutto_price is not None else 0.0
+            total += mission_product.amount*brutto_price
             discount += mission_product.discount or 0.0
             shipping_discount += mission_product.shipping_discount or 0.0
             shipping_price += mission_product.shipping_price or 0.0
@@ -336,7 +338,8 @@ class OnlineDetailView(DetailView):
     def set_payment_amounts_in_context(self):
         total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0
         for mission_product in self.mission_products:
-            total += mission_product.amount*mission_product.brutto_price or 0.0
+            brutto_price = mission_product.brutto_price if mission_product.brutto_price is not None else 0.0
+            total += mission_product.amount*brutto_price
             discount += mission_product.discount or 0.0
             shipping_discount += mission_product.shipping_discount or 0.0
             shipping_price += mission_product.shipping_price or 0.0

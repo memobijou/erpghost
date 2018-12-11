@@ -319,7 +319,11 @@
                                                                     {% endif %}
                                                                 </td>
                                                                 <td>
-                                                                    <p>{{ mission_product.brutto_price }}</p>
+                                                                    {% if mission_product.brutto_price is None %}
+                                                                        N/A
+                                                                    {% else %}
+                                                                        <p>{{ mission_product.brutto_price|default:0.00 }}</p>
+                                                                    {% endif %}
                                                                 </td>
                                                                 <td>
                                                                     {% if mission_product.brutto_price %}
@@ -361,6 +365,8 @@
                                                                                 </td>
                                                                             </tr>
                                                                         </table>
+                                                                    {% else %}
+                                                                        N/A
                                                                     {% endif %}
                                                                 </td>
                                                             </tr>
@@ -368,57 +374,59 @@
                                                     </tbody>
                                                 </table>
                                             </div>
-                                            <div class="table-responsive">
-                                                <table class="table table-borderless">
-                                                    <tr>
-                                                        <td class="col-md-9"></td>
-                                                        <td class="col-md-3" style="padding:0;">
-                                                            <div class="panel panel-default">
-                                                                <div class="panel-body" style="padding:2px;">
-                                                                    <table class="table table-borderless">
-                                                                        <tr>
-                                                                            <td style="padding-top:0;padding-bottom: 0;">Gesamtbetrag Artikel</td>
-                                                                            <td align="right" style="padding-top:0;padding-bottom:0;">
-                                                                                <p>{{ payment_totals.payment_total|format_number_thousand_decimal_points }}</p>
-                                                                            </td>
-                                                                        </tr>
-                                                                        <tr>
-                                                                            <td style="padding-top:0;padding-bottom:0;">Versandkosten</td>
-                                                                            <td style="padding-top:0;padding-bottom:0;" align="right">
-                                                                                <p>{{ payment_totals.shipping_price|format_number_thousand_decimal_points }}</p>
-                                                                            </td>
-                                                                        </tr>
-                                                                        {% if payment_totals.total_discount %}
+                                            {% if mission_product.brutto_price %}
+                                                <div class="table-responsive">
+                                                    <table class="table table-borderless">
+                                                        <tr>
+                                                            <td class="col-md-9"></td>
+                                                            <td class="col-md-3" style="padding:0;">
+                                                                <div class="panel panel-default">
+                                                                    <div class="panel-body" style="padding:2px;">
+                                                                        <table class="table table-borderless">
                                                                             <tr>
-                                                                                <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
-                                                                                <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.total_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                                <td style="padding-top:0;padding-bottom: 0;">Gesamtbetrag Artikel</td>
+                                                                                <td align="right" style="padding-top:0;padding-bottom:0;">
+                                                                                    <p>{{ payment_totals.payment_total|format_number_thousand_decimal_points }}</p>
+                                                                                </td>
                                                                             </tr>
-                                                                        {% endif %}
-                                                                        {% if shipping_discount %}
                                                                             <tr>
-                                                                                <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
-                                                                                <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.shipping_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                                <td style="padding-top:0;padding-bottom:0;">Versandkosten</td>
+                                                                                <td style="padding-top:0;padding-bottom:0;" align="right">
+                                                                                    <p>{{ payment_totals.shipping_price|format_number_thousand_decimal_points }}</p>
+                                                                                </td>
                                                                             </tr>
-                                                                        {% endif %}
+                                                                            {% if payment_totals.total_discount %}
+                                                                                <tr>
+                                                                                    <td style="padding-top:0;padding-bottom:0;">Rabatt</td>
+                                                                                    <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.total_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                                </tr>
+                                                                            {% endif %}
+                                                                            {% if shipping_discount %}
+                                                                                <tr>
+                                                                                    <td style="padding-top:0;padding-bottom:0;">Versandrabatt</td>
+                                                                                    <td align="right" style="padding-top:0;padding-bottom:0;"><p style="color:red;">{{ payment_totals.shipping_discount|format_number_thousand_decimal_points }}</p></td>
+                                                                                </tr>
+                                                                            {% endif %}
 
-                                                                        <tr>
-                                                                            <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
-                                                                        </tr>
-                                                                        <tr>
-                                                                            <td style="padding-top:0;padding-bottom: 0;"><b>Gesamt</b></td>
-                                                                            <td align="right" style="padding-top:0;padding-bottom: 0;"><p>
-                                                                                <b>{{ payment_totals.payment_total|custom_add:payment_totals.shipping_price|custom_add:payment_totals.total_discount|custom_add:payment_totals.shipping_discount|format_number_thousand_decimal_points }}</b>
-                                                                            </p></td>
-                                                                        </tr>
+                                                                            <tr>
+                                                                                <td colspan="2" style="padding-top:0;padding-bottom:0;"><hr style="margin:0px;"/></td></tr>
+                                                                            </tr>
+                                                                            <tr>
+                                                                                <td style="padding-top:0;padding-bottom: 0;"><b>Gesamt</b></td>
+                                                                                <td align="right" style="padding-top:0;padding-bottom: 0;"><p>
+                                                                                    <b>{{ payment_totals.payment_total|custom_add:payment_totals.shipping_price|custom_add:payment_totals.total_discount|custom_add:payment_totals.shipping_discount|format_number_thousand_decimal_points }}</b>
+                                                                                </p></td>
+                                                                            </tr>
 
 
-                                                                    </table>
+                                                                        </table>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                            </div>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endif %}
                                 </td>

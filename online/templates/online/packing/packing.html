@@ -16,7 +16,12 @@
         <div class="panel-body">
             {% if is_all_scanned != True %}
                 <form method="POST">{% csrf_token %}
-                    {{ form.as_p }}
+                <p>
+                    {{ form.non_field_errors }}
+                    <label for="{{ form.ean_or_sku.id_for_label }}">{{ form.ean_or_sku.label }}</label>
+                    {{ form.ean_or_sku.errors }}
+                    {{ form.ean_or_sku }}
+                </p>
                 </form>
             {% endif  %}
 
@@ -37,8 +42,9 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <p><b>EAN: </b>{{ pick_row.product_mission.sku.product.ean }}</p>
-                                <p><b>Zustand: </b>{{ pick_row.product_mission.sku.state }}</p>
+                                <p><b>EAN: </b>{{ pick_row.ean }}</p>
+                                <p><b>SKU: </b>{{ pick_row.sku_number }}</p>
+                                <p><b>Zustand: </b>{{ pick_row.state }}</p>
                                 <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
                             </td>
                         </tr>
@@ -105,14 +111,14 @@
                             </div>
                         </div>
                     {% endif %}
-                    {% if picklist.completed is None %}
-                        <div class="col-md-12" style="padding:0px;">
-                            <div class="text-right">
-                                <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|&nbsp;
-                                <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
-                            </div>
+                {% endif %}
+                {% if picklist.completed is None %}
+                    <div class="col-md-12" style="padding:0px;">
+                        <div class="text-right">
+                            <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|&nbsp;
+                            <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
                         </div>
-                    {% endif %}
+                    </div>
                 {% endif %}
             {% endif %}
         </div>

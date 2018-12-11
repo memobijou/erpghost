@@ -187,7 +187,8 @@ class AmazonImportTask(Task):
         ship_country_code = self.column_from_row("ship-country", row)
         ship_postal_code = self.column_from_row("ship-postal-code", row)
 
-        address_data = {"first_name_last_name": recipient_name, "adresszusatz": None, "adresszusatz2": None,
+        address_data = {"first_name_last_name": recipient_name,
+                        "adresszusatz": shipping_address.get("adresszusatz"), "adresszusatz2": None,
                         "street_and_housenumber": shipping_address.get("street_and_housenumber"),
                         "address_line_1": address_line_1, "address_line_2": address_line_2,
                         "address_line_3": address_line_3, "place": ship_city, "zip": ship_postal_code,
@@ -213,8 +214,8 @@ class AmazonImportTask(Task):
         buyer_name, billing_city = self.column_from_row("buyer-name", row), self.column_from_row("bill-city", row)
         billing_country_code = self.column_from_row("bill-country", row)
         billing_postal_code = self.column_from_row("bill-postal-code", row)
-
-        address_data = {"first_name_last_name": buyer_name, "adresszusatz": None, "adresszusatz2": None,
+        address_data = {"first_name_last_name": buyer_name,
+                        "adresszusatz": billing_address.get("adresszusatz"), "adresszusatz2": None,
                         "street_and_housenumber": billing_address.get("street_and_housenumber"),
                         "address_line_1": address_line_1, "address_line_2": address_line_2,
                         "address_line_3": address_line_3, "place": billing_city, "zip": billing_postal_code,
@@ -231,7 +232,7 @@ class AmazonImportTask(Task):
         street_components = {}
 
         if address_line_1 != "" and address_line_2 != "":
-            street_components["company"] = address_line_1
+            street_components["adresszusatz"] = address_line_1
             street_components["street_and_housenumber"] = address_line_2
         elif address_line_1 != "" and address_line_2 == "":
             street_components["street_and_housenumber"] = address_line_1

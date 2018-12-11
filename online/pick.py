@@ -2,8 +2,10 @@ import re
 from collections import OrderedDict
 
 import pycountry
+from datetime import timedelta
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models.functions import Now
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
 from django.urls import reverse_lazy
@@ -13,7 +15,7 @@ from django.views import generic
 from client.models import Client
 from configuration.models import OnlinePositionPrefix
 from mission.models import Mission, PickList, PickListProducts, PickOrder, PackingStation, DeliveryNote, \
-    DeliveryNoteProductMission, Billing, BillingProductMission, ProductMission
+    DeliveryNoteProductMission, Billing, BillingProductMission, ProductMission, DeliveryNoteItem, BillingItem
 from online.dhl import DHLLabelCreator
 from online.dpd import DPDLabelCreator
 from online.forms import AcceptOnlinePicklistForm, PickListProductsForm, StationGotoPickListForm, PackingForm, \
@@ -22,7 +24,8 @@ from sku.models import Sku
 from stock.models import Stock, Position
 import requests
 import json
-from django.db.models import Sum, Case, When, Q, F, OuterRef, Subquery, Count, ExpressionWrapper, CharField
+from django.db.models import Sum, Case, When, Q, F, OuterRef, Subquery, Count, ExpressionWrapper, CharField, \
+    DurationField
 from django.db.models.functions import Lower
 
 
@@ -34,11 +37,16 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
     def __init__(self):
         super().__init__()
         self.missions = Mission.objects.filter(productmission__sku__product__ean__isnull=False,
-                                               online_picklist__isnull=True, is_online=True, not_matchable__isnull=True)
-        # ohne DHL erstmal
-        self.missions = self.missions.exclude(Q(Q(online_transport_service__name__iexact="dhl") |
-                                                Q(ignore_pickorder=True)))
-        print(f"jo: {self.missions.count()}")
+                                               online_picklist__isnull=True, is_online=True, not_matchable__isnull=True,
+                                               ignore_pickorder__isnull=True)
+        self.missions = self.missions.annotate(delta=Case(
+            When(purchased_date__gte=Now(), then=F('purchased_date') - Now()),
+            When(purchased_date__lt=Now(), then=Now() - F('purchased_date')),
+            output_field=DurationField())).order_by("delta")
+        self.missions = self.missions.exclude(Q(
+            Q(online_transport_service__name__iexact="dhl") | Q(ignore_pickorder=True))
+          | Q(delta__gte=timedelta(days=20)) | Q(not_matchable=True)
+        )
         self.picklist_data = None
         self.pickorder = None
         self.missions_products = None
@@ -80,19 +88,15 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
     def get_missions_products(self):
         product_missions = ProductMission.objects.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
         product_missions = product_missions.get_online_stocks()
-        print(f"banana: {product_missions}")
+        print(f"banana: ")
+        product_missions = product_missions.exclude(
+            Q(Q(total__lte=0) | Q(online_total__lte=0) | Q(packing_unit_amount__gt=F("online_total"))))
 
-        exclude_missions_pks = product_missions.filter(
-            Q(Q(total__lte=0) | Q(online_total__lte=0))).values_list("mission__pk", flat=True)
-
-        print(f"mama: {exclude_missions_pks}")
-
-        product_missions = product_missions.exclude(mission__pk__in=exclude_missions_pks)
-
-        missions_pks = product_missions.values_list("mission__pk", flat=True)[:10]
-        print(f"baba: {missions_pks}")
-
+        missions_pks = product_missions.values_list("mission__pk").order_by("mission__purchased_date")[:10]
+        print(f"baba: ")
+        print(f"{missions_pks}")
         self.missions_products = product_missions.filter(mission__pk__in=missions_pks)
+        print(f"wwww:")
         return self.missions_products
 
     def get_context_data(self, **kwargs):
@@ -117,37 +121,47 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
             for pick_row in pick_rows:
                 mission_product = pick_row.get("mission_product")
                 amount = pick_row.get("amount")
+                product = mission_product.internal_sku.product
+
+                ean = mission_product.ean
+                state = mission_product.state
+                # sku_number = product.sku_set.filter(main_sku=True, state=state).first().sku
+                sku_number = mission_product.internal_sku_number
+                online_sku = mission_product.online_sku_number
+
                 pick_row_instance = PickListProducts.objects.create(
                     pick_list=picklist_instance, amount=amount, position=pick_row.get("position"),
-                    product_mission=mission_product
+                    product_mission=mission_product, ean=ean, sku_number=sku_number, online_sku_number=online_sku,
+                    state=state
                 )
+
                 pick_row_instance.save()
                 # hier pickliste erstellen pro auftrag
 
     def get_picklist_data(self):
         picklist_data = OrderedDict()
 
-        print(f"hello: {self.missions_products}")
+        print(f"hello:")
 
         for mission_product in self.missions_products:
-            print(f"wie: {mission_product.picklists_total}")
+            picklist_total = PickListProducts.objects.filter(
+                pick_list__completed__isnull=True, pick_list__mission__isnull=True,
+                product_mission=mission_product).aggregate(total=Sum("amount")).get("total", 0) or 0
+            print(f"wie: {picklist_total}")
             picklist_stocks = []
             total = 0
-
-            product_sku = mission_product.sku.sku
-            product = mission_product.sku.product
-            skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
             amount = mission_product.amount * mission_product.sku.product.packing_unit
-            print(f"wA: {self.stocks}")
             for stock in self.stocks:
-                if ((stock.sku in skus) or (product.ean == stock.ean_vollstaendig
-                                            and stock.zustand == mission_product.sku.state)):
+                if ((stock.sku == mission_product.internal_sku_number)
+                        or (mission_product.ean == stock.ean_vollstaendig and stock.zustand == mission_product.state)
+                        or (stock.sku_instance.sku == mission_product.internal_sku_number
+                            if stock.sku_instance is not None else False)):
                     if stock in self.used_stocks:
                         stock_bestand = stock.bestand-self.used_stocks[stock]
                     else:
                         stock_bestand = stock.bestand
 
-                    stock_bestand -= mission_product.picklists_total or 0
+                    stock_bestand -= picklist_total or 0
 
                     print(f"? {stock_bestand}")
 
@@ -176,12 +190,13 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
                 continue
 
             if len(picklist_stocks) > 0:
-                if (mission_product.sku.product, mission_product.sku.state, product_sku) not in picklist_data:
-                    picklist_data[(mission_product.sku.product, mission_product.sku.state,
-                                   product_sku)] = picklist_stocks
+                product = mission_product.sku.product
+                product = product.packing_unit_parent if product.packing_unit > 1 else product
+                product_data = (product, mission_product.ean, mission_product.state, mission_product.internal_sku_number)
+                if product_data not in picklist_data:
+                    picklist_data[product_data] = picklist_stocks
                 else:
-                    picklist_data[(mission_product.sku.product, mission_product.sku.state,
-                                   product_sku)].extend(picklist_stocks)
+                    picklist_data[product_data].extend(picklist_stocks)
 
                 for pick_row in picklist_stocks:
                     pick_row_stock = pick_row.get("stock")
@@ -194,7 +209,7 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
 
     def put_pickrows_under_missions(self):
         mission_pickrows = {}
-        for product, pick_rows in self.picklist_data.items():
+        for product_data, pick_rows in self.picklist_data.items():
             for pick_row in pick_rows:
                 mission = pick_row.get("mission_product").mission
                 if mission not in mission_pickrows:
@@ -205,14 +220,13 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
 
     def get_products_stocks(self):
         query_condition = Q()
-
+        print(f"okkk: {self.missions_products.count()}")
         for mission_product in self.missions_products:
-            product_sku = mission_product.sku.sku
-            product = mission_product.sku.product
-            skus = product.sku_set.filter(state=mission_product.sku.state, main_sku=True).values_list("sku", flat=True)
-            print(f"WHY: {skus}")
-            query_condition |= Q(Q(ean_vollstaendig=product.ean, zustand__iexact=mission_product.sku.state) |
-                                 Q(sku__in=skus))
+            product = mission_product.internal_sku.product
+            internal_sku_number = mission_product.internal_sku_number
+
+            query_condition |= Q(Q(ean_vollstaendig=mission_product.ean, zustand__iexact=mission_product.state) |
+                                 Q(sku=internal_sku_number) | Q(sku_instance__sku=internal_sku_number))
 
         if len(query_condition) == 0:
             return
@@ -222,10 +236,10 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
 
         stocks = list(Stock.objects.filter(query_condition))
 
-        print(f"babo: {stocks}")
+        print(f"babo: ")
 
         stocks = order_stocks_by_position(stocks, query_condition=query_condition)
-        print(f"Hey stocks: {stocks}")
+        print(f"Hey stocks: ")
         return stocks
 
 
@@ -591,15 +605,15 @@ class PackingView(LoginRequiredMixin, View):
         context = self.get_context()
 
         if form.is_valid() is True:
-            ean = form.cleaned_data.get("ean")
+            ean_or_sku = form.cleaned_data.get("ean_or_sku")
             pick_row = self.picklist.picklistproducts_set.filter(
-                product_mission__sku__product__ean=ean, confirmed=None).first()
+                Q(Q(confirmed=None) & Q(Q(ean=ean_or_sku) | Q(sku_number=ean_or_sku)))).first()
             if pick_row is None:
-                context["form"].add_error(None, f"Artikel mit EAN {ean} in Auftrag nicht vorhanden")
+                context["form"].add_error(None, f"Artikel mit EAN/SKU {ean_or_sku} in Auftrag nicht vorhanden")
                 return render(request, "online/packing/packing.html", context)
             else:
                 if (pick_row.confirmed_amount or 0) >= int(pick_row.amount):
-                    context["form"].add_error(None, f"Artikel mit EAN {ean} wurde bereits vollständig bestätigt")
+                    context["form"].add_error(None, f"Artikel mit EAN/SKU {ean_or_sku} wurde bereits vollständig bestätigt")
                     return render(request, "online/packing/packing.html", context)
 
                 if pick_row.confirmed_amount is None:
@@ -655,14 +669,16 @@ def book_out_stocks(picklist):
     picklist.completed = True
     picklist.save()
     for pick_row in picklist.picklistproducts_set.all():
-        product = pick_row.product_mission.sku.product
-        product_sku = pick_row.product_mission.sku.product.sku_set.filter(
-            main_sku=True, state=pick_row.product_mission.sku.state).first()
+        state = pick_row.state
+        sku_number = pick_row.sku_number
+        ean = pick_row.ean
 
         stock = Stock.objects.filter(
             Q(Q(lagerplatz__iexact=pick_row.position) &
-              Q(Q(ean_vollstaendig=product.ean, zustand__iexact=product_sku.state)
-                | Q(sku=product_sku.sku) | Q(sku_instance__sku=product_sku)))).first()
+              Q(Q(ean_vollstaendig=ean, zustand__iexact=state)
+                | Q(sku=sku_number) | Q(sku_instance__sku=sku_number)))).first()
+
+        print(f"??? {stock}")
         if stock is not None:
             stock.bestand -= pick_row.confirmed_amount
 
@@ -701,22 +717,32 @@ class ProvidePackingView(LoginRequiredMixin, View):
         self.picklist.online_delivery_note = DeliveryNote.objects.create()
         self.picklist.save()
         bulk_instances = []
-        for pick_row in self.picklist.picklistproducts_set.all():
-            bulk_instances.append(DeliveryNoteProductMission(product_mission=pick_row.product_mission,
-                                                             delivery_note=self.picklist.online_delivery_note,
-                                                             amount=pick_row.confirmed_amount, ))
-        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+        for mission_product in self.mission.productmission_set.all():
+            bulk_instances.append(DeliveryNoteItem(delivery_note=self.picklist.online_delivery_note,
+                                                   amount=mission_product.amount,
+                                                   ean=mission_product.ean,
+                                                   sku=mission_product.online_sku_number,
+                                                   state=mission_product.state,
+                                                   description=mission_product.online_description))
+
+        DeliveryNoteItem.objects.bulk_create(bulk_instances)
 
     def create_billing(self):
         self.picklist.online_billing = Billing.objects.create()
         self.picklist.save()
         bulk_instances = []
 
-        for pick_row in self.picklist.picklistproducts_set.all():
-            bulk_instances.append(BillingProductMission(product_mission=pick_row.product_mission,
-                                                        billing=self.picklist.online_billing,
-                                                        amount=pick_row.confirmed_amount, ))
-        BillingProductMission.objects.bulk_create(bulk_instances)
+        for mission_product in self.mission.productmission_set.all():
+            netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
+
+            bulk_instances.append(BillingItem(
+                billing=self.picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
+                ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
+                description=mission_product.online_description, brutto_price=mission_product.brutto_price,
+                shipping_price=mission_product.shipping_price, discount=mission_product.discount,
+                shipping_discount=mission_product.shipping_discount
+            ))
+        BillingItem.objects.bulk_create(bulk_instances)
 
     def create_label(self):
         if self.mission.delivery_address.strasse is None and self.mission.delivery_address.hausnummer is None:

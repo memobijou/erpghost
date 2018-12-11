@@ -103,7 +103,9 @@ class Sku(models.Model):
         if self.main_sku is not True:
             from mission.models import ProductMission
             missions_products_without_match = ProductMission.objects.filter(
-                no_match_sku__isnull=False, no_match_sku=self.sku)
+                Q(Q(no_match_sku__isnull=False) &
+                  Q(Q(no_match_sku=self.sku) | Q(online_sku_number=self.sku)))
+            )
             print(f"whaat: {missions_products_without_match}")
             for missions_product in missions_products_without_match:
                 missions_product.sku = self

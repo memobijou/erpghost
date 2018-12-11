@@ -60,6 +60,9 @@ class Product(models.Model):
 
     packing_unit = models.IntegerField(null=True, blank=True, default=1, verbose_name="Verpackungseinheit")
 
+    packing_unit_parent = models.ForeignKey("product.Product", related_name="packing_unit_child", null=True,
+                                            blank=True)
+
     objects = ProductObjectManager()
 
     def __str__(self):

@@ -7,6 +7,7 @@ from django.db.models import Q
 from django.db.models import Subquery
 
 from adress.models import Adress
+from configuration.models import OnlinePositionPrefix
 from customer.models import Customer
 from product.models import Product
 from datetime import date
@@ -44,7 +45,6 @@ class Mission(models.Model):
     ship_date_to = models.DateField(null=True, blank=True, verbose_name="Versanddatum bis")
     status = models.CharField(max_length=200, null=True, blank=True, default="OFFEN", verbose_name="Status")
     channel = models.ForeignKey(Channel, null=True, blank=True, verbose_name="Channel")
-    skus = models.ManyToManyField(Sku, through="ProductMission")
     customer = models.ForeignKey(Customer, null=True, blank=True, related_name='mission', verbose_name="Kunde",
                                  on_delete=models.SET_NULL)
     customer_order_number = models.CharField(max_length=200, null=True, blank=True,
@@ -105,27 +105,37 @@ class Mission(models.Model):
     objects = MissionObjectManager()
 
     def get_online_status(self, mission_products, mission_products_without_match):
-        if self.online_business_account is not None:
-            if self.online_business_account.transport_service is not None:
-                transport_service = self.online_business_account.transport_service
-                if transport_service.name is not None:
-                    if transport_service.name.lower() == "dhl":
-                        self.ignore_pickorder = True
-                        return "DHL"
+        if self.online_picklist is None and mission_products_without_match is not None:
+            if self.online_business_account is not None:
+                if self.online_business_account.transport_service is not None:
+                    transport_service = self.online_business_account.transport_service
+                    if transport_service.name is not None:
+                        if transport_service.name.lower() == "dhl":
+                            self.ignore_pickorder = True
+                            return "DHL"
 
-        if self.not_matchable is True:
-            if mission_products.count() > 0:
-                for mission_product in mission_products:
-                    if mission_product.sku is not None and mission_product.sku.product.ean in [None, ""]:
-                        return "Artikel ohne EAN"
-            if mission_products_without_match.count() > 0 or self.none_sku_products_amount is not None:
+            if("packstation" in (self.delivery_address.address_line_1 or "").lower() or
+               "packstation" in (self.delivery_address.address_line_2 or "").lower() or
+               "packstation" in (self.delivery_address.address_line_3 or "").lower()):
+                    self.ignore_pickorder = True
+                    return "DHL"
+
+            if self.ignore_pickorder is True:
+                return "Von Pickauftrag abgelöst"
+
+            if self.not_matchable is True:
+                if mission_products.count() > 0:
+                    for mission_product in mission_products:
+                        if mission_product.sku is not None and mission_product.sku.product.ean in [None, ""]:
+                            return "Artikel ohne EAN"
+                if mission_products_without_match.count() > 0 or self.none_sku_products_amount is not None:
+                    return "Artikel nicht zugeordnet"
+
+            if self.none_sku_products_amount is not None:
                 return "Artikel nicht zugeordnet"
 
-        if self.none_sku_products_amount is not None:
-            return "Artikel nicht zugeordnet"
-
-        if mission_products.count() == 0:
-            return "Artikel nicht zugeordnet"
+            if mission_products.count() == 0:
+                return "Artikel nicht zugeordnet"
 
         if self.status == "Manuell":
             return "Manuell"
@@ -163,14 +173,16 @@ class Mission(models.Model):
             self.status = get_status(self)
         else:
             missions_products = self.productmission_set.all()
-            mission_products_without_match = missions_products.filter(no_match_sku__isnull=False)
-            if (missions_products.count() > 0 and mission_products_without_match.count() == 0 and
-                    self.none_sku_products_amount is None):
-                self.not_matchable = None
-            else:
-                self.not_matchable = True
-            print(f"gamery: {mission_products_without_match}")
-            print(f"2: {mission_products_without_match.count()}")
+            mission_products_without_match = None
+            if self.online_picklist is None:
+                mission_products_without_match = missions_products.filter(no_match_sku__isnull=False)
+                if (missions_products.count() > 0 and mission_products_without_match.count() == 0 and
+                        self.none_sku_products_amount is None):
+                    self.not_matchable = None
+                else:
+                    self.not_matchable = True
+                print(f"gamery: {mission_products_without_match}")
+                print(f"2: {mission_products_without_match.count()}")
             self.status = self.get_online_status(missions_products, mission_products_without_match)
         super().save()
 
@@ -189,43 +201,58 @@ class Mission(models.Model):
 
 
 class ProductMissionQuerySet(models.QuerySet):
+    # def get_online_stocks(self):
+    #     from stock.models import Stock
+    #     from configuration.models import OnlinePositionPrefix
+    #     online_prefixes = OnlinePositionPrefix.objects.all()
+    #     online_prefixes_condition = Q()
+    #     for prefix in online_prefixes:
+    #         online_prefixes_condition |= Q(stock__lagerplatz__istartswith=prefix.prefix)
+    #
+    #     stock_condition = Q(Q(stock__sku_instance__product=F("product"),
+    #                           stock__sku_instance__state=F("state")) |
+    #                         Q(stock__ean_vollstaendig=F("product__ean"),
+    #                           stock__zustand=F("state")))
+    #
+    #     subquery_sku = Sku.objects.filter(sku=OuterRef("internal_sku_number"), state=OuterRef("state")).annotate(
+    #         total=Sum(Case(When(stock_condition, then="stock__bestand"), default=0))).annotate(
+    #         online_total=Sum(Case(When(Q(stock_condition & online_prefixes_condition),
+    #                                    then="stock__bestand"), default=0)))[:1]
+    #
+    #     subquery_mission_total = Sku.objects.filter(sku=OuterRef("sku__sku")).annotate(
+    #         mission_total=Sum(Case(When(productmission__mission__is_online=True,
+    #                                     productmission__mission__online_picklist__completed__isnull=True,
+    #                                     then="productmission__amount"), default=0)))[:1]
+    #
+    #     subquery_picklists_total = ProductMission.objects.filter(pk=OuterRef("pk")).annotate(
+    #         picklists_total=Sum(Case(When(sku__productmission__sku=F("sku"),
+    #                                       sku__productmission__picklistproducts__pick_list__completed__isnull=True,
+    #                                       sku__productmission__mission__is_online=True,
+    #                                       then="sku__productmission__picklistproducts__amount"), default=0)))[:1]
+    #
+    #     return self.all().annotate(
+    #         total=Subquery(subquery_sku.values("total"), output_field=models.IntegerField())).annotate(
+    #         mission_total=Subquery(subquery_mission_total.values("mission_total"),
+    #                                output_field=models.IntegerField())).annotate(
+    #         available_total=F("total")-F("mission_total")).annotate(
+    #         online_total=Subquery(subquery_sku.values("online_total"), output_field=models.IntegerField())).annotate(
+    #         refill_total=F("mission_total")-F("online_total")).annotate(
+    #         picklists_total=Subquery(subquery_picklists_total.values("picklists_total"))).annotate(
+    #         packing_unit_amount=F("amount")*F("sku__product__packing_unit"))
+
     def get_online_stocks(self):
-        from stock.models import Stock
-        from configuration.models import OnlinePositionPrefix
         online_prefixes = OnlinePositionPrefix.objects.all()
         online_prefixes_condition = Q()
         for prefix in online_prefixes:
-            online_prefixes_condition |= Q(stock__lagerplatz__istartswith=prefix.prefix)
+            online_prefixes_condition |= Q(internal_sku__stock__lagerplatz__istartswith=prefix.prefix)
 
-        stock_condition = Q(Q(stock__sku_instance__product=F("product"),
-                              stock__sku_instance__state=F("state")) |
-                            Q(stock__ean_vollstaendig=F("product__ean"),
-                              stock__zustand=F("state")))
-
-        subquery_sku = Sku.objects.filter(product=OuterRef("sku__product"), state=OuterRef("sku__state")).annotate(
-            total=Sum(Case(When(stock_condition, then="stock__bestand"), default=0))).annotate(
-            online_total=Sum(Case(When(Q(stock_condition & online_prefixes_condition),
-                                       then="stock__bestand"), default=0)))[:1]
-
-        subquery_mission_total = Sku.objects.filter(sku=OuterRef("sku__sku")).annotate(
-            mission_total=Sum(Case(When(productmission__mission__is_online=True,
-                                        productmission__mission__online_picklist__completed__isnull=True,
-                                        then="productmission__amount"), default=0)))[:1]
-
-        subquery_picklists_total = ProductMission.objects.filter(pk=OuterRef("pk")).annotate(
-            picklists_total=Sum(Case(When(sku__productmission__sku=F("sku"),
-                                          sku__productmission__picklistproducts__pick_list__completed__isnull=True,
-                                          sku__productmission__mission__is_online=True,
-                                          then="sku__productmission__picklistproducts__amount"), default=0)))[:1]
-
-        return self.all().annotate(
-            total=Subquery(subquery_sku.values("total"), output_field=models.IntegerField())).annotate(
-            mission_total=Subquery(subquery_mission_total.values("mission_total"),
-                                   output_field=models.IntegerField())).annotate(
-            available_total=F("total")-F("mission_total")).annotate(
-            online_total=Subquery(subquery_sku.values("online_total"), output_field=models.IntegerField())).annotate(
-            refill_total=F("mission_total")-F("online_total")).annotate(
-            picklists_total=Subquery(subquery_picklists_total.values("picklists_total")))
+        queryset = self.all().annotate(
+            online_total=Sum(Case(When(online_prefixes_condition, then="internal_sku__stock__bestand"), default=0))
+        ).annotate(
+            total=Sum("internal_sku__stock__bestand"),
+            packing_unit_amount=F("amount")*F("sku__product__packing_unit"),
+        )
+        return queryset
 
 
 class ProductMissionManager(models.Manager):
@@ -239,7 +266,15 @@ class ProductMission(models.Model):
 
     objects = ProductMissionManager()
 
-    sku = models.ForeignKey(Sku, on_delete=models.deletion.SET_NULL, verbose_name="Sku", null=True)
+    sku = models.ForeignKey(Sku, on_delete=models.deletion.SET_NULL, verbose_name="Online Sku", null=True)
+    internal_sku = models.ForeignKey(Sku, on_delete=models.deletion.SET_NULL, verbose_name="Interne Sku", null=True,
+                                     related_name="internal_skus")
+    # Nachdem Pickliste erstellt wurde sollen die Daten erfasst bleiben, auch wenn sich SKU Instanz ändert
+    internal_sku_number = models.CharField(max_length=200, null=True, blank=True, verbose_name="Sku Zeichenkette")
+    online_sku_number = models.CharField(max_length=200, null=True, blank=True, verbose_name="Online-Sku Zeichenkette")
+    ean = models.CharField(max_length=200, null=True, blank=True, verbose_name="EAN")
+    packing_unit = models.IntegerField(null=True, blank=True, verbose_name="Verpackungseinheit")
+
     mission = models.ForeignKey(Mission, on_delete=models.CASCADE, unique=False, blank=False, null=False,
                                 verbose_name="Auftrag")
     state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
@@ -272,9 +307,24 @@ class ProductMission(models.Model):
             ean_or_sku = self.sku.sku
         return ean_or_sku
 
-    # def save(self, *args, **kwargs):
-    #     self.full_clean()
-    #     super().save(*args, **kwargs)
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        if self.sku is not None:
+            self.online_sku_number = self.sku.sku
+            product = self.sku.product
+            self.packing_unit = product.packing_unit  # packing_unit immer von Online SKU
+
+            if product.packing_unit > 1:
+                if product.packing_unit_parent is not None:
+                    product = product.packing_unit_parent
+
+            ean = product.ean
+            state = self.sku.state
+            internal_sku = product.sku_set.filter(main_sku=True, state=state).first()
+            self.internal_sku = internal_sku
+            internal_sku_number = self.internal_sku.sku
+            self.ean, self.internal_sku_number, self.state = ean, internal_sku_number, state
+        super().save()
 
 
 class RealAmountModelManager(models.Manager):
@@ -409,6 +459,10 @@ class PickListProductsManager(models.Manager):
 class PickListProducts(models.Model):
     pick_list = models.ForeignKey(PickList, null=True, blank=True, on_delete=django.db.models.deletion.SET_NULL)
     product_mission = models.ForeignKey(ProductMission, null=True, blank=True)
+    ean = models.CharField(max_length=200, null=True, blank=True, verbose_name="EAN")
+    sku_number = models.CharField(max_length=200, null=True, blank=True, verbose_name="SKU")
+    online_sku_number = models.CharField(max_length=200, null=True, blank=True, verbose_name="Online SKU")
+    state = models.CharField(max_length=200, null=True, blank=True, verbose_name="Zustand")
     amount = models.IntegerField(verbose_name="Menge", null=True, blank=True)
     position = models.CharField(verbose_name="Lagerplatz", null=True, blank=True, max_length=200)
     confirmed = models.NullBooleanField(verbose_name="Bestätigt", blank=True, null=True)
@@ -488,11 +542,25 @@ class Billing(ModelBase):
     shipping_costs = models.FloatField(blank=False, null=True, max_length=200, verbose_name="Transportkosten")
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+             update_fields=None, *args):
         super().save()
         if self.billing_number is None or self.billing_number == "":
             self.billing_number = f"RG{self.pk+1}"
         super().save()
+
+
+class BillingItem(models.Model):
+    billing = models.ForeignKey("mission.Billing", blank=True, null=True)
+    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge")
+    state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
+    ean = models.CharField(max_length=200, verbose_name="EAN", null=True, blank=True)
+    sku = models.CharField(max_length=200, verbose_name="SKU", null=True, blank=True)
+    description = models.TextField(null=True, blank=True, verbose_name="Online Beschreibung")
+    netto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Netto)")
+    brutto_price = models.FloatField(null=True, blank=True, verbose_name="Einzelpreis (Brutto)")
+    shipping_price = models.FloatField(null=True, blank=True, verbose_name="Versandkosten")
+    discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt")
+    shipping_discount = models.FloatField(null=True, blank=True, verbose_name="Rabatt für Versand")
 
 
 class BillingProductMissionManager(models.Manager):
@@ -520,11 +588,23 @@ class DeliveryNote(ModelBase):
     delivery_date = models.DateField(null=True, blank=True, verbose_name="Lieferdatum")
 
     def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+             update_fields=None, **kwargs):
         super().save()
         if self.delivery_note_number is None or self.delivery_note_number == "":
             self.delivery_note_number = f"LS{self.pk+1}"
         super().save()
+
+
+class DeliveryNoteItem(models.Model):
+    class Meta:
+        ordering = ["pk"]
+
+    delivery_note = models.ForeignKey("mission.DeliveryNote", blank=True, null=True)
+    amount = models.IntegerField(blank=True, null=True, verbose_name="Menge")
+    state = models.CharField(max_length=200, verbose_name="Zustand", null=True, blank=True)
+    ean = models.CharField(max_length=200, verbose_name="EAN", null=True, blank=True)
+    sku = models.CharField(max_length=200, verbose_name="SKU", null=True, blank=True)
+    description = models.TextField(null=True, blank=True, verbose_name="Online Beschreibung")
 
 
 class Truck(models.Model):

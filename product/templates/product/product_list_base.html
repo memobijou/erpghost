@@ -103,7 +103,7 @@
                         <th>Bild</th>
                         <th>EAN</th>
                         <th>SKUs</th>
-                        <th>ASINs</th>
+                        <th>Verpackungseinheit</th>
                         <th>Artikelname</th>
                         <th>Hersteller</th>
                         <th>Marke</th>
@@ -152,11 +152,7 @@
                                     {% endfor %}
                                 </td>
                                 <td>
-                                    {% for sku in online_skus %}
-                                        {% if sku.asin %}
-                                            {{ sku.asin|default:"" }}<br/>
-                                        {% endif %}
-                                    {% endfor %}
+                                    {{ object.packing_unit }}
                                 </td>
                                 <td>
                                     {{ object.title|default:"" }}

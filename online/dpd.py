@@ -6,7 +6,8 @@ from django import views
 from django.http import HttpResponseRedirect
 
 from disposition.models import BusinessAccount
-from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission
+from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission, \
+    DeliveryNoteItem, BillingItem
 from client.models import Client
 import base64
 from xml.etree import ElementTree as Et
@@ -52,8 +53,7 @@ class DPDCreatePDFView(UpdateView):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
         if self.mission.online_picklist.completed is True:
             return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
-        first_product = self.mission.productmission_set.first()
-        self.client = first_product.sku.channel.client
+        self.client = self.mission.channel.client
         print(f"{self.mission} --- {self.client}")
         return super().dispatch(request, *args, **kwargs)
 
@@ -92,29 +92,35 @@ class DPDCreatePDFView(UpdateView):
         return super().form_valid(form)
 
     def create_delivery_note(self, picklist):
-        if picklist.online_delivery_note is not None:
-            picklist.online_delivery_note.delete()
         picklist.online_delivery_note = DeliveryNote.objects.create()
         picklist.save()
         bulk_instances = []
-        for pick_row in picklist.picklistproducts_set.all():
-            bulk_instances.append(DeliveryNoteProductMission(product_mission=pick_row.product_mission,
-                                                             delivery_note=picklist.online_delivery_note,
-                                                             amount=pick_row.confirmed_amount, ))
-        DeliveryNoteProductMission.objects.bulk_create(bulk_instances)
+        for mission_product in self.mission.productmission_set.all():
+            bulk_instances.append(DeliveryNoteItem(delivery_note=picklist.online_delivery_note,
+                                                   amount=mission_product.amount,
+                                                   ean=mission_product.ean,
+                                                   sku=mission_product.online_sku_number,
+                                                   state=mission_product.state,
+                                                   description=mission_product.online_description))
+
+        DeliveryNoteItem.objects.bulk_create(bulk_instances)
 
     def create_billing(self, picklist):
-        if picklist.online_billing is not None:
-            picklist.online_billing.delete()
         picklist.online_billing = Billing.objects.create()
         picklist.save()
         bulk_instances = []
 
-        for pick_row in picklist.picklistproducts_set.all():
-            bulk_instances.append(BillingProductMission(product_mission=pick_row.product_mission,
-                                                        billing=picklist.online_billing,
-                                                        amount=pick_row.confirmed_amount, ))
-        BillingProductMission.objects.bulk_create(bulk_instances)
+        for mission_product in self.mission.productmission_set.all():
+            netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
+
+            bulk_instances.append(BillingItem(
+                billing=picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
+                ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
+                description=mission_product.online_description, brutto_price=mission_product.brutto_price,
+                shipping_price=mission_product.shipping_price, discount=mission_product.discount,
+                shipping_discount=mission_product.shipping_discount
+            ))
+        BillingItem.objects.bulk_create(bulk_instances)
 
 
 class DPDLabelCreator:
@@ -194,7 +200,8 @@ class DPDLabelCreator:
                                     <gln>0</gln>
                                   </sender>
                                   <recipient>
-                                    <name1>{self.mission.delivery_address.first_name_last_name}</name1>
+                                    <name1>{self.mission.delivery_address.first_name_last_name[:35]}</name1>
+                                    <name2>{self.mission.delivery_address.adresszusatz[:35] or ""}</name2>
                                     <street>{self.mission.delivery_address.strasse}</street>
                                     <houseNo>{self.mission.delivery_address.hausnummer}</houseNo>
                                     <country>{self.country_code}</country>

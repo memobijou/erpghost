@@ -167,6 +167,10 @@ class DPDLabelCreator:
     def create_label_through_dpd_api(self):
         self.get_authentication_token_from_dpd_api()
         print(f"wie ?? {self.client}")
+        first_name_last_name = self.mission.delivery_address.first_name_last_name or ""
+        first_name_last_name = first_name_last_name[:35]
+        adresszusatz = self.mission.delivery_address.adresszusatz or ""
+        adresszusatz = adresszusatz[:35]
         doc = f'''
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
              xmlns:ns="http://dpd.com/common/service/types/Authentication/2.0"
@@ -200,8 +204,8 @@ class DPDLabelCreator:
                                     <gln>0</gln>
                                   </sender>
                                   <recipient>
-                                    <name1>{self.mission.delivery_address.first_name_last_name[:35]}</name1>
-                                    <name2>{self.mission.delivery_address.adresszusatz[:35] or ""}</name2>
+                                    <name1>{first_name_last_name}</name1>
+                                    <name2>{adresszusatz}</name2>
                                     <street>{self.mission.delivery_address.strasse}</street>
                                     <houseNo>{self.mission.delivery_address.hausnummer}</houseNo>
                                     <country>{self.country_code}</country>

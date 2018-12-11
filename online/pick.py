@@ -704,6 +704,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
 
     def post(self, request, *args, **kwargs):
         label_or_manual_label_redirect, error = self.create_label()
+        print("kommt hier")
         if error is True:
             print(label_or_manual_label_redirect)
             return label_or_manual_label_redirect

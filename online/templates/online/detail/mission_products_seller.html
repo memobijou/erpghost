@@ -63,11 +63,13 @@
                                 <td>
                                     <p><b>Auftragsmenge: </b> {{productmission.amount}}</p>
                                     <hr/>
-                                    <p><b>Onlinebestand:</b> {{ productmission.online_total }}</p>
-                                    <p><b>Lagerbestand: </b> {{ productmission.total|default:0 }}/{{ productmission.total|default:0 }}</p>
-                                    {% if productmission.packing_unit_amount > productmission.online_total and object.online_picklist is None %}
-                                        <hr/>
-                                        <p style="color:red;"><b>Minusbestand: </b>{{  productmission.packing_unit_amount_minus_online_total }}</p>
+                                    {% if productmission.sku %}
+                                        <p><b>Onlinebestand:</b> {{ productmission.online_total|default:0 }}</p>
+                                        <p><b>Lagerbestand: </b> {{ productmission.total|default:0 }}/{{ productmission.total|default:0 }}</p>
+                                        {% if productmission.packing_unit_amount > productmission.online_total and object.online_picklist is None %}
+                                            <hr/>
+                                            <p style="color:red;"><b>Minusbestand: </b>{{  productmission.packing_unit_amount_minus_online_total }}</p>
+                                        {% endif %}
                                     {% endif %}
                                 </td>
                                 <td>

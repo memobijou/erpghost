@@ -31,6 +31,7 @@ class ProductForm(forms.ModelForm):
     def clean_packing_unit(self):
         packing_unit = self.cleaned_data["packing_unit"]
         ean = self.cleaned_data.get("ean")
+
         if packing_unit < 1:
             self.add_error("packing_unit", "Die Verpackungseinheit darf nicht kleiner als 1 sein")
         if self.instance.id is None:
@@ -55,6 +56,9 @@ class ProductForm(forms.ModelForm):
                     if packing_unit == product.packing_unit:
                         self.add_error("packing_unit", f"Verpackungseinheit vergeben")
 
+            if self.instance.packing_unit_parent is None:
+                self.add_error("packing_unit", "Sie können die Verpackungseinheit 1 für diesen Artikel nicht ändern."
+                               " Erstellen Sie einen neuen Artikel mit der gewünschten Verpackungseinheit.")
         return packing_unit
 
     def clean_ean(self):

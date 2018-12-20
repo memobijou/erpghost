@@ -51,8 +51,8 @@ class DPDCreatePDFView(UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
-        if self.mission.online_picklist.completed is True:
-            return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
+        # if self.mission.online_picklist.completed is True:
+        #     return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
         self.client = self.mission.channel.client
         print(f"{self.mission} --- {self.client}")
         return super().dispatch(request, *args, **kwargs)
@@ -67,6 +67,8 @@ class DPDCreatePDFView(UpdateView):
         return self.mission.delivery_address
 
     def get_success_url(self, **kwargs):
+        if self.request.GET.get("not_packing") is not None:
+            return reverse_lazy("online:list")
         return reverse_lazy("online:packing", kwargs={"pk": self.mission.online_picklist.pk})
 
     # def get(self, request, **kwargs):
@@ -85,18 +87,33 @@ class DPDCreatePDFView(UpdateView):
             self.mission.tracking_number = parcel_label_number
 
             if self.mission.online_picklist is not None:
-                self.create_delivery_note(self.mission.online_picklist)
-                self.create_billing(self.mission.online_picklist)
+                self.create_delivery_note(picklist=self.mission.online_picklist)
+                self.create_billing(picklist=self.mission.online_picklist)
                 self.mission.online_picklist.save()
+
+            elif self.request.GET.get("not_packing") is not None:
+                self.create_delivery_note()
+                self.create_billing()
             self.mission.save()
         return super().form_valid(form)
 
-    def create_delivery_note(self, picklist):
-        picklist.online_delivery_note = DeliveryNote.objects.create()
-        picklist.save()
+    def create_delivery_note(self, picklist=None):
+        delivery_note = None
+
+        if picklist is not None:
+            delivery_note = DeliveryNote.objects.create()
+            picklist.online_delivery_note = delivery_note
+            picklist.save()
+        else:
+            delivery_note = DeliveryNote.objects.create()
+            self.mission.delivery_note = delivery_note
+            self.mission.ignore_pickorder = True
+
+
+
         bulk_instances = []
         for mission_product in self.mission.productmission_set.all():
-            bulk_instances.append(DeliveryNoteItem(delivery_note=picklist.online_delivery_note,
+            bulk_instances.append(DeliveryNoteItem(delivery_note=delivery_note,
                                                    amount=mission_product.amount,
                                                    ean=mission_product.ean,
                                                    sku=mission_product.online_sku_number,
@@ -105,17 +122,25 @@ class DPDCreatePDFView(UpdateView):
 
         DeliveryNoteItem.objects.bulk_create(bulk_instances)
 
-    def create_billing(self, picklist):
+    def create_billing(self, picklist=None):
         if self.mission.billing_address is not None:
-            picklist.online_billing = Billing.objects.create()
-            picklist.save()
+            billing = None
+            if picklist is not None:
+                billing = Billing.objects.create()
+                picklist.online_billing = billing
+                picklist.save()
+            else:
+                billing = Billing.objects.create()
+                self.mission.billing = billing
+                self.mission.ignore_pickorder = True
+
             bulk_instances = []
 
             for mission_product in self.mission.productmission_set.all():
                 netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
 
                 bulk_instances.append(BillingItem(
-                    billing=picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
+                    billing=billing, amount=mission_product.amount, netto_price=netto_price,
                     ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
                     description=mission_product.online_description, brutto_price=mission_product.brutto_price,
                     shipping_price=mission_product.shipping_price, discount=mission_product.discount,

@@ -140,7 +140,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                        {% for object, payment_totals, mission_products, need_refill in object_list %}
+                        {% for object, payment_totals, mission_products, need_refill, label_link in object_list %}
                             <tr>
                                 <td>
                                     <p>
@@ -238,6 +238,8 @@
                                         {% else %}
                                             <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
                                         {% endif %}
+
+
                                         {% if object.online_picklist.online_billing %}
         {#                                    <a class="btn btn-info"#}
         {#                                        href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">#}
@@ -246,6 +248,12 @@
                                         {% else %}
                                                 <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
                                         {% endif %}
+                                        <br/>
+                                        <p>
+                                            {% if object.online_business_account %}
+                                                <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
+                                            {% endif %}
+                                        </p>
                                     </div>
                                     {% if object.none_sku_products_amount %}
                                         <div class="col-md-8" style="padding:0;">

@@ -102,6 +102,12 @@ class Mission(models.Model):
 
     none_sku_products_amount = models.IntegerField(null=True, blank=True, verbose_name="Anzahl Artikel ohne SKU")
 
+    delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True,
+                                      on_delete=django.db.models.deletion.SET_NULL)
+
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True,
+                                on_delete=django.db.models.deletion.SET_NULL)
+
     objects = MissionObjectManager()
 
     def get_online_status(self, mission_products, mission_products_without_match):

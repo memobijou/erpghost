@@ -36,6 +36,7 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
 
     def __init__(self):
         super().__init__()
+        self.pickorder_length = None
         self.missions = Mission.objects.filter(productmission__sku__product__ean__isnull=False,
                                                online_picklist__isnull=True, is_online=True, not_matchable__isnull=True,
                                                ignore_pickorder__isnull=True)
@@ -61,6 +62,8 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
         self.online_prefixes = OnlinePositionPrefix.objects.all()
 
     def dispatch(self, request, *args, **kwargs):
+        self.pickorder_length = self.get_pickorder_length()
+        print(f"{self.pickorder_length}")
         self.pickorder = request.user.pickorder_set.filter(completed=None).first()
         print(f"waaaaas? {self.pickorder}")
         if self.pickorder is not None:
@@ -85,6 +88,12 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
             return HttpResponseRedirect(reverse_lazy("online:refill"))
         return super().dispatch(request, *args, **kwargs)
 
+    def get_pickorder_length(self):
+        pickorder_length = self.request.GET.get("pickorder_length")
+        if pickorder_length is None or pickorder_length == "":
+            return 10
+        return int(pickorder_length)
+
     def get_missions_products(self):
         product_missions = ProductMission.objects.filter(mission__pk__in=self.missions.values_list("pk", flat=True))
         product_missions = product_missions.get_online_stocks()
@@ -92,7 +101,8 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
         product_missions = product_missions.exclude(
             Q(Q(total__lte=0) | Q(online_total__lte=0) | Q(packing_unit_amount__gt=F("online_total"))))
 
-        missions_pks = product_missions.values_list("mission__pk").order_by("mission__purchased_date")[:10]
+        missions_pks = product_missions.values_list("mission__pk").order_by(
+            "mission__purchased_date")[:self.pickorder_length]
         print(f"baba: ")
         print(f"{missions_pks}")
         self.missions_products = product_missions.filter(mission__pk__in=missions_pks)
@@ -102,6 +112,7 @@ class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["title"] = "Pickauftrag annehmen"
+        context["pickorder_length"] = self.pickorder_length
         context["missions"] = self.missions
         context["picklist_data"] = self.picklist_data
         context["packing_stations"] = self.packing_stations

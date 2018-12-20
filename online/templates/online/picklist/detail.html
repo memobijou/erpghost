@@ -9,41 +9,64 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
-            <form method="POST">{% csrf_token %}
+            <div class="col-md-12" style="padding-bottom:25px;">
                 <div class="col-md-2"></div>
                 <div class="col-md-8">
-                    {% for product_data, pick_rows in picklist_data.items %}
-                        <table class="table table-hover table-striped">
-                            <tbody>
-                                <tr>
-                                    <td>
-                                        <div class="col-md-2">
-                                            {% if product_data.0.main_image %}
-                                                <img class="img-responsive" style="max-height:80px;"
-                                                     src="{{ product_data.0.main_image.url }}"/>
-                                            {% endif %}
-                                        </div>
-                                        <div class="col-md-10">
-                                            <p><b>EAN: </b>{{ product_data.1 }}</p>
-                                            <p><b>SKU: </b>{{ product_data.3 }}</p>
-                                            <p><b>Zustand: </b>{{ product_data.2 }}</p>
-                                        </div>
-                                        <div class="col-md-12">
-                                    <hr/>
-                                    {% for pick_row in pick_rows %}
-                                            <p><b>Lagerplatz: </b>{{ pick_row.position }}</p>
-                                            <p><b>Menge: </b>{{ pick_row.amount }}</p>
-                                            <p><b>Auftrag: </b>{{ pick_row.mission_product.mission }}</p>
-                                            <hr/>
-                                    {% endfor %}
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    {% endfor %}
+                    <div class="text-center">
+                         <h3>Anzahl Aufträge</h3>
+                         <form class="form-inline" method="GET">
+                              <div class="form-group">
+                                <button type="submit" name="pickorder_length" class="btn btn-info btn-lg" {% if pickorder_length == 10 %} disabled {% endif %} value="10">10</button>
+                              </div>
+                              <div class="form-group">
+                                <button type="submit" name="pickorder_length" class="btn btn-info btn-lg" {% if pickorder_length == 25 %} disabled {% endif %} value="25">25</button>
+                              </div>
+                              <div class="form-group">
+                                <button type="submit" name="pickorder_length" class="btn btn-info btn-lg" {% if pickorder_length == 50 %} disabled {% endif %} value="50">50</button>
+                              </div>
+                        </form>
+                    </div>
                 </div>
                 <div class="col-md-2"></div>
+            </div>
+
+            <form method="POST">{% csrf_token %}
+                <div class="col-md-12">
+                    <div class="col-md-2"></div>
+                    <div class="col-md-8">
+                        {% for product_data, pick_rows in picklist_data.items %}
+                            <table class="table table-hover table-striped">
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="col-md-2">
+                                                {% if product_data.0.main_image %}
+                                                    <img class="img-responsive" style="max-height:80px;"
+                                                         src="{{ product_data.0.main_image.url }}"/>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-10">
+                                                <p><b>EAN: </b>{{ product_data.1 }}</p>
+                                                <p><b>SKU: </b>{{ product_data.3 }}</p>
+                                                <p><b>Zustand: </b>{{ product_data.2 }}</p>
+                                            </div>
+                                            <div class="col-md-12">
+                                        <hr/>
+                                        {% for pick_row in pick_rows %}
+                                                <p><b>Lagerplatz: </b>{{ pick_row.position }}</p>
+                                                <p><b>Menge: </b>{{ pick_row.amount }}</p>
+                                                <p><b>Auftrag: </b>{{ pick_row.mission_product.mission }}</p>
+                                                <hr/>
+                                        {% endfor %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        {% endfor %}
+                    </div>
+                    <div class="col-md-2"></div>
+                </div>
                 <div class="col-md-12">
                     <div class="text-center">
                         {% if picklist_data %}
@@ -60,6 +83,5 @@
                     </div>
                 </div>
             </form>
-        </div>
     </div>
 {% endblock %}

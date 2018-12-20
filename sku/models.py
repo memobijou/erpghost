@@ -112,4 +112,5 @@ class Sku(models.Model):
                 missions_product.no_match_sku = None
                 missions_product.save()
                 mission = missions_product.mission
+                mission.channel = self.channel
                 mission.save()  # For status to be newly set

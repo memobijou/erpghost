@@ -167,12 +167,13 @@ class Mission(models.Model):
     def save(self, force_insert=False, force_update=False, using=None,
              update_fields=None):
         super().save()
+        missions_products = self.productmission_set.all()
+
         if self.mission_number is None or self.mission_number == "":
             self.mission_number = f"A{self.pk+1}"
         if self.is_online is None:
             self.status = get_status(self)
         else:
-            missions_products = self.productmission_set.all()
             mission_products_without_match = None
             if self.online_picklist is None:
                 mission_products_without_match = missions_products.filter(no_match_sku__isnull=False)
@@ -184,6 +185,11 @@ class Mission(models.Model):
                 print(f"gamery: {mission_products_without_match}")
                 print(f"2: {mission_products_without_match.count()}")
             self.status = self.get_online_status(missions_products, mission_products_without_match)
+
+        if self.channel is None:
+            for missions_product in missions_products:
+                self.channel = missions_product.sku.channel
+                break
         super().save()
 
     # def save(self, *args, **kwargs):

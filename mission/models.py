@@ -188,7 +188,8 @@ class Mission(models.Model):
 
         if self.channel is None:
             for missions_product in missions_products:
-                self.channel = missions_product.sku.channel
+                if missions_product.sku is not None:
+                    self.channel = missions_product.sku.channel
                 break
         super().save()
 

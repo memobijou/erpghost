@@ -63,6 +63,17 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
         self.set_GET_values()
         return self.context
 
+    def get_label_form_link(self, mission):
+        business_account = mission.online_business_account
+        if business_account is not None:
+            if business_account.type == "national":
+                return reverse_lazy(
+                    "online:dpd_pdf", kwargs={"pk": mission.pk,
+                                              "business_account_pk": business_account.pk})
+            if business_account.type == "foreign_country":
+                return reverse_lazy("online:dhl_pdf", kwargs={"pk": mission.pk,
+                                                              "business_account_pk": business_account.pk})
+
     def set_GET_values(self):
         self.context.update({"q": self.get_value_from_GET_or_session("q"),
                              "mission_number": self.get_value_from_GET_or_session("mission_number"),
@@ -133,7 +144,11 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
 
             missions_products.append(mission_products)
 
-        return list(zip(object_list, payment_totals, missions_products, need_refill_list))
+        label_links = []
+        for obj in object_list:
+            label_links.append(self.get_label_form_link(obj))
+
+        return list(zip(object_list, payment_totals, missions_products, need_refill_list, label_links))
 
     def get_payment_amounts(self, obj):
         total, discount, shipping_discount, shipping_price = 0.0, 0.0, 0.0, 0.0

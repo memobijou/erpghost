@@ -374,7 +374,15 @@ class OnlineDeliveryNoteView(View):
 
         print(self.partial_delivery_note.deliverynoteproductmission_set.all())
 
-        for item in self.mission.online_picklist.online_delivery_note.deliverynoteitem_set.all():
+        delivery_note_items = []
+
+        if self.mission.online_picklist is not None:
+            delivery_note_items = self.mission.online_picklist.online_delivery_note.deliverynoteitem_set.all()
+
+        if self.mission.delivery_note is not None:
+            delivery_note_items = self.mission.delivery_note.deliverynoteitem_set.all()
+
+        for item in delivery_note_items:
 
             data.append(
                 [

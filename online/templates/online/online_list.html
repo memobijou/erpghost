@@ -228,6 +228,24 @@
                                             <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
                                         </p>
 
+
+                                        {% if object.delivery_note %}
+                                            <a class="btn btn-info"
+                                                href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.delivery_note.pk %}">
+                                                Lieferschein
+                                            </a>
+                                        {% endif %}
+
+                                        {% if object.delivery_note or object.online_picklist.online_delivery_note %}
+                                            <a class="btn btn-info"
+                                                href="{% url 'online:dpd_get_label' pk=object.pk %}">
+                                                Paketlabel
+                                            </a>
+                                        {% endif %}
+
+
+
+
                                         {% if object.online_picklist.online_delivery_note and object.online_picklist.completed == True %}
                                             {% if object.status.lower == "verpackt" %}
                                                 <a class="btn btn-info"
@@ -250,9 +268,9 @@
                                         {% endif %}
                                         <br/>
                                         <p>
-                                            {% if object.online_business_account %}
-                                                <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
-                                            {% endif %}
+                                        {% if object.online_business_account %}
+                                            <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
+                                        {% endif %}
                                         </p>
                                     </div>
                                     {% if object.none_sku_products_amount %}

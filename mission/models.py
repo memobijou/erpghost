@@ -1,3 +1,4 @@
+import pycountry
 from django.contrib.postgres.aggregates import ArrayAgg
 from django.db import models
 import datetime
@@ -197,14 +198,28 @@ class Mission(models.Model):
                 if missions_product.sku is not None:
                     self.channel = missions_product.sku.channel
                 break
+
+        if self.channel is not None:
+            business_account = self.get_business_account(self.delivery_address, self.channel)
+            if business_account is not None:
+                self.online_business_account = business_account
         super().save()
 
-    # def save(self, *args, **kwargs):
-    #     if self.mission_number == "":
-    #         today = date.today().strftime('%d%m%y')
-    #         count = Mission.objects.filter(mission_number__icontains=today).count()+1
-    #         self.mission_number = f"A{today}" + '%03d' % count
-    #     super().save(force_insert=False, force_update=False, *args, **kwargs)
+    def get_business_account(self, address, channel):
+        country = None
+        if address.country is not None and address.country != "":
+            country = address.country
+        elif address.country_code is not None:
+            delivery_address_country_code = address.country_code
+            country = pycountry.countries.get(alpha_2=delivery_address_country_code)
+            country = country.name
+
+        if (country in ["Germany", "Deutschland"]) is True:
+            business_account = channel.client.businessaccount_set.filter(type="national").first()
+        else:
+            business_account = channel.client.businessaccount_set.filter(type="foreign_country").first()
+
+        return business_account
 
     def __str__(self):
         return self.mission_number

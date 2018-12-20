@@ -197,7 +197,7 @@
                                     </p>
                                 </td>
                                 <td>
-                                    {% if object.status.lower == "verpackt" and object.online_picklist.completed == True %}
+                                    {% if object.status.lower == "verpackt" and object.online_picklist.completed == True or object.delivery_note and object.status == "Von Pickauftrag abgelöst" %}
                                         <p>{{ object.tracking_number|default:"N/A" }}</p>
                                     {% else %}
                                         <p>N/A</p>
@@ -227,7 +227,6 @@
                                         <p>
                                             <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
                                         </p>
-
 
                                         {% if object.delivery_note %}
                                             <a class="btn btn-info"
@@ -268,9 +267,9 @@
                                         {% endif %}
                                         <br/>
                                         <p>
-                                        {% if object.online_business_account %}
-                                            <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
-                                        {% endif %}
+                                            {% if object.online_business_account and object.online_picklist is None %}
+                                                <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
+                                            {% endif %}
                                         </p>
                                     </div>
                                     {% if object.none_sku_products_amount %}

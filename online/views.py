@@ -579,3 +579,14 @@ class ImportMissionEbayView(ImportMissionBaseView):
             print(f"DIGI: {row}")
             self.result.append(row)
         return self.result
+
+
+class OnlineListRedirectView(LoginRequiredMixin, View):
+    def dispatch(self, request, *args, **kwargs):
+        action = request.GET.get("action")
+        query_string = f"?{request.GET.urlencode()}"
+        if action == "ignore_pickorder":
+            return HttpResponseRedirect(reverse_lazy("online:ignore_pickorder") + query_string)
+        if action == "export":
+            return HttpResponseRedirect(reverse_lazy("online:export") + query_string)
+        return super().dispatch(request, *args, **kwargs)

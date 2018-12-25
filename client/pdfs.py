@@ -166,7 +166,6 @@ def get_logo_and_qr_code_from_client(request, client):
     qr_code_url = None
 
     scheme = request.is_secure() and "https" or "http"
-    print(client.contact.company_image)
 
     if bool(client.contact.company_image) is not False:
         if "http" in client.contact.company_image.url:
@@ -179,7 +178,6 @@ def get_logo_and_qr_code_from_client(request, client):
             qr_code_url = client.qr_code.url
         else:
             qr_code_url = f"{scheme}://{request.get_host()}{client.qr_code.url}"
-
     return logo_url, qr_code_url
 
 

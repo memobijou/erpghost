@@ -21,6 +21,8 @@ from Crypto.Cipher import AES
 
 from stock.models import Stock
 from online.countries_list import countries_list
+from bs4 import BeautifulSoup
+import html
 
 
 def decrypt_encrypted_string(encrypted_string):
@@ -68,7 +70,10 @@ class DPDCreatePDFView(UpdateView):
 
     def get_success_url(self, **kwargs):
         if self.request.GET.get("not_packing") is not None:
-            return reverse_lazy("online:list")
+            if self.request.GET.get("is_export") is not None:
+                return reverse_lazy("online:export") + self.request.GET.urlencode()
+            else:
+                return reverse_lazy("online:list")
         return reverse_lazy("online:packing", kwargs={"pk": self.mission.online_picklist.pk})
 
     # def get(self, request, **kwargs):
@@ -194,8 +199,8 @@ class DPDLabelCreator:
         self.get_authentication_token_from_dpd_api()
         print(f"wie ?? {self.client}")
         first_name_last_name = self.mission.delivery_address.first_name_last_name or ""
-        first_name_last_name = first_name_last_name[:35]
-        adresszusatz = self.mission.delivery_address.adresszusatz or ""
+        first_name_last_name = html.escape(first_name_last_name[:35])
+        adresszusatz = html.escape(self.mission.delivery_address.adresszusatz or "")
         adresszusatz = adresszusatz[:35]
         doc = f'''
             <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
@@ -230,13 +235,13 @@ class DPDLabelCreator:
                                     <gln>0</gln>
                                   </sender>
                                   <recipient>
-                                    <name1>{first_name_last_name}</name1>
-                                    <name2>{adresszusatz}</name2>
-                                    <street>{self.mission.delivery_address.strasse}</street>
-                                    <houseNo>{self.mission.delivery_address.hausnummer}</houseNo>
-                                    <country>{self.country_code}</country>
-                                    <zipCode>{self.mission.delivery_address.zip}</zipCode>
-                                    <city>{self.mission.delivery_address.place}</city>
+                                    <name1>{html.escape(first_name_last_name)}</name1>
+                                    <name2>{html.escape(adresszusatz)}</name2>
+                                    <street>{html.escape(self.mission.delivery_address.strasse)}</street>
+                                    <houseNo>{html.escape(self.mission.delivery_address.hausnummer)}</houseNo>
+                                    <country>{html.escape(self.country_code)}</country>
+                                    <zipCode>{html.escape(self.mission.delivery_address.zip)}</zipCode>
+                                    <city>{html.escape(self.mission.delivery_address.place)}</city>
                                     <gln>0</gln>
                                   </recipient>
                             </generalShipmentData>
@@ -256,6 +261,9 @@ class DPDLabelCreator:
             <soapenv:Envelope>
         '''
         doc = doc.replace("\n", "")
+        # soup = BeautifulSoup(doc, "html.parser")
+        # doc = soup
+        # print(f"{soup}")
         response = requests.post(url=self.shipment_service_url, data=doc.encode("utf-8"), headers=self.headers)
         root = Et.fromstring(response.content.decode("utf-8"))
         print(response.text)
@@ -278,6 +286,10 @@ class DPDLabelCreator:
         message = ""
         for el in root.iter("message"):
             message = el.text
+
+        if message == "":
+            for el in root.iter("faultstring"):
+                message = el.text
 
         return parcel_label_number, message
 
@@ -303,6 +315,43 @@ class DPDLabelCreator:
             token = el.text
         self.token = token
         return self.token
+
+    def create_delivery_note(self):
+        if self.mission.delivery_address is not None:
+            delivery_note = DeliveryNote.objects.create()
+            self.mission.delivery_note = delivery_note
+            self.mission.ignore_pickorder = True
+
+            bulk_instances = []
+            for mission_product in self.mission.productmission_set.all():
+                bulk_instances.append(DeliveryNoteItem(delivery_note=delivery_note,
+                                                       amount=mission_product.amount,
+                                                       ean=mission_product.ean,
+                                                       sku=mission_product.online_sku_number,
+                                                       state=mission_product.state,
+                                                       description=mission_product.online_description))
+
+            DeliveryNoteItem.objects.bulk_create(bulk_instances)
+
+    def create_billing(self):
+        if self.mission.billing_address is not None:
+            billing = Billing.objects.create()
+            self.mission.billing = billing
+            self.mission.ignore_pickorder = True
+
+            bulk_instances = []
+
+            for mission_product in self.mission.productmission_set.all():
+                netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
+
+                bulk_instances.append(BillingItem(
+                    billing=billing, amount=mission_product.amount, netto_price=netto_price,
+                    ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
+                    description=mission_product.online_description, brutto_price=mission_product.brutto_price,
+                    shipping_price=mission_product.shipping_price, discount=mission_product.discount,
+                    shipping_discount=mission_product.shipping_discount
+                ))
+            BillingItem.objects.bulk_create(bulk_instances)
 
 
 class DPDGetLabelView(views.View):

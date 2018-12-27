@@ -22,7 +22,7 @@
                         <div class="panel-body">
                             <div class="text-center">
                                 <div>
-                                    <object data="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=picklist.online_delivery_note.pk %}" type="application/pdf" width="100%" height="500px;">
+                                    <object data="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=mission.delivery_note.pk %}" type="application/pdf" width="100%" height="500px;">
                                         alt : <a href="test.pdf">Lieferschein.pdf</a>
                                     </object>
                                 </div>

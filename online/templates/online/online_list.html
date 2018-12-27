@@ -120,17 +120,22 @@
         <button class="btn btn-default" id="flip_all_btn">Datensätze Auf-/Zuklappen</button>
     </div>
 
-    <form method="GET" action="{% url 'online:ignore_pickorder' %}">
+    <form method="GET" action="{% url 'online:action_redirect' %}">
 
         <div class="col-md-12 text-right" style="padding:0 15px 15px 15px;">
-            <button class="btn btn-default">Von Pickauftrag Ablösen</button>
+            <button type="submit" class="btn btn-default" name="action" value="export">
+                <span class="glyphicon glyphicon-export"></span>&nbsp;&nbsp;Export
+            </button>
+            <button type="submit" class="btn btn-default" name="action" value="ignore_pickorder">Von Pickauftrag Ablösen</button>
         </div>
 
         <div class="col-md-12" style="padding:0 15px 15px 15px;">
             <table class="table table-condensed table-bordered" style="background: white;">
                 <thead>
                     <tr>
-                        <th></th>
+                        <th class="text-right">
+                            <input onchange="check_or_uncheck_all(this);" style="cursor:pointer;" type="checkbox"/>
+                        </th>
                         <th></th>
                         <th>Channel</th>
                         <th>Auftragsnummer</th>
@@ -146,12 +151,12 @@
                                     <p>
                                         <a href="{% url 'online:detail' pk=object.pk %}">Ansicht</a>
                                         <br/>
-                                        <input type="checkbox" name="item" value="{{object.pk}}">
+                                        <input id="check_all" style="cursor:pointer;" type="checkbox" name="item" value="{{object.pk}}">
                                     </p>
                                 </td>
                                 <td class="show_hide" style="cursor:pointer;">
                                     <p>
-                                        <a collapseid="collapse_{{ forloop.counter }}">
+                                        <a collapseid="collapse_{{ object.pk }}">
                                             <span class="glyphicon glyphicon-chevron-down"></span>
                                         </a>
                                     </p>
@@ -197,14 +202,14 @@
                                     </p>
                                 </td>
                                 <td>
-                                    {% if object.status.lower == "verpackt" and object.online_picklist.completed == True or object.delivery_note and object.status == "Von Pickauftrag abgelöst" %}
+                                    {% if object.status.lower == "verpackt" and object.online_picklist.completed == True or object.delivery_note and object.ignore_pickorder is True %}
                                         <p>{{ object.tracking_number|default:"N/A" }}</p>
                                     {% else %}
                                         <p>N/A</p>
                                     {% endif %}
                                 </td>
                             </tr>
-                            <tr id="collapse_{{ forloop.counter }}" class="collapse">
+                            <tr id="collapse_{{ object.pk }}" class="collapse">
                                 <td colspan="12">
                                     <div class="col-md-4" style="padding:0;">
                                         <p>
@@ -227,47 +232,32 @@
                                         <p>
                                             <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
                                         </p>
-
-                                        {% if object.delivery_note %}
-                                            <a class="btn btn-info"
-                                                href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.delivery_note.pk %}">
-                                                Lieferschein
-                                            </a>
-                                        {% endif %}
-
-                                        {% if object.delivery_note or object.online_picklist.online_delivery_note %}
-                                            <a class="btn btn-info"
-                                                href="{% url 'online:dpd_get_label' pk=object.pk %}">
-                                                Paketlabel
-                                            </a>
-                                        {% endif %}
-
-
-
-
-                                        {% if object.online_picklist.online_delivery_note and object.online_picklist.completed == True %}
-                                            {% if object.status.lower == "verpackt" %}
+                                        {% if object.status.lower == "verpackt" or object.ignore_pickorder is True or object.status.lower == "manuell" %}
+                                            {% if object.delivery_note %}
                                                 <a class="btn btn-info"
-                                                    href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.online_picklist.online_delivery_note.pk %}">
+                                                    href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.delivery_note.pk %}">
                                                     Lieferschein
                                                 </a>
+                                            {% else %}
+                                                <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
+                                            {% endif %}
+
+                                            {% if object.delivery_note %}
+                                                <a class="btn btn-info"
+                                                    href="{% url 'online:dpd_get_label' pk=object.pk %}">
+                                                    Paketlabel
+                                                </a>
+                                            {% else %}
+                                                <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
                                             {% endif %}
                                         {% else %}
                                             <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
+                                            <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
                                         {% endif %}
 
-
-                                        {% if object.online_picklist.online_billing %}
-        {#                                    <a class="btn btn-info"#}
-        {#                                        href="{% url 'online:billing' pk=object.pk billing_pk=object.online_picklist.online_billing.pk %}">#}
-        {#                                        Rechnung#}
-        {#                                    </a>#}
-                                        {% else %}
-                                                <p class="help-block">Für den Auftrag ist noch keine Rechnung vorhanden</p>
-                                        {% endif %}
-                                        <br/>
+                                        <br/><br/>
                                         <p>
-                                            {% if object.online_business_account and object.online_picklist is None %}
+                                            {% if object.online_business_account %}
                                                 <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
                                             {% endif %}
                                         </p>
@@ -476,6 +466,20 @@
     </form>
 
     <script>
+        var check_or_uncheck_all = function(element){
+          $("table input[type=checkbox]").each(function (e) {
+              if(this != element){
+                  if(element.checked == true){
+                     this.checked = true;
+                  }else{
+                      this.checked = false;
+                  }
+              }
+          });
+        };
+
+
+
         var elements = document.getElementsByClassName("fire_submit");
         var calendars = document.getElementsByClassName("datepicker");
         var filter_btn = document.getElementById("filter_form");
@@ -486,7 +490,7 @@
             }
         }
 
-        for (var i = 0; i < calendars.length; i++) {
+        for (i = 0; i < calendars.length; i++) {
             var calendar = calendars[i];
             calendar.onchange = function () {
                 filter_btn.submit();
@@ -537,30 +541,51 @@
 
         var show_hide_elements = document.getElementsByClassName("show_hide");
 
-        for(var i = 0; i<show_hide_elements.length; i++){
+        for(i = 0; i<show_hide_elements.length; i++){
+            var flip_down_up = function(el){
+                   if(el.className.includes("chevron-down")){
+                       el.className = el.className.replace("chevron-down", "chevron-up");
+                       return "show"
+                   }else{
+                      el.className = el.className.replace("chevron-up", "chevron-down");
+                      return "hidden"
+                   }
+            };
+
             var show_hide_element = show_hide_elements[i];
 
+            var a_element = show_hide_element.getElementsByTagName("a")[0];
+            var flip_row = document.getElementById(a_element.getAttribute("collapseid"));
+
+
+            if(sessionStorage.getItem(flip_row.id) == "true"){
+                   var show_or_hide_element = show_hide_element.getElementsByTagName("span")[0];
+                   flip_down_up(show_or_hide_element);
+                   $(flip_row).collapse();
+            }
 
             show_hide_element.onclick = function(e){
                var a_element = this.getElementsByTagName("a")[0];
 
                var show_or_hide_element = this.getElementsByTagName("span")[0];
 
-               flip_down_up(show_or_hide_element);
+               var status = flip_down_up(show_or_hide_element);
 
-               $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
+               var flip_row = document.getElementById(a_element.getAttribute("collapseid"));
+
+               $(flip_row).collapse("toggle");
+
+               // Store
+               if(status == "show"){
+                   sessionStorage.setItem(flip_row.id, true);
+               }else if(status == "hidden"){
+                   sessionStorage.setItem(flip_row.id, null);
+               }
+
+
 
             }
         }
-
-        var flip_down_up = function(el){
-               if(el.className.includes("chevron-down")){
-                   el.className = el.className.replace("chevron-down", "chevron-up");
-               }else{
-                  el.className = el.className.replace("chevron-up", "chevron-down");
-               }
-        };
-
 
         var flip_all_btn = document.getElementById("flip_all_btn");
         flip_all_btn.onclick = function(e){
@@ -577,8 +602,7 @@
                $(document.getElementById(a_element.getAttribute("collapseid"))).collapse("toggle")
 
             }
-        }
-
+        };
 
     </script>
 

@@ -721,43 +721,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if error is True:
             print(label_or_manual_label_redirect)
             return label_or_manual_label_redirect
-        if label_or_manual_label_redirect is not None and error is None:
-            print("????!?!??!!?!?")
-            self.create_delivery_note()
-            self.create_billing()
         return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}))
-
-    def create_delivery_note(self):
-        self.picklist.online_delivery_note = DeliveryNote.objects.create()
-        self.picklist.save()
-        bulk_instances = []
-        for mission_product in self.mission.productmission_set.all():
-            bulk_instances.append(DeliveryNoteItem(delivery_note=self.picklist.online_delivery_note,
-                                                   amount=mission_product.amount,
-                                                   ean=mission_product.ean,
-                                                   sku=mission_product.online_sku_number,
-                                                   state=mission_product.state,
-                                                   description=mission_product.online_description))
-
-        DeliveryNoteItem.objects.bulk_create(bulk_instances)
-
-    def create_billing(self):
-        if self.mission.billing_address is not None:
-            self.picklist.online_billing = Billing.objects.create()
-            self.picklist.save()
-            bulk_instances = []
-
-            for mission_product in self.mission.productmission_set.all():
-                netto_price = mission_product.brutto_price-(mission_product.brutto_price*0.19)
-
-                bulk_instances.append(BillingItem(
-                    billing=self.picklist.online_billing, amount=mission_product.amount, netto_price=netto_price,
-                    ean=mission_product.ean, sku=mission_product.online_sku_number, state=mission_product.state,
-                    description=mission_product.online_description, brutto_price=mission_product.brutto_price,
-                    shipping_price=mission_product.shipping_price, discount=mission_product.discount,
-                    shipping_discount=mission_product.shipping_discount
-                ))
-            BillingItem.objects.bulk_create(bulk_instances)
 
     def create_label(self):
         if self.mission.delivery_address.strasse is None and self.mission.delivery_address.hausnummer is None:
@@ -768,7 +732,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if self.mission.delivery_address.strasse is not None and self.mission.delivery_address.hausnummer is not None:
             if business_account.type == "national":
                 dpd_label, message = self.create_dpd_label()
-                if dpd_label is None:
+                if dpd_label is None or message != "":
                     return HttpResponseRedirect(f'{self.get_label_form_link()}?error_msg={message}'), True
                 return dpd_label, None
 
@@ -779,7 +743,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
                 return dhl_label, None
 
     def create_dpd_label(self):
-        dpd_label_creator = DPDLabelCreator(self.mission, self.client)
+        dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission])
         dpd_label, message = dpd_label_creator.create_label()
         if dpd_label is None or dpd_label == "":
             return None, message

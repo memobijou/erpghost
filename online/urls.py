@@ -1,6 +1,7 @@
 from django.conf.urls import url
 
 from online.billing import OnlineBillingView
+from online.bundle_csv import ExportView, CreatePackingLabels
 from online.delivery_note import OnlineDeliveryNoteView
 from online.ebay import EbayView
 from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromStationToPackingView, PackingView, \
@@ -9,7 +10,7 @@ from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromS
 from online.refill_order import AcceptRefillStockView, BookOutForOnlinePositions, RefillStockView, \
     BookInOnlineWarehouseList, ProductsForBookInView, BookProductInPosition, FinishRefillOrderView, OnlineRedirectView
 from .views import OnlineListView, OnlineDetailView, ImportMissionAmazonView, ImportMissionEbayView, \
-    IgnoreOnlineMissionView
+    IgnoreOnlineMissionView, OnlineListRedirectView
 from .dpd import DPDCreatePDFView, DPDGetLabelView
 from .dhl import DHLCreatePdfView, DhlGetLabelView, DhlDeleteLabelView
 from online.import_offers import ImportOffersView
@@ -54,5 +55,7 @@ urlpatterns = [
     url(r'^import_offers/$', ImportOffersView.as_view(), name="import_offers"),
     url(r'^confirm_manual/(?P<pk>\d+)/$', ConfirmManualView.as_view(), name="confirm_manual"),
     url(r'^ignore_pickorder/$', IgnoreOnlineMissionView.as_view(), name="ignore_pickorder"),
+    url(r'^action-redirect/$', OnlineListRedirectView.as_view(), name="action_redirect"),
+    url(r'^export/$', ExportView.as_view(), name="export"),
+    url(r'^create-packing-labels/$', CreatePackingLabels.as_view(), name="create_packing_labels"),
 ]
-

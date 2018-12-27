@@ -59,4 +59,3 @@ urlpatterns = [
     url(r'^export/$', ExportView.as_view(), name="export"),
     url(r'^create-packing-labels/$', CreatePackingLabels.as_view(), name="create_packing_labels"),
 ]
-

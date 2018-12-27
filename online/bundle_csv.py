@@ -22,7 +22,6 @@ class ExportView(LoginRequiredMixin, View):
         self.export_missions = None
         self.non_export_missions = None
         self.context = None
-        self.packing_labels_errors = []
 
     def dispatch(self, request, *args, **kwargs):
         self.missions = Mission.objects.filter(pk__in=request.GET.getlist("item"))
@@ -35,7 +34,7 @@ class ExportView(LoginRequiredMixin, View):
         errors = []
         for _ in self.non_export_missions:
             errors.append(None)
-        self.non_export_missions = list(zip(self.non_export_missions, errors))
+        self.non_export_missions = self.non_export_missions
         print(f"jo: {self.missions}")
         self.context = self.get_context()
         return super().dispatch(request, *args, **kwargs)
@@ -116,21 +115,17 @@ class CreatePackingLabels(LoginRequiredMixin, View):
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        for mission in self.non_label_missions:
-            dpd_creator = DPDLabelCreator(mission=mission, client=mission.channel.client)
-            tracking_number, message = dpd_creator.create_label()
-            print(f"wat the : {message} -- {tracking_number}")
-            if (message is None or message == "") and (tracking_number is not None and tracking_number != ""):
-                dpd_creator.create_delivery_note()
-                dpd_creator.create_billing()
-                mission.save()
-            else:
+        to_create_labels = self.non_label_missions.filter(status__iexact="offen")
+        if to_create_labels.count() > 0:
+            dpd_creator = DPDLabelCreator(multiple_missions=to_create_labels, ignore_pickorder=True)
+            tracking_numbers, message = dpd_creator.create_label()
+            if message is not None and message != "":
                 print(f"?????? ----- ??? {message}")
                 self.packing_labels_errors.append(message)
 
-        for error in self.packing_labels_errors:
-            if error is not None:
-                return render(request, ExportView.template_name, self.get_export_view_context())
+            for error in self.packing_labels_errors:
+                if error is not None:
+                    return render(request, ExportView.template_name, self.get_export_view_context())
 
         missions = self.non_label_missions | self.label_missions
         print(f"???: {missions}")
@@ -142,7 +137,7 @@ class CreatePackingLabels(LoginRequiredMixin, View):
 
     def get_export_view_context(self):
         context = {"export_items": self.label_missions.filter(self.has_label_condition),
-                   "non_export_items": list(zip(self.non_label_missions.filter(
-                       ~self.has_label_condition), self.packing_labels_errors)),
+                   "non_export_items": self.non_label_missions.filter(~self.has_label_condition),
+                   "errors": self.packing_labels_errors,
                    "title": "Lieferscheine und Paketlabels exportieren"}
         return context

@@ -366,9 +366,6 @@ class DeliveryNotePdfGenerator:
 
         delivery_note_items = []
 
-        if self.mission.online_picklist is not None:
-            delivery_note_items = self.mission.online_picklist.online_delivery_note.deliverynoteitem_set.all()
-
         if self.mission.delivery_note is not None:
             delivery_note_items = self.mission.delivery_note.deliverynoteitem_set.all()
 

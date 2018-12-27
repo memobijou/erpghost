@@ -52,7 +52,7 @@
                 </table>
             {% endfor %}
             {% if is_all_scanned == True and picklist.completed == None %}
-                {% if picklist.online_delivery_note == None %}
+                {% if mission.delivery_note == None %}
                 <div class="text-center">
                     <form method="POST" action="{% url 'online:provide_packing' pk=picklist.pk %}">{% csrf_token %}
                         <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Für Versand bereitstellen"/>
@@ -62,9 +62,9 @@
             {% endif %}
             {% if is_all_scanned == True %}
                 <div class="col-md-12" style="padding: 0 0 25px 0;">
-                    {% if picklist.online_delivery_note %}
+                    {% if mission.delivery_note %}
                     <a class="btn btn-info"
-                       href="{% url 'online:delivery_note' pk=picklist.mission_set.first.pk delivery_note_pk=picklist.online_delivery_note.pk %}">
+                       href="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=mission.delivery_note.pk %}">
                         Lieferschein ansehen
                     </a>
                     {% endif %}
@@ -112,10 +112,12 @@
                         </div>
                     {% endif %}
                 {% endif %}
-                {% if picklist.completed is None %}
+                {% if picklist.completed is None  %}
                     <div class="col-md-12" style="padding:0px;">
                         <div class="text-right">
-                            <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|&nbsp;
+                            {% if mission.delivery_note %}
+                            <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|
+                            {% endif %}&nbsp;
                             <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
                         </div>
                     </div>

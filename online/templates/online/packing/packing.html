@@ -52,7 +52,7 @@
                 </table>
             {% endfor %}
             {% if is_all_scanned == True and picklist.completed == None %}
-                {% if mission.delivery_note == None %}
+                {% if shipment.delivery_note == None %}
                 <div class="text-center">
                     <form method="POST" action="{% url 'online:provide_packing' pk=picklist.pk %}">{% csrf_token %}
                         <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Für Versand bereitstellen"/>
@@ -74,7 +74,8 @@
 {#                        Rechnung ansehen#}
 {#                    </a>#}
                 </div>
-                {% if mission.tracking_number %}
+
+                {% if shipment %}
                     <div class="col-md-6" style="padding-left: 0px;">
                         <div class="panel panel-default">
                             <div class="panel-heading">
@@ -83,11 +84,11 @@
                             <div class="panel-body">
                                 <p>Transportdienstleister: <b>{{ mission.online_business_account.transport_service.name }}</b></p>
 
-                                <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
+                                <p style="font-size:15px;">Tracking Nummer: <b>{{shipment.tracking_number}}</b></p>
 
                                 <div class="text">
                                     <a class="btn btn-info"
-                                        href="{{ label_link }}">
+                                        href="{% url 'online:dpd_get_label' pk=shipment.pk %}">
                                         Paketlabel ansehen
                                     </a>
                                 </div>
@@ -115,14 +116,24 @@
                 {% if picklist.completed is None  %}
                     <div class="col-md-12" style="padding:0px;">
                         <div class="text-right">
-                            {% if mission.delivery_note %}
-                            <a href="{{ label_form_link }}">Paketlabel defekt ?</a> &nbsp;|
+                            {% if shipment.delivery_note %}
+                                <a href="{{ label_form_link }}?packing=1">Paketlabel defekt ?</a> &nbsp;|
                             {% endif %}&nbsp;
-                            <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
+                            {% if is_all_scanned == True and picklist.completed == None %}
+                                <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
+                            {% endif %}
                         </div>
                     </div>
                 {% endif %}
             {% endif %}
+        </div>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                Noch <b>{{ total_missions_amount }}</b> offene Aufträge
+            </div>
         </div>
     </div>
     <style>

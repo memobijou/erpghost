@@ -574,6 +574,7 @@ class PackingView(LoginRequiredMixin, View):
         super().__init__(**kwargs)
         self.picklist = None
         self.mission = None
+        self.shipment = None
         self.pick_rows = None
         self.packingstation = None
 
@@ -584,6 +585,7 @@ class PackingView(LoginRequiredMixin, View):
             return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
 
         self.mission = self.picklist.mission_set.first()
+        self.shipment = self.mission.get_main_shipment()
         self.pick_rows = self.picklist.picklistproducts_set.all().distinct("product_mission__sku")
         self.add_packing_amounts_to_pick_rows()
         return super().dispatch(request, *args, **kwargs)
@@ -647,8 +649,17 @@ class PackingView(LoginRequiredMixin, View):
         context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
                    "form": self.get_form(), "is_all_scanned": self.is_all_scanned(), "mission": self.mission,
                    "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
-                   "label_link": get_label_link(self.mission)}
+                   "label_link": get_label_link(self.mission), "shipment": self.shipment,
+                   "total_missions_amount": PackingView.get_missions_completed_of_amount()}
         return context
+
+    @staticmethod
+    def get_missions_completed_of_amount():
+        all_missions = Mission.objects.filter(
+            Q(status__iexact="offen") |Q(status__icontains="station") | Q(status__iexact="am picken"))
+        completed_missions = all_missions.filter(
+            Q(status__iexact='verpackt'))
+        return f"{all_missions.count()-completed_missions.count()}"
 
     def get_form(self):
         if self.request.method == "POST":
@@ -724,7 +735,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}))
 
     def create_label(self):
-        if self.mission.delivery_address.strasse is None and self.mission.delivery_address.hausnummer is None:
+        if self.mission.delivery_address.strasse is None or self.mission.delivery_address.hausnummer is None:
             return HttpResponseRedirect(self.get_label_form_link()), True
 
         business_account = self.mission.online_business_account
@@ -743,7 +754,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
                 return dhl_label, None
 
     def create_dpd_label(self):
-        dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission])
+        dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission], main_shipment=True)
         dpd_label, message = dpd_label_creator.create_label()
         if dpd_label is None or dpd_label == "":
             return None, message
@@ -769,7 +780,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if business_account.type == "national":
             return reverse_lazy(
                 "online:dpd_pdf", kwargs={"pk": self.mission.pk,
-                                          "business_account_pk": business_account.pk})
+                                          "business_account_pk": business_account.pk}) + "?packing=1"
         if business_account.type == "foreign_country":
             return reverse_lazy("online:dhl_pdf", kwargs={"pk": self.mission.pk,
                                                           "business_account_pk": business_account.pk})
@@ -781,6 +792,7 @@ class FinishPackingView(LoginRequiredMixin, View):
     def __init__(self):
         super().__init__()
         self.mission, self.picklist = None, None
+        self.shipment = None
         self.context = None
 
     def dispatch(self, request, *args, **kwargs):
@@ -788,12 +800,13 @@ class FinishPackingView(LoginRequiredMixin, View):
         if self.picklist.completed is True:
             return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
         self.mission = self.picklist.mission_set.first() if self.picklist is not None else None
+        self.shipment = self.mission.get_main_shipment()
         self.context = self.get_context()
         return super().dispatch(request, *args, **kwargs)
 
     def get_context(self):
         return {"title": f"Verpacken abschließen {self.mission.mission_number}", "picklist": self.picklist,
-                "mission": self.mission, "label_link": get_label_link(self.mission)}
+                "mission": self.mission, "label_link": get_label_link(self.mission), "shipment": self.shipment}
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template_name, self.context)

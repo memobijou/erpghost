@@ -11,7 +11,7 @@ from django.http import HttpResponseRedirect
 
 from disposition.models import BusinessAccount
 from mission.models import Mission, DeliveryNote, DeliveryNoteProductMission, Billing, BillingProductMission, \
-    DeliveryNoteItem, BillingItem
+    DeliveryNoteItem, BillingItem, Shipment
 from client.models import Client
 import base64
 from xml.etree import ElementTree as Et
@@ -82,17 +82,34 @@ class DPDCreatePDFView(UpdateView):
         return reverse_lazy("online:packing", kwargs={"pk": self.mission.online_picklist.pk})
 
     def form_valid(self, form, **kwargs):
-        dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission], ignore_pickorder=True)
+        main_shipments = list(self.mission.shipment_set.filter(main_shipment=True).values_list("pk", flat=True))
+        print(f"klabat: {main_shipments}")
+        if self.request.GET.get("packing") is not None:
+            dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission], main_shipment=True)
+        else:
+            dpd_label_creator = DPDLabelCreator(multiple_missions=[self.mission], ignore_pickorder=True,
+                                                main_shipment=True)
         parcel_label_numbers, message = dpd_label_creator.create_label()
         print(f"hey {message} --- {type(message)}")
         if message is not None and message != "":
             form.add_error(None, message)
             return super().form_invalid(form)
+        else:
+            if self.request.GET.get("not_packing") is not None and self.request.GET.get("is_export") is not None:
+                self.mission.status = "Versandbereit"
+                self.mission.save()
+
+            if self.request.GET.get("packing") is not None:
+                print(f"klablat 2 : {main_shipments}")
+                main_shipments = Shipment.objects.filter(pk__in=main_shipments)
+                print(f"klablat 3 : {main_shipments}")
+                print(f"dont understand: {main_shipments}")
+                main_shipments.delete()
         return super().form_valid(form)
 
 
 class DPDLabelCreator:
-    def __init__(self, mission=None, multiple_missions=None, ignore_pickorder=None):
+    def __init__(self, mission=None, multiple_missions=None, ignore_pickorder=None, main_shipment=None):
         super().__init__()
         self.transport_account = None
         self.transport_accounts = {}
@@ -103,10 +120,13 @@ class DPDLabelCreator:
         # self.login_service_url = "https://public-ws-stage.dpd.com/services/LoginService/V2_0/"  #  staging
         # self.shipment_service_url = "https://public-ws-stage.dpd.com/services/ShipmentService/V3_2/"  #  staging
         self.token = None
-
         self.ignore_pickorder = None
         if ignore_pickorder is True:
             self.ignore_pickorder = True
+
+        self.main_shipment = None
+        if main_shipment is True:
+            self.main_shipment = main_shipment
 
         self.clients_missions = None
         if multiple_missions is not None:
@@ -166,11 +186,6 @@ class DPDLabelCreator:
 
             label_pdfs = self.split_pdf_file(all_orders_pdf)
 
-            for client, missions in self.clients_missions.items():
-                for mission in missions:
-                    mission.label_pdf.save("label_dpd", ContentFile(label_pdfs[0]))
-                    label_pdfs.pop(0)
-
             root = Et.fromstring(response.content.decode("utf-8"))
 
             for el in root.iter("parcelLabelNumber"):
@@ -179,14 +194,18 @@ class DPDLabelCreator:
 
             for client, missions in self.clients_missions.items():
                 for mission in missions:
-                    mission.tracking_number = label_numbers[0]
-                    mission.online_transport_service = self.transport_accounts[client].transport_service
+                    shipment = self.create_shipment(mission)
+                    shipment.tracking_number = label_numbers[0]
+                    shipment.transport_service = self.transport_accounts[client].transport_service.name
+
                     if self.ignore_pickorder is True:
                         mission.ignore_pickorder = True
-                    self.create_delivery_note(mission)
-                    self.create_billing(mission)
-                    mission.save()
+                        mission.save()
 
+                    shipment.label_pdf.save("label_dpd", ContentFile(label_pdfs[0]))
+                    shipment.save()
+
+                    label_pdfs.pop(0)
                     label_numbers.pop(0)
 
             # weil label_numbers vorher beim hinterlegen der Aufträge gelöscht wird
@@ -344,10 +363,17 @@ class DPDLabelCreator:
         self.token = token
         return self.token
 
-    def create_delivery_note(self, mission):
+    def create_shipment(self, mission):
+        shipment = Shipment(mission=mission, delivery_note=self.create_delivery_note(mission),
+                            billing=self.create_billing(mission))
+        if self.main_shipment is True:
+            shipment.main_shipment = True
+        return shipment
+
+    @staticmethod
+    def create_delivery_note(mission):
         if mission.delivery_address is not None:
             delivery_note = DeliveryNote.objects.create()
-            mission.delivery_note = delivery_note
 
             bulk_instances = []
             for mission_product in mission.productmission_set.all():
@@ -359,11 +385,12 @@ class DPDLabelCreator:
                                                        description=mission_product.online_description))
 
             DeliveryNoteItem.objects.bulk_create(bulk_instances)
+            return delivery_note
 
-    def create_billing(self, mission):
+    @staticmethod
+    def create_billing(mission):
         if mission.billing_address is not None:
             billing = Billing.objects.create()
-            mission.billing = billing
 
             bulk_instances = []
 
@@ -378,19 +405,21 @@ class DPDLabelCreator:
                     shipping_discount=mission_product.shipping_discount
                 ))
             BillingItem.objects.bulk_create(bulk_instances)
+            return billing
 
 
 class DPDGetLabelView(views.View):
     def __init__(self, **kwargs):
-        self.client = None
+        self.shipment = None
         self.mission = None
         super().__init__(**kwargs)
 
     def dispatch(self, request, *args, **kwargs):
-        self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
+        self.shipment = Shipment.objects.get(pk=self.kwargs.get("pk"))
+        self.mission = self.shipment.mission
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, **kwargs):
-        label_pdf = self.mission.label_pdf.read()
+        label_pdf = self.shipment.label_pdf.read()
         response = HttpResponse(label_pdf, content_type='application/pdf')
         return response

@@ -22,7 +22,7 @@
                         <div class="panel-body">
                             <div class="text-center">
                                 <div>
-                                    <object data="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=mission.delivery_note.pk %}" type="application/pdf" width="100%" height="500px;">
+                                    <object data="{% url 'online:delivery_note' pk=shipment.pk  %}" type="application/pdf" width="100%" height="500px;">
                                         alt : <a href="test.pdf">Lieferschein.pdf</a>
                                     </object>
                                 </div>
@@ -41,14 +41,14 @@
                             Paketlabel
                         </div>
                         <div class="panel-body">
-                            <p>Transportdienstleister: <b>{{ mission.online_business_account.transport_service.name }}</b></p>
+                            <p>Transportdienstleister: <b>{{ shipment.transport_service }}</b></p>
 
-                            <p style="font-size:15px;">Tracking Nummer: <b>{{mission.tracking_number}}</b></p>
+                            <p style="font-size:15px;">Tracking Nummer: <b>{{shipment.tracking_number}}</b></p>
 
                             <div class="text">
                                <div>
-                                    <object data="{{ label_link }}" type="application/pdf" width="100%" height="500;">
-                                        alt : <a href="test.pdf">Lieferschein.pdf</a>
+                                    <object data="{% url 'online:dpd_get_label' pk=shipment.pk %}" type="application/pdf" width="100%" height="500;">
+                                        alt : <a href="test.pdf">label.pdf</a>
                                     </object>
                                 </div>
                             </div>

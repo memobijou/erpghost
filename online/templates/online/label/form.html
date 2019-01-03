@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+
+{% block content %}
+        <style>
+            .errorlist {
+                color: red;
+            }
+            .errorlist li {
+                list-style-type: none;
+            }
+        </style>
+
+        <div class="col-md-12" style="padding:15px;">
+            <div class="col-md-3"></div>
+            <div class="col-md-6">
+                <p><b>Auftragsnummer: </b>{{ mission.mission_number }}</p>
+                <p><b>Channel: </b> {{ mission.channel.name }}</p>
+                <p><b>Fremd ID: </b> {{ mission.channel_order_id }}</p>
+                <hr/>
+                <p><b>Name: </b>{{ mission.delivery_address.first_name_last_name }}</p>
+                {% if mission.delivery_address.address_line_1 %}
+                    <p><b>Adresszeile 1: </b>{{ mission.delivery_address.address_line_1 }}</p>
+                {% endif %}
+                {% if mission.delivery_address.address_line_2 %}
+                    <p><b>Adresszeile 2: </b>{{ mission.delivery_address.address_line_2 }}</p>
+                {% endif %}
+                {% if mission.delivery_address.address_line_3 %}
+                    <p><b>Adresszeile 3: </b>{{ mission.delivery_address.address_line_3 }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <div class="col-md-6 col-md-offset-3">
+                    <ul class="nav nav-tabs" style="border-bottom:none;">
+                      <li class="active"><a data-toggle="tab" href="#home">Neue Sendung</a></li>
+                      <li><a data-toggle="tab" href="#menu1">DPD Sendung</a></li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div id="home" class="tab-pane fade in active">
+                            <form method="POST" enctype="multipart/form-data">{% csrf_token %}
+                                <div class="panel panel-default" style="border-top-left-radius:0;">
+                                    <div class="panel-body">
+                                        {{ label_form.as_p }}
+                                    </div>
+                                </div>
+                                <div class="panel panel-default">
+                                    <div class="panel-body">
+                                        <button class="btn btn-primary btn-lg" name="action" value="standard" type="submit">Speichern</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div id="menu1" class="tab-pane fade">
+                            <form method="POST">{% csrf_token %}
+                                <div class="panel panel-default" style="border-top-left-radius:0;">
+                                    <div class="panel-body">
+                                        {% if not address_form.errors %}
+                                            <p style="color:red;">
+                                                {{ request.GET.error_msg|default:"" }}
+                                            </p>
+                                        {% endif %}
+                                        {{ address_form.as_p }}
+                                    </div>
+                                </div>
+                                <div class="panel panel-default">
+                                    <div class="panel-body">
+                                        <button name="action" value="dpd_api" class="btn btn-primary btn-lg" type="submit">Speichern</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+
+{#                <div class="col-md-6 col-md-offset-3">#}
+{#                    <div class="panel panel-default">#}
+{#                        <div class="panel-heading">#}
+{#                            Adresse Stammdaten#}
+{#                        </div>#}
+{#                        <div class="panel-body">#}
+{##}
+{#                            <style>#}
+{#                                .errorlist {#}
+{#                                    color: red;#}
+{#                                }#}
+{#                                .errorlist li {#}
+{#                                    list-style-type: none;#}
+{#                                }#}
+{#                            </style>#}
+{##}
+{#                            {% if not address_form.errors %}#}
+{#                                <p style="color:red;">#}
+{#                                    {{ request.GET.error_msg|default:"" }}#}
+{#                                </p>#}
+{#                            {% endif %}#}
+{#                            {{ address_form.as_p }}#}
+{#                        </div>#}
+{#                    </div>#}
+{#                </div>#}
+
+            </div>
+        </div>
+{% endblock %}

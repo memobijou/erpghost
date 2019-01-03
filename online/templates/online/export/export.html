@@ -23,7 +23,7 @@
                                     <td>{{ item.channel_order_id|default:"" }}</td>
                                     <td>
                                         <p>
-                                            {% if item.status == "Verpackt" %}
+                                            {% if item.status == "Verpackt" or item.status == "Versandbereit" %}
                                                 <h4>
                                                      <span class="label label-success">{{ item.status }}</span>
                                                 </h4>
@@ -101,7 +101,7 @@
                                     <td>{{ item.channel_order_id|default:"" }}</td>
                                     <td class="col-md-2">
                                         <p>
-                                            {% if item.status == "Verpackt" %}
+                                            {% if item.status == "Verpackt" or item.status == "Versandbereit" %}
                                                 <h4>
                                                      <span class="label label-success">{{ item.status }}</span>
                                                 </h4>
@@ -117,7 +117,7 @@
                                         </p>
                                         <br/>
                                         <p>
-                                            {% if item.online_business_account %}
+                                            {% if item.online_business_account and item.status.lower == "offen" %}
                                                 <a href="{% url 'online:dpd_pdf' pk=item.pk business_account_pk=item.online_business_account.pk %}?{{ request.GET.urlencode }}&amp;not_packing=1&amp;is_export=1" >Label manuell erzeugen</a>
                                             {% endif %}
                                         </p>

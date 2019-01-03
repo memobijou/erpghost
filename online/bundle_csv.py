@@ -11,6 +11,8 @@ from online.delivery_note import DeliveryNotePdfGenerator
 from online.dpd import DPDLabelCreator
 from django.urls import reverse_lazy
 from django.http import QueryDict
+import asyncio
+from django.db.models import Count, Case, When
 
 
 class ExportView(LoginRequiredMixin, View):
@@ -25,12 +27,10 @@ class ExportView(LoginRequiredMixin, View):
 
     def dispatch(self, request, *args, **kwargs):
         self.missions = Mission.objects.filter(pk__in=request.GET.getlist("item"))
-        export_condition = Q(
-            Q(status__iexact="verpackt", online_picklist__completed=True)
-            | Q(delivery_note__isnull=False, status__iexact="Von Pickauftrag abgelöst")
-        )
-        self.export_missions = self.missions.filter(export_condition)
-        self.non_export_missions = self.missions.filter(~export_condition)
+        self.missions = self.missions.annotate(
+            main_shipment_count=Count(Case(When(shipment__main_shipment=True, then="shipment"))))
+        self.export_missions = self.missions.filter(main_shipment_count__gt=0).distinct()
+        self.non_export_missions = self.missions.filter(main_shipment_count=0).distinct()
         errors = []
         for _ in self.non_export_missions:
             errors.append(None)
@@ -65,7 +65,7 @@ class ExportView(LoginRequiredMixin, View):
         merger = PdfFileMerger()
 
         for export_mission in self.export_missions:
-            pdf_generator = DeliveryNotePdfGenerator(mission=export_mission)
+            pdf_generator = DeliveryNotePdfGenerator(shipment=export_mission.get_main_shipment())
             logo_url, qr_code_url = pdf_generator.get_logo_and_qr_code_from_client(
                 self.request, export_mission.channel.client)
             pdf_generator.logo_url = logo_url
@@ -84,7 +84,8 @@ class ExportView(LoginRequiredMixin, View):
         merger = PdfFileMerger()
 
         for export_mission in self.export_missions:
-            packing_label_file = export_mission.label_pdf
+            shipment = export_mission.get_main_shipment()
+            packing_label_file = shipment.label_pdf
             if packing_label_file is not None:
                 pdf_buffer = BytesIO(packing_label_file.read())
                 merger.append(PdfFileReader(pdf_buffer))
@@ -101,23 +102,22 @@ class CreatePackingLabels(LoginRequiredMixin, View):
         self.non_label_missions = None
         self.label_missions = None
         self.packing_labels_errors = []
-        self.has_label_condition = None
 
     def dispatch(self, request, *args, **kwargs):
+        from django.db.models import Count, Case, When
         print(f"?????: {request.GET.getlist('item')}")
-        self.missions = Mission.objects.filter(pk__in=request.GET.getlist("item"))
-        self.has_label_condition = Q(
-            Q(status__iexact="verpackt", online_picklist__completed=True)
-            | Q(delivery_note__isnull=False, status__iexact="Von Pickauftrag abgelöst")
-        )
-        self.non_label_missions = self.missions.filter(~self.has_label_condition)
-        self.label_missions = self.missions.filter(self.has_label_condition)
+        self.missions = Mission.objects.filter(pk__in=request.GET.getlist("item")).distinct()
+        self.missions = self.missions.annotate(
+            main_shipment_count=Count(Case(When(shipment__main_shipment=True, then="shipment"))))
+        self.non_label_missions = self.missions.filter(main_shipment_count=0).distinct()
+        self.label_missions = self.missions.filter(main_shipment_count__gt=0).distinct()
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
         to_create_labels = self.non_label_missions.filter(status__iexact="offen")
         if to_create_labels.count() > 0:
-            dpd_creator = DPDLabelCreator(multiple_missions=to_create_labels, ignore_pickorder=True)
+            dpd_creator = DPDLabelCreator(
+                multiple_missions=to_create_labels, ignore_pickorder=True, main_shipment=True)
             tracking_numbers, message = dpd_creator.create_label()
             if message is not None and message != "":
                 print(f"?????? ----- ??? {message}")
@@ -127,8 +127,13 @@ class CreatePackingLabels(LoginRequiredMixin, View):
                 if error is not None:
                     return render(request, ExportView.template_name, self.get_export_view_context())
 
+        for mission in to_create_labels:
+            mission.status = "Versandbereit"
+            mission.save()
+
         missions = self.non_label_missions | self.label_missions
         print(f"???: {missions}")
+
         query_dict = QueryDict(mutable=True)
         query_dict.setlist("item", missions.values_list("pk", flat=True))
         query_string = query_dict.urlencode()
@@ -136,8 +141,8 @@ class CreatePackingLabels(LoginRequiredMixin, View):
         return HttpResponseRedirect(reverse_lazy("online:export") + f"?" + query_string)
 
     def get_export_view_context(self):
-        context = {"export_items": self.label_missions.filter(self.has_label_condition),
-                   "non_export_items": self.non_label_missions.filter(~self.has_label_condition),
+        context = {"export_items": self.label_missions.all(),
+                   "non_export_items": self.non_label_missions.all(),
                    "errors": self.packing_labels_errors,
                    "title": "Lieferscheine und Paketlabels exportieren"}
         return context

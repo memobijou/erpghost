@@ -8,6 +8,7 @@ from mission.models import Mission, ProductMission
 from collections import OrderedDict
 
 from sku.models import Sku
+from django.contrib.auth.models import User
 
 
 class AmazonImportTask(Task):
@@ -16,8 +17,13 @@ class AmazonImportTask(Task):
     def __init__(self, arg):
         self.arg = arg
         self.header, self.result = self.arg
+        self.not_sent_report = None
 
     def run(self):
+        for header_col in self.header:
+            if header_col == "reporting-date":
+                self.not_sent_report = True
+        print(f"well: {self.not_sent_report}")
         self.get_amazon_mission_instances()
 
     def get_amazon_mission_instances(self):
@@ -85,7 +91,8 @@ class AmazonImportTask(Task):
             if mission_instance is None:
                 if purchased_date != "" and delivery_date_from != "" and delivery_date_to != "" and payment_date != "":
                     mission_instance = Mission(**instance_data)
-
+                    if self.not_sent_report is None:
+                        continue
             if instance_data.get("not_matchable", None) is True:
                 not_matchables[channel_order_id] = True
 
@@ -96,6 +103,10 @@ class AmazonImportTask(Task):
             mission_instance.save()
 
             if mission_instance is not None:
+
+                if self.not_sent_report is None:
+                    mission_instance.__dict__.update(**instance_data)
+                    mission_instance.save()
 
                 productmission_data = {"mission": mission_instance}
 
@@ -155,6 +166,7 @@ class AmazonImportTask(Task):
                     instance_data["not_matchable"] = True
                     mission_instance.save()
 
+                productmission_instance = None
                 if sku_instance is not None:
                     productmission_data["sku"] = sku_instance
                     productmission_instance = ProductMission.objects.filter(
@@ -169,7 +181,8 @@ class AmazonImportTask(Task):
                 if sku != "" or sku_instance is not None:
                     if productmission_instance is None:
                         productmission_instance = ProductMission.objects.create(**productmission_data)
-
+                    else:
+                        productmission_instance.__dict__.update(**productmission_data)
                     productmission_instance.save()
                     mission_instance.save()  # damit der richtige Status gesetzt wird
 
@@ -303,5 +316,15 @@ class AmazonImportTask(Task):
 
 @shared_task
 def amazon_import_task(arg_list):
-    amazon_import_instance = AmazonImportTask(arg_list)
-    amazon_import_instance.run()
+    user_id = arg_list[2]
+    arg_list.pop(len(arg_list)-1)
+    print(f"GO: {arg_list}")
+    try:
+        amazon_import_instance = AmazonImportTask(arg_list)
+        amazon_import_instance.run()
+    except Exception as e:
+        print(f"Exception Catched")
+        user = User.objects.get(pk=user_id)
+        user.profile.celery_import_task_id = None
+        user.profile.save()
+        print(e)

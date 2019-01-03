@@ -1,16 +1,14 @@
 from mission.delivery_note_pdf import *
-from mission.models import DeliveryNote
+from mission.models import DeliveryNote, Shipment
 
 
 class DeliveryNotePdfGenerator:
-    def __init__(self, mission=None, logo_url=None, qr_code_url=None):
+    def __init__(self, shipment=None, logo_url=None, qr_code_url=None):
         self.story = []
-        self.mission = mission
+        self.shipment = shipment
+        self.mission = self.shipment.mission
         self.client = self.mission.channel.client
-        self.delivery_note = DeliveryNote.objects.filter(picklist__mission__pk=self.mission.pk).first()
-        manual_delivery_note = DeliveryNote.objects.filter(mission__pk=self.mission.pk).first()
-        if manual_delivery_note is not None:
-            self.delivery_note = manual_delivery_note
+        self.delivery_note = self.shipment.delivery_note
         self.delivery_note_number = self.delivery_note.delivery_note_number
         self.logo_url = logo_url
         self.qr_code_url = qr_code_url
@@ -89,7 +87,7 @@ class DeliveryNotePdfGenerator:
         second_warning_table = Table(second_warning_data, colWidths=[430, 10], spaceBefore=20)
 
         second_warning_table.setStyle(
-            TableStyle([
+            tblstyle=TableStyle([
                 ('LEFTPADDING', (0, 0), (-1, -1), 0),
                 ('RIGHTPADDING', (0, 0), (-1, -1), 0),
                 ('TOPPADDING', (0, 0), (-1, -1), 0),
@@ -97,135 +95,6 @@ class DeliveryNotePdfGenerator:
                 ('VALIGN', (0, 0), (-1, -1), "TOP"),
             ])
         )
-
-        # driver_form_title = Paragraph("<br/><br/><b>Ware vollständig erhalten laut Lieferschein</b><br/><br/>",
-        #                               size_ten_helvetica)
-        #
-        # driver_data = [
-        #     [
-        #         driver_form_title
-        #     ],
-        #     [
-        #          Paragraph(f"{underline}___", size_ten_helvetica),
-        #          Paragraph("", size_ten_helvetica)
-        #     ],
-        #     [
-        #          Paragraph("Name Fahrer", size_nine_helvetica),
-        #          Paragraph("", size_ten_helvetica)
-        #     ],
-        #
-        #     [],
-        #     [
-        #         Paragraph(f"{underline}___", size_ten_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #     [
-        #         Paragraph("Kennzeichen", size_nine_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #
-        #     [],
-        #     [
-        #         Paragraph(f"{underline}___", size_ten_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #     [
-        #         Paragraph("Spedition", size_nine_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #
-        #     [],
-        #     [
-        #         Paragraph(f"{underline}___", size_ten_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #     [
-        #         Paragraph("Unterschrift Fahrer/Stempel", size_nine_helvetica),
-        #         Paragraph("", size_ten_helvetica)
-        #     ],
-        #
-        #     [],
-            # [Paragraph(f"Name Fahrer:{underline}", size_ten_helvetica)],
-            # [],
-            # [Paragraph(f"Kennzeichen:{underline}", size_ten_helvetica)],
-            # [],
-            # [Paragraph(f"Spedition:{underline}", size_ten_helvetica)],
-            # [],
-            # [],
-            # [Paragraph(f"Unterschrift Fahrer/Stempel:{underline}", size_ten_helvetica)],
-            # []
-        # ]
-
-        # driver_table = Table(driver_data, colWidths=[320, 100])
-        #
-        # driver_table.setStyle(
-        #     TableStyle([
-        #         ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        #         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        #         ('TOPPADDING', (0, 0), (-1, -1), 0),
-        #         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        #         ('VALIGN', (0, 0), (-1, -1), "TOP"),
-        #     ])
-        # )
-        #
-        # quality_form_title = Paragraph("<br/><br/><b>Qualitätskontrolle</b><br/><br/>", size_ten_helvetica)
-        #
-        # quality_data = [
-        #     [quality_form_title],
-        #
-        #     [Paragraph(f"{underline}___", size_ten_helvetica),
-        #      Paragraph(f"{underline}___", size_ten_helvetica),
-        #      Paragraph("", size_ten_helvetica)],
-        #
-        #     [Paragraph("Name Kommissionierer", size_nine_helvetica),
-        #      Paragraph("Datum/Unterschrift", size_nine_helvetica),
-        #      Paragraph("", size_ten_helvetica)],
-        #
-        #     [],
-        #
-        #     [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-        #      Paragraph("", size_ten_helvetica)],
-        #
-        #     [Paragraph("Name Kontrolleur", size_nine_helvetica),
-        #      Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-        #
-        #     [],
-        #
-        #     [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-        #      Paragraph("", size_ten_helvetica)],
-        #
-        #     [Paragraph("Name Verlader", size_nine_helvetica),
-        #      Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-        #
-        #     [],
-        #
-        #     [Paragraph(f"{underline}___", size_ten_helvetica), Paragraph(f"{underline}___", size_ten_helvetica),
-        #      Paragraph("", size_ten_helvetica)],
-        #
-        #     [Paragraph("Name Verantwortlicher", size_nine_helvetica),
-        #      Paragraph("Datum/Unterschrift", size_nine_helvetica), Paragraph("", size_ten_helvetica)],
-        #
-        #     [],
-        # ]
-        #
-        # quality_form_table = Table(quality_data, colWidths=[195, 240, 0])
-        #
-        # quality_form_table.setStyle(
-        #     TableStyle([
-        #         ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        #         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-        #         ('TOPPADDING', (0, 0), (-1, -1), 0),
-        #         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        #         ('VALIGN', (0, 0), (-1, -1), "TOP"),
-        #     ])
-        # )
-        #
-        # driver_and_quality_data = [
-        #     [driver_table],
-        #     [quality_form_table],
-        # ]
-        #
-        # driver_and_quality_table = Table(driver_and_quality_data)
 
         self.story.extend([KeepTogether(first_warning_table), KeepTogether(second_warning_table)])
 
@@ -362,12 +231,11 @@ class DeliveryNotePdfGenerator:
         data = [header]
         pos = 1
 
-        print(self.delivery_note.deliverynoteproductmission_set.all())
 
         delivery_note_items = []
 
-        if self.mission.delivery_note is not None:
-            delivery_note_items = self.mission.delivery_note.deliverynoteitem_set.all()
+        if self.shipment.delivery_note is not None:
+            delivery_note_items = self.shipment.delivery_note.deliverynoteitem_set.all()
 
         for item in delivery_note_items:
 
@@ -422,15 +290,15 @@ class OnlineDeliveryNoteView(View):
         super().__init__(**kwargs)
         self.delivery_note = None
         self.delivery_note_number = None
+        self.shipment = None
         self.mission = None
         self.client = None
         self.story = []
 
     def dispatch(self, request, *args, **kwargs):
-        self.mission = Mission.objects.get(pk=self.kwargs.get("pk"))
+        self.shipment = Shipment.objects.get(pk=self.kwargs.get("pk"))
+        self.mission = self.shipment.mission
         self.client = self.mission.channel.client
-        self.delivery_note = DeliveryNote.objects.get(pk=self.kwargs.get("delivery_note_pk"))
-        self.delivery_note_number = self.delivery_note.delivery_note_number
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request, *args, **kwargs):
@@ -438,7 +306,7 @@ class OnlineDeliveryNoteView(View):
         if exception is not None:
             return exception
         logo_url, qr_code_url = get_logo_and_qr_code_from_client(request, self.client)
-        generator = DeliveryNotePdfGenerator(mission=self.mission, logo_url=logo_url, qr_code_url=qr_code_url)
+        generator = DeliveryNotePdfGenerator(shipment=self.shipment, logo_url=logo_url, qr_code_url=qr_code_url)
         custom_pdf = generator.create_pdf_file()
         return custom_pdf.response
 

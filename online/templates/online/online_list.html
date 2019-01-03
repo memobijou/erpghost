@@ -123,11 +123,19 @@
     <form method="GET" action="{% url 'online:action_redirect' %}">
 
         <div class="col-md-12 text-right" style="padding:0 15px 15px 15px;">
-            <button type="submit" class="btn btn-default" name="action" value="export">
-                <span class="glyphicon glyphicon-export"></span>&nbsp;&nbsp;Export
-            </button>
-            <button type="submit" class="btn btn-default" name="action" value="ignore_pickorder">Von Pickauftrag Ablösen</button>
+            <div class="pull-left">
+                <p style="padding-top:15px;">Nicht versendete Aufträge: <b>{{ missions_not_sent_amount }}</b></p>
+            </div>
+            <div class="pull-right">
+                <button type="submit" class="btn btn-default" name="action" value="export">
+                    <span class="glyphicon glyphicon-export"></span>&nbsp;&nbsp;Export
+                </button>
+                <button type="submit" class="btn btn-default" name="action" value="ignore_pickorder">Von Pickauftrag Ablösen</button>
+            </div>
+            <div class="clearfix"></div>
         </div>
+
+
 
         <div class="col-md-12" style="padding:0 15px 15px 15px;">
             <table class="table table-condensed table-bordered" style="background: white;">
@@ -181,7 +189,7 @@
                                 </td>
                                 <td>
                                     <p>
-                                        {% if object.status == "Verpackt" %}
+                                        {% if object.status == "Verpackt" or object.status == "Versandbereit" %}
                                             <h4>
                                                  <span class="label label-success">{{ object.status }}</span>
                                             </h4>
@@ -202,11 +210,24 @@
                                     </p>
                                 </td>
                                 <td>
-                                    {% if object.status.lower == "verpackt" and object.online_picklist.completed == True or object.delivery_note and object.ignore_pickorder is True %}
-                                        <p>{{ object.tracking_number|default:"N/A" }}</p>
-                                    {% else %}
-                                        <p>N/A</p>
-                                    {% endif %}
+                                    {% with shipment=object.get_main_shipment %}
+                                        {% if shipment %}
+                                            {% if object.status.lower == "verpackt" or object.status.lower == "versandbereit" %}
+                                                <p>{{ shipment.tracking_number|default:"N/A" }}</p>
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        {% else %}
+                                            {% with first_shipment=object.shipment_set.first %}
+                                                {% if first_shipment %}
+                                                    {{ first_shipment.tracking_number|default:"N/A" }}
+                                                {% else %}
+                                                    <p>N/A</p>
+                                                {% endif %}
+                                            {% endwith %}
+                                        {% endif %}
+
+                                    {% endwith %}
                                 </td>
                             </tr>
                             <tr id="collapse_{{ object.pk }}" class="collapse">
@@ -232,35 +253,7 @@
                                         <p>
                                             <b>Bezahlungsdatum: </b>{{ object.payment_date|default:"N/A"}}
                                         </p>
-                                        {% if object.status.lower == "verpackt" or object.ignore_pickorder is True or object.status.lower == "manuell" %}
-                                            {% if object.delivery_note %}
-                                                <a class="btn btn-info"
-                                                    href="{% url 'online:delivery_note' pk=object.pk delivery_note_pk=object.delivery_note.pk %}">
-                                                    Lieferschein
-                                                </a>
-                                            {% else %}
-                                                <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
-                                            {% endif %}
 
-                                            {% if object.delivery_note %}
-                                                <a class="btn btn-info"
-                                                    href="{% url 'online:dpd_get_label' pk=object.pk %}">
-                                                    Paketlabel
-                                                </a>
-                                            {% else %}
-                                                <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
-                                            {% endif %}
-                                        {% else %}
-                                            <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
-                                            <p class="help-block">Für den Auftrag ist noch kein Lieferschein vorhanden</p>
-                                        {% endif %}
-
-                                        <br/><br/>
-                                        <p>
-                                            {% if object.online_business_account %}
-                                                <a href="{{ label_link }}?not_packing=1" >Label manuell erzeugen</a>
-                                            {% endif %}
-                                        </p>
                                     </div>
                                     {% if object.none_sku_products_amount %}
                                         <div class="col-md-8" style="padding:0;">
@@ -273,6 +266,7 @@
                                             <h3>Für diesen Auftrag existiert kein Artikel</h3>
                                         </div>
                                     {% endif %}
+
                                     {% if mission_products %}
                                         <div class="col-md-8" style="padding:0;">
                                             <div class="table-responsive">
@@ -444,9 +438,61 @@
                                             {% endif %}
                                         </div>
                                     {% endif %}
+                                    <div class="col-md-8 col-md-offset-4">
+                                        {% with shipments=object.shipment_set.all %}
+                                            {% if shipments %}
+                                                <br/>
+                                                <br/>
+                                                <table class="table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Sendungsnummer</th>
+                                                            <th>Dienstleister</th>
+                                                            <th>Lieferschein</th>
+                                                            <th>Datei</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {% for shipment in shipments %}
+                                                            <tr {% if shipment.main_shipment == True %} class="active" {% endif %}>
+                                                                <td>{{ shipment.tracking_number }}</td>
+                                                                <td>{{ shipment.transport_service }}</td>
+                                                                <td>
+                                                                    {% if shipment.delivery_note %}
+                                                                        <a href="{% url 'online:delivery_note' pk=shipment.pk %}"
+                                                                           class="btn btn-info">
+                                                                        Lieferschein
+                                                                        </a>
+                                                                    {% endif %}
+                                                                </td>
+                                                                <td>
+                                                                    {% if shipment.label_pdf %}
+                                                                        <a class="btn btn-info" href="{% url 'online:dpd_get_label' pk=shipment.pk %}">
+                                                                            Paketlabel
+                                                                        </a>
+                                                                    {% endif %}
+                                                                </td>
+
+                                                            </tr>
+                                                        {% endfor %}
+                                                        <tr>
+                                                            <td colspan="4">
+                                                                <p>
+                                                                    {% if object.online_business_account %}
+                                                                        <a href="{% url 'online:create_label' pk=object.pk %}?not_packing=1" >Weitere Sendung erzeugen</a>
+                                                                    {% endif %}
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            {% endif %}
+                                        {% endwith %}
+                                    </div>
                                 </td>
                             </tr>
                         {% endfor %}
+
                         {% if not object_list %}
                             <tr>
                                 <td colspan="12">

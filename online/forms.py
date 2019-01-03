@@ -1,6 +1,6 @@
 from django import forms
 from adress.models import Adress
-from mission.models import Mission, PickList, PickListProducts, PackingStation
+from mission.models import Mission, PickList, PickListProducts, PackingStation, Shipment
 from django.core.exceptions import NON_FIELD_ERRORS
 
 from online.models import Offer
@@ -21,6 +21,32 @@ class DhlForm(forms.ModelForm):
 
 
 class DPDForm(forms.ModelForm):
+    class Meta:
+        model = Adress
+        fields = ("first_name_last_name", 'strasse', "hausnummer", "adresszusatz", "zip", "place")
+    package_weight = forms.FloatField(label="Paketgewicht in KG", required=False)
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            visible.field.widget.attrs["class"] = "form-control"
+
+
+class LabelForm(forms.ModelForm):
+    class Meta:
+        model = Shipment
+        fields = ("tracking_number", "transport_service", "label_pdf")
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        for visible in self.visible_fields():
+            if isinstance(visible.field, forms.FileField) is False:
+                visible.field.widget.attrs["class"] = "form-control"
+
+
+class AddressForm(forms.ModelForm):
     class Meta:
         model = Adress
         fields = ("first_name_last_name", 'strasse', "hausnummer", "adresszusatz", "zip", "place")

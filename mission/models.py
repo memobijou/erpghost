@@ -112,6 +112,10 @@ class Mission(models.Model):
     objects = MissionObjectManager()
 
     def get_online_status(self, mission_products, mission_products_without_match):
+        print(f"daa what: {self.status}")
+        if self.status.lower() == "versandbereit":
+            return "Versandbereit"
+
         if self.online_picklist is None and mission_products_without_match is not None:
             if self.online_business_account is not None:
                 if self.online_business_account.transport_service is not None:
@@ -124,6 +128,12 @@ class Mission(models.Model):
             if("packstation" in (self.delivery_address.address_line_1 or "").lower() or
                "packstation" in (self.delivery_address.address_line_2 or "").lower() or
                "packstation" in (self.delivery_address.address_line_3 or "").lower()):
+                    self.ignore_pickorder = True
+                    return "DHL"
+
+            if("postfiliale" in (self.delivery_address.address_line_1 or "").lower() or
+               "postfiliale" in (self.delivery_address.address_line_2 or "").lower() or
+               "postfiliale" in (self.delivery_address.address_line_3 or "").lower()):
                     self.ignore_pickorder = True
                     return "DHL"
 
@@ -148,7 +158,8 @@ class Mission(models.Model):
             return "Manuell"
 
         if self.online_picklist is not None:
-            if self.online_picklist.completed is True and self.tracking_number is not None:
+            shipment = self.get_main_shipment()
+            if self.online_picklist.completed is True and shipment.tracking_number is not None:
                 return "Verpackt"
 
             pick_order = self.online_picklist.pick_order
@@ -226,6 +237,29 @@ class Mission(models.Model):
 
     def get_absolute_url(self):
         return reverse("mission:detail", kwargs={"pk": self.id})
+
+    def get_main_shipment(self):
+        return self.shipment_set.filter(main_shipment=True).first()
+
+tranport_services_choices = (
+    ("DHL", "DHL"),
+    ("DPD", "DPD"),
+    ("Spedition", "Spedition"),
+)
+
+
+class Shipment(models.Model):
+    tracking_number = models.CharField(max_length=200, null=True, blank=True, verbose_name="Sendungsnummer")
+    transport_service = models.CharField(choices=tranport_services_choices, blank=False, null=True, max_length=200,
+                                         verbose_name="Transportdienstleister")
+    label_pdf = models.FileField(null=True, blank=False, upload_to="labels/", verbose_name="PDF Datei")
+    delivery_note = models.ForeignKey("mission.DeliveryNote", null=True, blank=True,
+                                      on_delete=django.db.models.deletion.SET_NULL)
+    billing = models.ForeignKey("mission.Billing", null=True, blank=True,
+                                on_delete=django.db.models.deletion.SET_NULL)
+    mission = models.ForeignKey("mission.Mission", on_delete=models.deletion.SET_NULL, unique=False, blank=False,
+                                null=True, verbose_name="Auftrag")
+    main_shipment = models.NullBooleanField()
 
 
 class ProductMissionQuerySet(models.QuerySet):

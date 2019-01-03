@@ -4,6 +4,7 @@ from online.billing import OnlineBillingView
 from online.bundle_csv import ExportView, CreatePackingLabels
 from online.delivery_note import OnlineDeliveryNoteView
 from online.ebay import EbayView
+from online.label import CreateLabelView
 from online.pick import AcceptOnlinePickList, PickOrderView, PickerView, GoFromStationToPackingView, PackingView, \
     ProvidePackingView, LoginToStationView, LogoutFromStationView, PackingPickOrderOverview, ConfirmManualView, \
     FinishPackingView
@@ -33,7 +34,7 @@ urlpatterns = [
     url(r'^packing/(?P<pk>\d+)/$', PackingView.as_view(), name="packing"),
     url(r'^provide_packing/(?P<pk>\d+)/$', ProvidePackingView.as_view(), name="provide_packing"),
     url(r'^finish_packing/(?P<pk>\d+)/$', FinishPackingView.as_view(), name="finish_packing"),
-    url(r'^(?P<pk>\d+)/delivery_note/(?P<delivery_note_pk>\d+)/$', OnlineDeliveryNoteView.as_view(),
+    url(r'^(?P<pk>\d+)/delivery_note/$', OnlineDeliveryNoteView.as_view(),
         name="delivery_note"),
     url(r'^(?P<pk>\d+)/billing/(?P<billing_pk>\d+)/$', OnlineBillingView.as_view(),
         name="billing"),
@@ -58,4 +59,5 @@ urlpatterns = [
     url(r'^action-redirect/$', OnlineListRedirectView.as_view(), name="action_redirect"),
     url(r'^export/$', ExportView.as_view(), name="export"),
     url(r'^create-packing-labels/$', CreatePackingLabels.as_view(), name="create_packing_labels"),
+    url(r'^packing-label/(?P<pk>\d+)/new/$', CreateLabelView.as_view(), name="create_label"),
 ]

@@ -58,10 +58,19 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
         self.context = super().get_context_data(**kwargs)
         self.context["title"] = "Aufträge Online"
         self.context["object_list"] = self.get_object_list()
-        self.context["option_fields"] = ["Offen", "Verpackt", "am Picken", "auf Station", "Manuell",
+        self.context["option_fields"] = ["Offen", "Versandbereit", "Verpackt", "am Picken", "auf Station", "Manuell",
                                          "Artikel nicht zugeordnet", "Artikel ohne EAN", "DHL"]
+        self.context["missions_not_sent_amount"] = OnlineListView.get_missions_not_sent_amount()
         self.set_GET_values()
         return self.context
+
+    @staticmethod
+    def get_missions_not_sent_amount():
+        all_missions = Mission.objects.filter(
+            Q(status__iexact="offen") |Q(status__icontains="station") | Q(status__iexact="am picken"))
+        completed_missions = all_missions.filter(
+            Q(status__iexact='verpackt'))
+        return f"{all_missions.count()-completed_missions.count()}"
 
     def get_label_form_link(self, mission):
         business_account = mission.online_business_account
@@ -246,6 +255,8 @@ class OnlineListView(LoginRequiredMixin, generic.ListView):
                 status_filter |= Q(status__iexact="Artikel ohne EAN")
             elif status == "DHL":
                 status_filter |= Q(status__iexact="DHL")
+            elif status == "Versandbereit":
+                status_filter |= Q(status__iexact="Versandbereit")
 
         print(f"bababbaba: {status_filter}")
 
@@ -397,6 +408,7 @@ class ImportMissionBaseView(LoginRequiredMixin, View):
         self.form = self.get_form()
         self.context = self.get_context()
         profile = request.user.profile
+        print(f"??? {profile.celery_import_task_id}")
         if profile is not None and profile.celery_import_task_id is not None:
             result = AsyncResult(request.user.profile.celery_import_task_id, app=app)
             print(result.status)
@@ -429,7 +441,7 @@ class ImportMissionAmazonView(ImportMissionBaseView):
         self.fetch_amazon_report()
         if self.header is not None and self.result is not None:
             print(f"HELLLOOO")
-            response = amazon_import_task.delay([self.header, self.result])
+            response = amazon_import_task.delay([self.header, self.result, self.request.user.id])
             print(f"baby: {response.status}")
             print(f"baby: {response.id}")
             self.request.user.profile.celery_import_task_id = response.id

@@ -14,6 +14,9 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
+
+
+
             {% if is_all_scanned != True %}
                 <form method="POST">{% csrf_token %}
                 <p>
@@ -62,9 +65,9 @@
             {% endif %}
             {% if is_all_scanned == True %}
                 <div class="col-md-12" style="padding: 0 0 25px 0;">
-                    {% if mission.delivery_note %}
+                    {% if shipment.delivery_note %}
                     <a class="btn btn-info"
-                       href="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=mission.delivery_note.pk %}">
+                       href="{% url 'online:delivery_note' pk=shipment.pk %}">
                         Lieferschein ansehen
                     </a>
                     {% endif %}

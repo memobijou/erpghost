@@ -8,7 +8,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import Now
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from django.views import View
 from django.views import generic
 
@@ -27,6 +27,7 @@ import json
 from django.db.models import Sum, Case, When, Q, F, OuterRef, Subquery, Count, ExpressionWrapper, CharField, \
     DurationField
 from django.db.models.functions import Lower
+import base64
 
 
 class AcceptOnlinePickList(LoginRequiredMixin, generic.CreateView):
@@ -628,7 +629,8 @@ class PackingView(LoginRequiredMixin, View):
                 return render(request, "online/packing/packing.html", context)
             else:
                 if (pick_row.confirmed_amount or 0) >= int(pick_row.amount):
-                    context["form"].add_error(None, f"Artikel mit EAN/SKU {ean_or_sku} wurde bereits vollständig bestätigt")
+                    context["form"].add_error(None, f"Artikel mit EAN/SKU {ean_or_sku}"
+                                                    f" wurde bereits vollständig bestätigt")
                     return render(request, "online/packing/packing.html", context)
 
                 if pick_row.confirmed_amount is None:
@@ -732,7 +734,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if error is True:
             print(label_or_manual_label_redirect)
             return label_or_manual_label_redirect
-        return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}))
+        return HttpResponseRedirect(reverse_lazy("online:finish_packing", kwargs={"pk": self.picklist.pk}))
 
     def create_label(self):
         if self.mission.delivery_address.strasse is None or self.mission.delivery_address.hausnummer is None:
@@ -806,7 +808,20 @@ class FinishPackingView(LoginRequiredMixin, View):
 
     def get_context(self):
         return {"title": f"Verpacken abschließen {self.mission.mission_number}", "picklist": self.picklist,
-                "mission": self.mission, "label_link": get_label_link(self.mission), "shipment": self.shipment}
+                "mission": self.mission, "label_link": get_label_link(self.mission), "shipment": self.shipment,
+                "delivery_note_b64": self.get_delivery_note_base64(),
+                "packing_label_b64": self.get_packing_label_base64(),
+                "total_missions_amount": PackingView.get_missions_completed_of_amount()}
+
+    def get_packing_label_base64(self):
+        encoded_string = base64.b64encode(self.shipment.label_pdf.read())
+        return encoded_string.decode()
+
+    def get_delivery_note_base64(self):
+        url = self.request.build_absolute_uri(reverse("online:delivery_note", kwargs={"pk": self.shipment.pk}))
+        response = requests.get(url)
+        encoded_string = base64.b64encode(response.content)
+        return encoded_string.decode()
 
     def get(self, request, *args, **kwargs):
         return render(request, self.template_name, self.context)

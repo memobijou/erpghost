@@ -12,6 +12,35 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
+            <div class="col-md-12" style="padding-bottom:25px;">
+            {% for item in mission.productmission_set.all %}
+                <table class="table table-bordered table-hover table-striped">
+                    <tbody>
+                        <tr>
+                            <td>
+                                {% if item.sku.product.main_image %}
+                                    <img class="img-responsive" style="max-height: 80px;"
+                                         src="{{ item.sku.product.main_image.url }}"/>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <p><b>EAN: </b>{{ item.ean }}</p>
+                                <p><b>SKU: </b>{{ item.sku }}</p>
+                                <p><b>Zustand: </b>{{ item.state }}</p>
+                                <p><b>Menge: </b>{{ item.amount|default:'0' }}</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            {% endfor %}
+
+
+               <div class="text-center">
+                    <form method="POST">{% csrf_token %}
+                        <button type="Submit" class="btn btn-primary btn-lg">Verpacken und bestätigen</button>
+                    </form>
+                </div>
+            </div>
             <div class="col-md-12">
                 <div class="col-md-2"></div>
                 <div class="col-md-8">
@@ -22,9 +51,10 @@
                         <div class="panel-body">
                             <div class="text-center">
                                 <div>
-                                    <object data="{% url 'online:delivery_note' pk=shipment.pk  %}" type="application/pdf" width="100%" height="500px;">
-                                        alt : <a href="test.pdf">Lieferschein.pdf</a>
-                                    </object>
+{#                                  <object data="{% url 'online:delivery_note' pk=shipment.pk  %}" type="application/pdf" width="100%" height="500px;">#}
+{#                                      alt : <a href="test.pdf">Lieferschein.pdf</a>#}
+{#                                  </object>#}
+                                    <embed src="data:application/pdf;base64,{{ delivery_note_b64 }}" width="100%" height="500px;">
                                 </div>
                             </div>
                         </div>
@@ -47,9 +77,7 @@
 
                             <div class="text">
                                <div>
-                                    <object data="{% url 'online:dpd_get_label' pk=shipment.pk %}" type="application/pdf" width="100%" height="500;">
-                                        alt : <a href="test.pdf">label.pdf</a>
-                                    </object>
+                                   <embed src="data:application/pdf;base64,{{ packing_label_b64 }}" width="100%" height="500px;">
                                 </div>
                             </div>
                         </div>
@@ -58,15 +86,43 @@
                 <div class="col-md-2"></div>
             </div>
             <div class="col-md-12">
-                <div class="text-center">
-                    <form method="POST">{% csrf_token %}
-                        <button type="Submit" class="btn btn-primary btn-lg">Verpacken und bestätigen</button>
-                    </form>
-                </div>
+                {% if picklist.completed is None  %}
+                    <div class="col-md-12" style="padding:0px;">
+                        <div class="text">
+                            {% if shipment.delivery_note %}
+                                <a href="{{ label_form_link }}?packing=1">Paketlabel defekt ?</a> &nbsp;|
+                            {% endif %}&nbsp;
+                            {% if picklist.completed == None %}
+                                <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
                 <div class="text-right">
+
                     <a href="{% url 'online:online_redirect' %}">Zurück zum Auftrag</a>
                 </div>
             </div>
         </div>
     </div>
+
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="text-right">
+                Noch <b>{{ total_missions_amount }}</b> offene Aufträge
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        var url = "http://127.0.0.1:4040/print/delivery-note";
+        var data = {delivery_note: "{{ delivery_note_b64 }}"};
+        $.post(url, data);
+
+        url = "http://127.0.0.1:4040/print/packing-label";
+        data = {packing_label: "{{ packing_label_b64 }}"};
+        $.post(url, data);
+
+    </script>
 {% endblock %}

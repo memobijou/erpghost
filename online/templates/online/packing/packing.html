@@ -186,11 +186,46 @@
         var print_packing_label_and_delivery_note = function(){
             var url = "http://127.0.0.1:4040/print/delivery-note";
             var data = {delivery_note: "{{ delivery_note_b64 }}"};
-            $.post(url, data);
+            // $.post(url, data);
 
             url = "http://127.0.0.1:4040/print/packing-label";
             data = {packing_label: "{{ packing_label_b64 }}"};
-            $.post(url, data);
+
+            $.ajax({
+                url: url,
+                type: "POST",
+                data: data,
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Credentials": true
+                }
+            });
+
+            //////////////////
+
+            var url = "http://127.0.0.1:4040/print/delivery-note";
+
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", url)
+
+            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+
+            var params = "delivery_note={{delivery_note_b64}}";
+
+            xhr.send(params)
+
+            url = "http://127.0.0.1:4040/print/packing-label";
+
+
+            xhr = new XMLHttpRequest();
+            xhr.open("POST", url)
+
+            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+
+            params = "packing_label={{packing_label_b64}}";
+
+            xhr.send(params)
+
         };
 
         {% if request.GET.print %}

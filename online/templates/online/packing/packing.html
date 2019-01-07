@@ -14,114 +14,148 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
-            {% if is_all_scanned != True %}
-                <form method="POST">{% csrf_token %}
-                <p>
-                    {{ form.non_field_errors }}
-                    <label for="{{ form.ean_or_sku.id_for_label }}">{{ form.ean_or_sku.label }}</label>
-                    {{ form.ean_or_sku.errors }}
-                    {{ form.ean_or_sku }}
-                </p>
-                </form>
-            {% endif  %}
-
-            {% for pick_row, packing_amount, confirmed_packing_amount in pick_rows %}
-                <table class="table table-bordered table-hover table-striped">
-                    <tbody>
-                        <tr
-                            {% if is_all_scanned == True %}
-                                class="success"
-                            {% elif confirmed_packing_amount != 0 %}
-                                class="warning"
-                            {% endif %}
-                        >
-                            <td>
-                                {% if pick_row.product_mission.sku.product.main_image %}
-                                    <img class="img-responsive" style="max-height: 80px;"
-                                         src="{{ pick_row.product_mission.sku.product.main_image.url }}"/>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <p><b>EAN: </b>{{ pick_row.ean }}</p>
-                                <p><b>SKU: </b>{{ pick_row.sku_number }}</p>
-                                <p><b>Zustand: </b>{{ pick_row.state }}</p>
-                                <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            {% endfor %}
-            {% if is_all_scanned == True and picklist.completed == None %}
-                {% if shipment.delivery_note == None %}
-                <div class="text-center">
-                    <form method="POST" action="{% url 'online:provide_packing' pk=picklist.pk %}">{% csrf_token %}
-                        <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Für Versand bereitstellen"/>
+            <div class="col-md-12">
+                <div class="col-md-12">
+                {% if is_all_scanned != True %}
+                    <form method="POST">{% csrf_token %}
+                    <p>
+                        {{ form.non_field_errors }}
+                        <label for="{{ form.ean_or_sku.id_for_label }}">{{ form.ean_or_sku.label }}</label>
+                        {{ form.ean_or_sku.errors }}
+                        {{ form.ean_or_sku }}
+                    </p>
                     </form>
-                </div>
-                {% endif %}
-            {% endif %}
-            {% if is_all_scanned == True %}
-                <div class="col-md-12" style="padding: 0 0 25px 0;">
-                    {% if mission.delivery_note %}
-                    <a class="btn btn-info"
-                       href="{% url 'online:delivery_note' pk=mission.pk delivery_note_pk=mission.delivery_note.pk %}">
-                        Lieferschein ansehen
-                    </a>
+                {% endif  %}
+
+                {% for pick_row, packing_amount, confirmed_packing_amount in pick_rows %}
+                    <table class="table table-bordered table-hover table-striped">
+                        <tbody>
+                            <tr
+                                {% if is_all_scanned == True %}
+                                    class="success"
+                                {% elif confirmed_packing_amount != 0 %}
+                                    class="warning"
+                                {% endif %}
+                            >
+                                <td>
+                                    {% if pick_row.product_mission.sku.product.main_image %}
+                                        <img class="img-responsive" style="max-height: 80px;"
+                                             src="{{ pick_row.product_mission.sku.product.main_image.url }}"/>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <p><b>EAN: </b>{{ pick_row.ean }}</p>
+                                    <p><b>SKU: </b>{{ pick_row.sku_number }}</p>
+                                    <p><b>Zustand: </b>{{ pick_row.state }}</p>
+                                    <p><b>Menge: </b>{{ confirmed_packing_amount|default:'0' }}/{{ packing_amount|default:'0' }}</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                {% endfor %}
+                {% if is_all_scanned == True and picklist.completed == None %}
+                    {% if shipment.delivery_note == None %}
+                    <div class="text-center">
+                        <form method="POST" action="{% url 'online:provide_packing' pk=picklist.pk %}?print=1">{% csrf_token %}
+                            <input type="Submit" class="btn btn-primary btn-lg" style="white-space:normal;" value="Für Versand bereitstellen"/>
+                        </form>
+                    </div>
                     {% endif %}
-                <br/><br/>
-{#                    <a class="btn btn-info"#}
-{#                       href="{% url 'online:billing' pk=picklist.mission_set.first.pk billing_pk=picklist.online_billing.pk %}">#}
-{#                        Rechnung ansehen#}
-{#                    </a>#}
+                {% endif %}
                 </div>
+            </div>
+            {% if is_all_scanned == True %}
 
                 {% if shipment %}
-                    <div class="col-md-6" style="padding-left: 0px;">
-                        <div class="panel panel-default">
-                            <div class="panel-heading">
-                                Paketlabel
-                            </div>
-                            <div class="panel-body">
-                                <p>Transportdienstleister: <b>{{ mission.online_business_account.transport_service.name }}</b></p>
-
-                                <p style="font-size:15px;">Tracking Nummer: <b>{{shipment.tracking_number}}</b></p>
-
-                                <div class="text">
-                                    <a class="btn btn-info"
-                                        href="{% url 'online:dpd_get_label' pk=shipment.pk %}">
-                                        Paketlabel ansehen
-                                    </a>
+                    <div class="col-md-6">
+                        <div class="col-md-12">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Sendung
                                 </div>
-                            </div>
-                            {% if is_delivery_address_national == False %}
-                                <div class="panel-footer">
-                                    <div class="text-right">
-                                        <a class="btn btn-danger"
-                                            href="{% url 'online:dhl_delete_label' pk=mission.pk shipment_number=mission.tracking_number %}">
-                                            Label löschen
-                                        </a>
+                                <div class="panel-body">
+                                    <p>Transportdienstleister: <b>{{ mission.online_business_account.transport_service.name }}</b></p>
+                                    <p style="font-size:15px;">Sendungsnummer: <b>{{shipment.tracking_number}}</b></p>
+                                </div>
+                                {% if is_delivery_address_national == False %}
+                                    <div class="panel-footer">
+                                        <div class="text-right">
+                                            <a class="btn btn-danger"
+                                                href="{% url 'online:dhl_delete_label' pk=mission.pk shipment_number=mission.tracking_number %}">
+                                                Label löschen
+                                            </a>
+                                        </div>
                                     </div>
-                                </div>
-                            {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                     {% if picklist.completed is None %}
                         <div class="col-md-12" style="padding-bottom: 25px;">
                             <div class="text-center">
-                                <a class="btn btn-info" href="{% url 'online:finish_packing' pk=picklist.pk %}">Verpacken abschließen</a>
+                                <form method="POST" action="{% url 'online:finish_packing' pk=picklist.pk%}">{% csrf_token %}
+                                    <button type="submit" class="btn btn-primary btn-lg">Sendung abschließen</button>
+                                </form>
                             </div>
                         </div>
                     {% endif %}
+
+                    <div class="col-md-12">
+                        <div class="col-md-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Lieferschein
+                                </div>
+                                <div class="panel-body">
+                                    <div class="text-center">
+                                        <div>
+        {#                                  <object data="{% url 'online:delivery_note' pk=shipment.pk  %}" type="application/pdf" width="100%" height="500px;">#}
+        {#                                      alt : <a href="test.pdf">Lieferschein.pdf</a>#}
+        {#                                  </object>#}
+                                            <embed src="data:application/pdf;base64,{{ delivery_note_b64 }}" width="100%" height="500px;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="panel panel-default">
+                                <div class="panel-heading">
+                                    Paketlabel
+                                </div>
+                                <div class="panel-body">
+                                    <div class="text">
+                                       <div>
+                                           <embed src="data:application/pdf;base64,{{ packing_label_b64 }}" width="100%" height="500px;">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
+                                    {% if shipment %}
+                        <div class="col-md-12" style="padding-bottom: 25px;">
+                            <div class="text-center">
+                                <button class="btn btn-info" type="button" onclick="print_packing_label_and_delivery_note()"
+                                   href="{% url 'online:finish_packing' pk=picklist.pk %}">Erneut drucken</button>
+                            </div>
+                        </div>
+                    {% endif %}
+
                 {% if picklist.completed is None  %}
-                    <div class="col-md-12" style="padding:0px;">
-                        <div class="text-right">
-                            {% if shipment.delivery_note %}
-                                <a href="{{ label_form_link }}?packing=1">Paketlabel defekt ?</a> &nbsp;|
-                            {% endif %}&nbsp;
-                            {% if is_all_scanned == True and picklist.completed == None %}
-                                <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
-                            {% endif %}
+                    <div class="col-md-12">
+                        <div class="col-md-12">
+                            <div class="text-right">
+                                {% if shipment %}
+                                    {% if shipment.delivery_note %}
+                                        <a href="{{ label_form_link }}?packing=1">Paketlabel defekt ?</a> &nbsp;|
+                                    {% endif %}&nbsp;
+                                    {% if is_all_scanned == True and picklist.completed == None %}
+                                        <a href="{% url 'online:confirm_manual' pk=picklist.pk %}">Manuell erstellen</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 {% endif %}
@@ -131,8 +165,12 @@
 
     <div class="panel panel-default">
         <div class="panel-body">
-            <div class="text-right">
-                Noch <b>{{ total_missions_amount }}</b> offene Aufträge
+            <div class="col-md-12">
+                <div class="col-md-12">
+                    <div class="text-right">
+                        Noch <b>{{ total_missions_amount }}</b> offene Aufträge
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -143,4 +181,22 @@
             list-style: none;
         }
     </style>
+
+    <script>
+        var print_packing_label_and_delivery_note = function(){
+            var url = "http://127.0.0.1:4040/print/delivery-note";
+            var data = {delivery_note: "{{ delivery_note_b64 }}"};
+            $.post(url, data);
+
+            url = "http://127.0.0.1:4040/print/packing-label";
+            data = {packing_label: "{{ packing_label_b64 }}"};
+            $.post(url, data);
+        };
+
+        {% if request.GET.print %}
+            print_packing_label_and_delivery_note();
+        {% endif %}
+
+
+    </script>
 {% endblock %}

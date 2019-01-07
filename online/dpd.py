@@ -79,7 +79,7 @@ class DPDCreatePDFView(UpdateView):
                 return reverse_lazy("online:export") + "?" + self.request.GET.urlencode()
             else:
                 return reverse_lazy("online:list")
-        return reverse_lazy("online:packing", kwargs={"pk": self.mission.online_picklist.pk})
+        return reverse_lazy("online:packing", kwargs={"pk": self.mission.online_picklist.pk}) + "?print=1"
 
     def form_valid(self, form, **kwargs):
         main_shipments = list(self.mission.shipment_set.filter(main_shipment=True).values_list("pk", flat=True))

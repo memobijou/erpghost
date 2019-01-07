@@ -587,31 +587,33 @@ class PackingView(LoginRequiredMixin, View):
 
         self.mission = self.picklist.mission_set.first()
         self.shipment = self.mission.get_main_shipment()
-        self.pick_rows = self.picklist.picklistproducts_set.all().distinct("product_mission__sku")
-        self.add_packing_amounts_to_pick_rows()
+        self.pick_rows = PackingView.add_packing_amounts_to_pick_rows(self.picklist)
         return super().dispatch(request, *args, **kwargs)
 
-    def add_packing_amounts_to_pick_rows(self):
+    @staticmethod
+    def add_packing_amounts_to_pick_rows(picklist):
+        pick_rows = picklist.picklistproducts_set.all().distinct("product_mission__sku")
         packing_amounts_list = []
         confirmed_amounts_list = []
-        for pick_row in self.pick_rows:
+        for pick_row in pick_rows:
             total = 0
             confirmed_total = 0
-            for pr in self.picklist.picklistproducts_set.all():
+            for pr in picklist.picklistproducts_set.all():
                 if pr.product_mission.sku == pick_row.product_mission.sku:
                     total += pr.amount or 0
                     confirmed_total += pr.confirmed_amount or 0
             packing_amounts_list.append(total)
             confirmed_amounts_list.append(confirmed_total)
-        self.pick_rows = list(zip(self.pick_rows, packing_amounts_list, confirmed_amounts_list))
+        pick_rows = list(zip(pick_rows, packing_amounts_list, confirmed_amounts_list))
+        return pick_rows
 
     def get(self, request, *args, **kwargs):
         context = self.get_context()
         return render(request, "online/packing/packing.html", context)
 
-    def is_all_scanned(self):
-        print(f"haaa: {self.picklist}")
-        for pick_row in self.picklist.picklistproducts_set.all():
+    @staticmethod
+    def is_all_scanned(picklist):
+        for pick_row in picklist.picklistproducts_set.all():
             if pick_row.confirmed is None:
                 return False
         return True
@@ -649,11 +651,26 @@ class PackingView(LoginRequiredMixin, View):
 
     def get_context(self):
         context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
-                   "form": self.get_form(), "is_all_scanned": self.is_all_scanned(), "mission": self.mission,
-                   "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
+                   "form": self.get_form(), "is_all_scanned": PackingView.is_all_scanned(self.picklist),
+                   "mission": self.mission, "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
                    "label_link": get_label_link(self.mission), "shipment": self.shipment,
-                   "total_missions_amount": PackingView.get_missions_completed_of_amount()}
+                   "total_missions_amount": PackingView.get_missions_completed_of_amount(),
+                   "delivery_note_b64": self.get_delivery_note_base64(),
+                   "packing_label_b64": self.get_packing_label_base64(),
+                   }
         return context
+
+    def get_packing_label_base64(self):
+        if self.shipment is not None:
+            encoded_string = base64.b64encode(self.shipment.label_pdf.read())
+            return encoded_string.decode()
+
+    def get_delivery_note_base64(self):
+        if self.shipment is not None:
+            url = self.request.build_absolute_uri(reverse("online:delivery_note", kwargs={"pk": self.shipment.pk}))
+            response = requests.get(url)
+            encoded_string = base64.b64encode(response.content)
+            return encoded_string.decode()
 
     @staticmethod
     def get_missions_completed_of_amount():
@@ -734,7 +751,7 @@ class ProvidePackingView(LoginRequiredMixin, View):
         if error is True:
             print(label_or_manual_label_redirect)
             return label_or_manual_label_redirect
-        return HttpResponseRedirect(reverse_lazy("online:finish_packing", kwargs={"pk": self.picklist.pk}))
+        return HttpResponseRedirect(reverse_lazy("online:packing", kwargs={"pk": self.picklist.pk}) + "?print=1")
 
     def create_label(self):
         if self.mission.delivery_address.strasse is None or self.mission.delivery_address.hausnummer is None:
@@ -796,12 +813,14 @@ class FinishPackingView(LoginRequiredMixin, View):
         self.mission, self.picklist = None, None
         self.shipment = None
         self.context = None
+        self.pick_rows = None
 
     def dispatch(self, request, *args, **kwargs):
         self.picklist = PickList.objects.filter(pk=self.kwargs.get("pk")).first()
         if self.picklist.completed is True:
             return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
         self.mission = self.picklist.mission_set.first() if self.picklist is not None else None
+        self.pick_rows = PackingView.add_packing_amounts_to_pick_rows(self.picklist)
         self.shipment = self.mission.get_main_shipment()
         self.context = self.get_context()
         return super().dispatch(request, *args, **kwargs)
@@ -811,7 +830,8 @@ class FinishPackingView(LoginRequiredMixin, View):
                 "mission": self.mission, "label_link": get_label_link(self.mission), "shipment": self.shipment,
                 "delivery_note_b64": self.get_delivery_note_base64(),
                 "packing_label_b64": self.get_packing_label_base64(),
-                "total_missions_amount": PackingView.get_missions_completed_of_amount()}
+                "total_missions_amount": PackingView.get_missions_completed_of_amount(), "pick_rows": self.pick_rows,
+                "is_all_scanned": PackingView.is_all_scanned(self.picklist)}
 
     def get_packing_label_base64(self):
         encoded_string = base64.b64encode(self.shipment.label_pdf.read())

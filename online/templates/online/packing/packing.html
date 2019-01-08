@@ -188,7 +188,21 @@
             ////////////////// redeploey
 
             var url = "http://127.0.0.1:4040/print/delivery-note";
-            $.post(url, {delivery_note: "{{delivery_note_b64}}"})
+            $.post(url, {delivery_note: "{{delivery_note_b64}}"}, function(data,status,xhr){
+                alert("???" + status +  " : " + xhr.status);
+            })
+
+            // $.ajax({
+            //     type: "POST",
+            //     url: url,
+            //     data: {delivery_note: "{{delivery_note_b64}}"},
+            //     complete: function(xhr, statusText){
+            //         alert(xhr.status); 
+            //     },
+            //     error: function(xhr, statusText, err){
+            //         alert("Error:" + xhr.status); 
+            //     }
+            // });
 
             // var xhr = new XMLHttpRequest();
             // xhr.open("POST", url)

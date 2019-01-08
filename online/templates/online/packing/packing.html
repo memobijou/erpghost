@@ -188,28 +188,33 @@
             ////////////////// redeploey
 
             var url = "http://127.0.0.1:4040/print/delivery-note";
+            $.post(url, {delivery_note: "{{delivery_note_b64}}"})
 
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", url)
+            // var xhr = new XMLHttpRequest();
+            // xhr.open("POST", url)
 
-            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            // var params = "delivery_note={{delivery_note_b64}}";
 
-            var params = "delivery_note={{delivery_note_b64}}";
+            // xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            // xhr.setRequestHeader("Content-length", params.length);
 
-            xhr.send(params)
+            // xhr.send(params)
 
 
 
             url = "http://127.0.0.1:4040/print/packing-label";
+            $.post(url, {packing_label: "{{packing_label_b64}}"})
 
-            xhr = new XMLHttpRequest();
-            xhr.open("POST", url)
+            // xhr = new XMLHttpRequest();
+            // xhr.open("POST", url)
 
-            xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            // params = "packing_label={{packing_label_b64}}";
 
-            params = "packing_label={{delivery_note_b64}}";
+            // xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+            // xhr.setRequestHeader("Content-length", params.length);
 
-            xhr.send(params)
+
+            // xhr.send(params)
 
         };
 

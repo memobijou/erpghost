@@ -489,7 +489,8 @@ class PackingPickOrderOverview(LoginRequiredMixin, View):
         return HttpResponseRedirect(reverse_lazy("online:online_redirect"))
 
     def get_context(self):
-        context = {"title": f"Pickauftrag {self.pickorder.pick_order_id} Übersicht", "pickorder": self.pickorder,
+        context = {"title": f"Pickauftrag {self.pickorder.pick_order_id} - Station {self.packingstation.station_number}",
+                   "pickorder": self.pickorder,
                    "picklists": self.picklists, "picked_picklists": self.picked_picklists,
                    "can_finish_pickorder": self.can_finish_pickorder()}
         return context
@@ -650,7 +651,8 @@ class PackingView(LoginRequiredMixin, View):
             return render(request, "online/packing/packing.html", context)
 
     def get_context(self):
-        context = {"title": f"Auftrag {self.mission.mission_number or ''}", "picklist": self.picklist,
+        context = {"title": f"Auftrag {self.mission.mission_number or ''} - Station {self.packingstation.station_number}",
+                   "picklist": self.picklist,
                    "form": self.get_form(), "is_all_scanned": PackingView.is_all_scanned(self.picklist),
                    "mission": self.mission, "label_form_link": self.get_label_form_link(), "pick_rows": self.pick_rows,
                    "label_link": get_label_link(self.mission), "shipment": self.shipment,

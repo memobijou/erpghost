@@ -425,7 +425,7 @@
 
     var printers = dymo.label.framework.getPrinters();
 
-    alert(printers);
+{#    alert(printers);#}
     if (printers.length == 0){
         $('<script>').attr(
         {
@@ -433,7 +433,7 @@
            type: 'text/javascript'
         }).appendTo('body');
         printers = dymo.label.framework.getPrinters();
-        alert(printers);
+{#        alert(printers);#}
         if (printers.length == 0) {
             throw "No DYMO printers are installed. Install DYMO printers.";
         }else{

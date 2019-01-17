@@ -427,7 +427,11 @@
 
     alert(printers);
     if (printers.length == 0){
-        $.getScript("{% static 'js/vendor/DYMO.Label.Framework.3.0.js' %}");
+        $('<script>').attr(
+        {
+           src: "{% static 'js/vendor/DYMO.Label.Framework.3.0.js' %}",
+           type: 'text/javascript'
+        }).appendTo('body');
         printers = dymo.label.framework.getPrinters();
         alert(printers);
         if (printers.length == 0)

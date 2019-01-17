@@ -434,8 +434,12 @@
         }).appendTo('body');
         printers = dymo.label.framework.getPrinters();
         alert(printers);
-        if (printers.length == 0)
+        if (printers.length == 0) {
             throw "No DYMO printers are installed. Install DYMO printers.";
+        }else{
+            label = dymo.label.framework.openLabelXml(labelXml);
+        }
+
     }
 
     var printerName = "";

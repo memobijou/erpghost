@@ -2,7 +2,8 @@
 {% load static %}
 
 {% block content %}
-    <script src="{% static 'js/vendor/dymo.js' %}" type="text/javascript" charset="UTF-8"> </script>
+    <script src="{% static 'js/vendor/dymo2_0_2.js' %}" type="text/javascript" charset="UTF-8"> </script>
+
     <div>
         <div class="col-md-12">
             {% block create_positions_link %}
@@ -163,8 +164,24 @@
             var label = dymo.label.framework.openLabelXml(labelXml);
 
             var printers = dymo.label.framework.getPrinters();
-            if (printers.length == 0)
-                throw "No DYMO printers are installed. Install DYMO printers.";
+
+
+        {#    alert(printers);#}
+            if (printers.length == 0){
+                $('<script>').attr(
+                {
+                   src: "{% static 'js/vendor/DYMO.Label.Framework.3.0.js' %}",
+                   type: 'text/javascript'
+                }).appendTo('body');
+                printers = dymo.label.framework.getPrinters();
+        {#        alert(printers);#}
+                if (printers.length == 0) {
+                    throw "No DYMO printers are installed. Install DYMO printers.";
+                }else{
+                    label = dymo.label.framework.openLabelXml(labelXml);
+                }
+
+            }
 
             var printerName = "";
             for (var i = 0; i < printers.length; ++i)

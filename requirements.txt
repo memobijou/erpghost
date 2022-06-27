@@ -68,7 +68,7 @@ python-pdf==0.36
 pytz==2018.3
 PyYAML==3.12
 redis==2.10.6
-reportlab==3.4.0
+reportlab==3.5.55
 requests==2.18.4
 s3transfer==0.1.13
 selenium==3.8.0
